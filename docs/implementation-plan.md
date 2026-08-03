@@ -1,12 +1,12 @@
 # Phased implementation plan and acceptance gates
 
-This plan begins only after the captain approves implementation. The current repository intentionally contains no package scaffolding, application code, generated card data, deployment configuration, or tests.
+Gate 0 is complete and the walking-skeleton slice of Phase 1 has begun. The repository now contains the minimal npm-workspaces TypeScript scaffold, an unofficial hello-world browser shell, and its smoke contract; generated card data, product behavior, and deployment configuration have not begun.
 
 Every phase uses strict red–green–refactor and the full no-mistakes delivery workflow. A phase is not complete merely because code exists; its acceptance gate, docs, and measured budgets must pass.
 
-## Gate 0 — separate implementation authorization and evidence freeze
+## Gate 0 — separate implementation authorization and evidence freeze (complete)
 
-The planning decisions are accepted in [risks-and-decisions.md](risks-and-decisions.md), but they do not themselves authorize application implementation. Before scaffolding, obtain that separate approval and verify that:
+The captain separately authorized the walking-skeleton implementation after verifying that:
 
 - the captain-held community recipe is available under the accepted filename/recipe ID and exact SHA-256 `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`;
 - its community—not official—provenance and 14-card scope remain explicit;
@@ -18,7 +18,7 @@ The planning decisions are accepted in [risks-and-decisions.md](risks-and-decisi
 
 ## Phase 1 — workspace and quality spine
 
-Create the minimal npm-workspaces TypeScript layout approved in [architecture.md](architecture.md#future-monorepo-boundary). Configure only necessary build/typecheck/lint/unit/integration/browser/doc commands and CI/no-mistakes. Add empty public boundaries through failing contract tests before implementation.
+Complete the minimal npm-workspaces TypeScript layout approved in [architecture.md](architecture.md#monorepo-boundary). The initial scaffold provides build, typecheck, lint, smoke-test, and bundle-size commands plus empty non-web public boundaries; add further integration, browser, documentation, and CI commands only when their implementation slices require them.
 
 Avoid shared “utils”, plugin systems, generic event buses, multiple-set inheritance, deployment environments, and runtime dependencies without an immediate MVP use.
 
