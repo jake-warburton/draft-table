@@ -10,7 +10,7 @@ External citation IDs resolve in the [research source register](research.md#sour
 - The captain downloaded `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt` from the Rantaways server, which the captain records as widely used for draft practice, and approved it as the MVP recipe [COMMUNITY-1].
 - The accepted recipe ID is `rantaways-omn-draft-3.8-fixed-layout-probabilities`; its SHA-256 is `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`.
 - It is community evidence, not an official LSS publication or proof of factory print runs. Product copy must not call its probabilities official.
-- A future implementation may use it only after strict checksum pinning, deterministic parsing, exact layout/pool/derived-probability fixtures, and drift review described in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe).
+- Parser stages may consume it only behind strict checksum pinning and deterministic validation. Generation additionally requires the exact layout/pool/derived-probability fixtures and drift review described in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe).
 - Its 228 layouts model the visible 14 cards. The physical boundary remains a conceptual 16-position pack followed by removal of two opaque rear markers; no named rear-card weights are invented.
 
 ### DT-2 — published terms and MIT accepted
