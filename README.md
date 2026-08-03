@@ -2,7 +2,7 @@
 
 Draft Table is a planned public, free-to-host multiplayer draft simulator for Flesh and Blood. The MVP is scoped to **Omens of the Third Age**, with 2–8 human drafters and up to 16 total room participants including spectators.
 
-> **Status: walking skeleton implementation begun.** Phase 2 checksum verification plus strict Settings-envelope and CustomCards-schema parsing exist for the captain-approved community Omens recipe; aggregate fixtures, source reconciliation, layouts, pools, import, and snapshots remain unimplemented. The repository otherwise contains only a neutral browser shell and workspace boundaries. Draft behavior, rooms, networking, deployment, Fabrary integration, and product UI have not begun.
+> **Status: walking skeleton implementation begun.** Phase 2 checksum verification plus strict Settings-envelope and CustomCards-schema parsing enforce the pinned community Omens recipe fixtures: exactly 209 records (134 recipe-native common, 60 rare, and 15 mythic). Source reconciliation, layouts, pools, weights, import, and snapshots remain unimplemented. The repository otherwise contains only a neutral browser shell and workspace boundaries. Draft behavior, rooms, networking, deployment, Fabrary integration, and product UI have not begun.
 
 ## Walking skeleton setup
 

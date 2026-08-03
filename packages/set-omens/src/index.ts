@@ -6,6 +6,7 @@ import {
 import { OMENS_RECIPE } from "./descriptor.ts";
 import {
   parseOmensCustomCardsFromTrustedBytes,
+  validateOmensRecipeCustomCardsAggregate,
   type OmensRecipeCardReference
 } from "./custom-cards.ts";
 import {
@@ -40,6 +41,6 @@ export const parseVerifiedOmensSettings = (
 
 export const parseVerifiedOmensCustomCards = (
   recipe: VerifiedOmensRecipe
-): ReadonlyArray<OmensRecipeCardReference> => parseOmensCustomCardsFromTrustedBytes(
-  readVerifiedOmensBytesForParser(recipe.verification)
+): ReadonlyArray<OmensRecipeCardReference> => validateOmensRecipeCustomCardsAggregate(
+  parseOmensCustomCardsFromTrustedBytes(readVerifiedOmensBytesForParser(recipe.verification))
 );
