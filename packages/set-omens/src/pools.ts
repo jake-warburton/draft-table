@@ -1,4 +1,5 @@
-import { parseOmensLayoutsFromTrustedBytes } from "./layouts.ts";
+import { parseOmensLayoutsFromTrustedBytes, type OmensLayouts } from "./layouts.ts";
+import type { OmensRecipeCardReference } from "./custom-cards.ts";
 
 const UTF8_BOM = new Uint8Array([0xef, 0xbb, 0xbf]);
 const SECTION_HEADER = /^\[([A-Za-z][A-Za-z0-9]*)\]$/;
@@ -36,6 +37,34 @@ const OMENS_POOL_AGGREGATES: Readonly<Record<string, readonly [number, number]>>
 
 const invalidPools = (): never => {
   throw new OmensRecipePoolsError();
+};
+
+/** Internal seam for exact cross-reference contracts; intentionally omitted from the package root. */
+export const validateOmensRecipeReferences = (
+  layouts: OmensLayouts,
+  pools: OmensPools,
+  cards: ReadonlyArray<OmensRecipeCardReference>
+): void => {
+  const poolNames = new Set<string>();
+  for (const pool of pools.pools) {
+    if (poolNames.has(pool.name)) return invalidPools();
+    poolNames.add(pool.name);
+  }
+  const cardNames = new Set<string>();
+  for (const card of cards) {
+    if (cardNames.has(card.name)) return invalidPools();
+    cardNames.add(card.name);
+  }
+  for (const layout of layouts.layouts) {
+    for (const slot of layout.slots) {
+      if (!poolNames.has(slot.pool)) return invalidPools();
+    }
+  }
+  for (const pool of pools.pools) {
+    for (const entry of pool.entries) {
+      if (!cardNames.has(entry.reference)) return invalidPools();
+    }
+  }
 };
 
 const hasUtf8Bom = (bytes: Uint8Array): boolean =>

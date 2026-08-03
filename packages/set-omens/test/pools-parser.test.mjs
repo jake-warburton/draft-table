@@ -8,7 +8,11 @@ import {
   parseVerifiedOmensPools,
   verifyOmensRecipeBytes
 } from "../src/index.ts";
-import { parseOmensPoolsFromTrustedBytes, validateOmensRecipePoolsAggregate } from "../src/pools.ts";
+import {
+  parseOmensPoolsFromTrustedBytes,
+  validateOmensRecipePoolsAggregate,
+  validateOmensRecipeReferences
+} from "../src/pools.ts";
 
 const privateEvidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 const settings = JSON.stringify({
@@ -151,6 +155,79 @@ test("validates pinned pool aggregates independently at the internal seam", () =
       return true;
     });
   }
+});
+
+const referenceFixture = () => ({
+  layouts: { layouts: [{ id: "FictionalLayout", weight: 1, slots: [{ count: 1, pool: "CaféPool" }] }] },
+  pools: { pools: [{ name: "CaféPool", entries: [{ weight: 1, reference: "Æther Adept" }] }] },
+  cards: [{ name: "Æther Adept", collectorNumber: "OMN-001", rarity: "common" }]
+});
+
+const deepFreeze = (value) => {
+  for (const child of Object.values(value)) {
+    if (child !== null && typeof child === "object") deepFreeze(child);
+  }
+  return Object.freeze(value);
+};
+
+const expectReferenceError = (run) => {
+  assert.throws(run, (error) => {
+    assert.ok(error instanceof OmensRecipePoolsError);
+    assert.equal(error.code, "OMENS_RECIPE_POOLS_INVALID");
+    assert.equal(error.message, "Omens recipe pools are invalid.");
+    assert.equal(error.stack, "OmensRecipePoolsError: Omens recipe pools are invalid.");
+    assert.deepEqual(JSON.parse(JSON.stringify(error)), {
+      code: "OMENS_RECIPE_POOLS_INVALID",
+      name: "OmensRecipePoolsError"
+    });
+    return true;
+  });
+};
+
+test("resolves exact opaque references without mutating immutable parser outputs", () => {
+  const fixture = referenceFixture();
+  const snapshot = structuredClone(fixture);
+  deepFreeze(fixture);
+
+  assert.equal(validateOmensRecipeReferences(fixture.layouts, fixture.pools, fixture.cards), undefined);
+  assert.deepEqual(fixture, snapshot);
+  assert.ok(Object.isFrozen(fixture.layouts.layouts[0].slots[0]));
+  assert.ok(Object.isFrozen(fixture.pools.pools[0].entries[0]));
+  assert.ok(Object.isFrozen(fixture.cards[0]));
+});
+
+test("rejects unresolved layout pool and card references with safe stable errors", () => {
+  const unresolvedPool = referenceFixture();
+  unresolvedPool.layouts.layouts[0].slots[0].pool = "MissingPool";
+  expectReferenceError(() => validateOmensRecipeReferences(unresolvedPool.layouts, unresolvedPool.pools, unresolvedPool.cards));
+
+  const unresolvedCard = referenceFixture();
+  unresolvedCard.pools.pools[0].entries[0].reference = "Missing Card";
+  expectReferenceError(() => validateOmensRecipeReferences(unresolvedCard.layouts, unresolvedCard.pools, unresolvedCard.cards));
+});
+
+test("requires case-sensitive NFC-exact pool and card names", () => {
+  const wrongPoolCase = referenceFixture();
+  wrongPoolCase.layouts.layouts[0].slots[0].pool = "caféPool";
+  expectReferenceError(() => validateOmensRecipeReferences(wrongPoolCase.layouts, wrongPoolCase.pools, wrongPoolCase.cards));
+
+  const wrongCardCase = referenceFixture();
+  wrongCardCase.pools.pools[0].entries[0].reference = "æther Adept";
+  expectReferenceError(() => validateOmensRecipeReferences(wrongCardCase.layouts, wrongCardCase.pools, wrongCardCase.cards));
+
+  const canonicallyEquivalentPool = referenceFixture();
+  canonicallyEquivalentPool.layouts.layouts[0].slots[0].pool = "Cafe\u0301Pool";
+  expectReferenceError(() => validateOmensRecipeReferences(canonicallyEquivalentPool.layouts, canonicallyEquivalentPool.pools, canonicallyEquivalentPool.cards));
+});
+
+test("rejects duplicate pool and card resolution targets", () => {
+  const duplicatePool = referenceFixture();
+  duplicatePool.pools.pools.push(structuredClone(duplicatePool.pools.pools[0]));
+  expectReferenceError(() => validateOmensRecipeReferences(duplicatePool.layouts, duplicatePool.pools, duplicatePool.cards));
+
+  const duplicateCard = referenceFixture();
+  duplicateCard.cards.push({ ...duplicateCard.cards[0], collectorNumber: "OMN-002" });
+  expectReferenceError(() => validateOmensRecipeReferences(duplicateCard.layouts, duplicateCard.pools, duplicateCard.cards));
 });
 
 test("private pools parse passed", { skip: !privateEvidencePath ? "private acceptance contract did not run; set OMENS_RECIPE_EVIDENCE_PATH or use npm run test:evidence" : false }, () => {
