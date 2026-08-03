@@ -31,11 +31,11 @@ The approved npm-workspaces TypeScript scaffold now establishes these boundaries
 
 - `packages/engine`: pure deterministic draft/collation/state transitions; zero platform dependencies.
 - `packages/contracts`: protocol/domain view contracts and boundary validation.
-- `packages/set-omens`: Omens-specific build-time source identity, checksum, strict Settings-envelope and CustomCards-schema boundaries, and aggregate fixture enforcement; source reconciliation, layout/pool import, and reviewed generated snapshots follow only after separate review.
+- `packages/set-omens`: Omens-specific build-time source identity, checksum, strict Settings-envelope and CustomCards-schema parsing, CustomCards aggregate validation, and indentation-sensitive Layouts-schema parsing; source reconciliation, layout aggregate/coefficient enforcement, pool resolution/parsing, import, and reviewed generated snapshots follow only after separate review.
 - `apps/web`: static browser client.
 - `apps/server`: thin Worker router and Durable Object adapter.
 
-Only the neutral browser shell plus the Omens checksum, strict Settings-envelope and CustomCards-schema boundaries, and aggregate fixtures are implemented; source reconciliation, layouts, pools, import, and snapshots remain unimplemented, and the other boundaries remain empty. Keep the server plain rather than adding a general web framework. Select a small client rendering approach only after a bundle/accessibility spike; do not let a framework enter engine/contracts.
+Only the neutral browser shell plus the Omens checksum, strict Settings-envelope and CustomCards-schema parsing, CustomCards aggregate validation, and strict Layouts-schema parsing are implemented; layout aggregate/coefficient fixtures, pool resolution/parsing, source reconciliation, generation, import, and snapshots remain unimplemented, and the other boundaries remain empty. Keep the server plain rather than adding a general web framework. Select a small client rendering approach only after a bundle/accessibility spike; do not let a framework enter engine/contracts.
 
 ## Why Durable Objects fit
 

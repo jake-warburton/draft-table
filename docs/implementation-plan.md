@@ -1,6 +1,6 @@
 # Phased implementation plan and acceptance gates
 
-Gate 0 is complete, and the repository contains the walking-skeleton slice of Phase 1. Phase 2 has begun with the Omens source-identity, checksum, strict Settings-envelope and CustomCards-schema gates, and aggregate fixture enforcement; source reconciliation, layouts, pools, import, and snapshots remain unimplemented, as do product behavior and deployment configuration.
+Gate 0 is complete, and the repository contains the walking-skeleton slice of Phase 1. Phase 2 has begun with the Omens source-identity, checksum, strict Settings-envelope and CustomCards-schema parsing, CustomCards aggregate validation, and indentation-sensitive Layouts-schema parsing. Layout aggregate/coefficient fixtures, pool resolution/parsing, source reconciliation, generation, import, and snapshots remain unimplemented, as do product behavior and deployment configuration.
 
 Every phase uses strict red–green–refactor and the full no-mistakes delivery workflow. A phase is not complete merely because code exists; its acceptance gate, docs, and measured budgets must pass.
 

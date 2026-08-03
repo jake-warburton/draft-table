@@ -13,6 +13,10 @@ import {
   parseOmensSettingsFromTrustedBytes,
   type OmensSettings
 } from "./settings.ts";
+import {
+  parseOmensLayoutsFromTrustedBytes,
+  type OmensLayouts
+} from "./layouts.ts";
 
 export { OmensRecipeChecksumError } from "./checksum.ts";
 export { OMENS_RECIPE } from "./descriptor.ts";
@@ -21,6 +25,12 @@ export {
   type OmensRecipeCardReference
 } from "./custom-cards.ts";
 export { OmensRecipeSettingsError, type OmensSettings } from "./settings.ts";
+export {
+  OmensRecipeLayoutsError,
+  type OmensLayout,
+  type OmensLayouts,
+  type OmensLayoutSlot
+} from "./layouts.ts";
 
 export type VerifiedOmensRecipe = Readonly<{
   descriptor: typeof OMENS_RECIPE;
@@ -43,4 +53,10 @@ export const parseVerifiedOmensCustomCards = (
   recipe: VerifiedOmensRecipe
 ): ReadonlyArray<OmensRecipeCardReference> => validateOmensRecipeCustomCardsAggregate(
   parseOmensCustomCardsFromTrustedBytes(readVerifiedOmensBytesForParser(recipe.verification))
+);
+
+export const parseVerifiedOmensLayouts = (
+  recipe: VerifiedOmensRecipe
+): OmensLayouts => parseOmensLayoutsFromTrustedBytes(
+  readVerifiedOmensBytesForParser(recipe.verification)
 );
