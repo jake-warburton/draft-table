@@ -13,6 +13,7 @@ const EXPECTED_CARD_KEYS = new Set([
 ]);
 const EXPECTED_IMAGE_URI_KEYS = new Set(["en"]);
 const ALLOWED_RARITIES = new Set(["common", "rare", "mythic"]);
+const OMENS_RECIPE_CUSTOM_CARD_TOTALS = Object.freeze({ common: 134, rare: 60, mythic: 15 });
 
 export class OmensRecipeCustomCardsError extends Error {
   readonly code = "OMENS_RECIPE_CUSTOM_CARDS_INVALID";
@@ -29,6 +30,8 @@ export type OmensRecipeCardReference = Readonly<{
   collectorNumber: string;
   rarity: "common" | "rare" | "mythic";
 }>;
+
+type OmensRecipeRarity = OmensRecipeCardReference["rarity"];
 
 type SourceCard = Record<string, unknown>;
 
@@ -176,6 +179,19 @@ const toReference = (value: unknown): OmensRecipeCardReference => {
 };
 
 /** Test-only seam for synthetic malformed-input contracts; not publicly exported. */
+/** Validates the pinned community recipe's documented aggregate fixtures at the verified boundary. */
+export const validateOmensRecipeCustomCardsAggregate = (
+  references: ReadonlyArray<OmensRecipeCardReference>
+): ReadonlyArray<OmensRecipeCardReference> => {
+  if (references.length !== 209) return invalidCustomCards();
+  const counts: Record<OmensRecipeRarity, number> = { common: 0, rare: 0, mythic: 0 };
+  for (const reference of references) counts[reference.rarity] += 1;
+  if (counts.common !== OMENS_RECIPE_CUSTOM_CARD_TOTALS.common ||
+    counts.rare !== OMENS_RECIPE_CUSTOM_CARD_TOTALS.rare ||
+    counts.mythic !== OMENS_RECIPE_CUSTOM_CARD_TOTALS.mythic) return invalidCustomCards();
+  return references;
+};
+
 export const parseOmensCustomCardsFromTrustedBytes = (bytes: Uint8Array): ReadonlyArray<OmensRecipeCardReference> => {
   try {
     const json = customCardsJsonFromTrustedBytes(bytes);
