@@ -17,31 +17,23 @@ const digestOf = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 test("the checksum boundary verifies and rejects synthetic bytes", () => {
   const bytes = new Uint8Array([0, 1, 2, 3]);
-  const verification = verifyOmensBytesAgainstDigest(bytes, digestOf(bytes));
 
-  assert.deepEqual(verification, {});
-  assert.ok(Object.isFrozen(verification));
-  assert.deepEqual(readVerifiedOmensBytesForParser(verification), bytes);
+  assert.equal(verifyOmensBytesAgainstDigest(bytes, digestOf(bytes)), undefined);
   assert.throws(
     () => verifyOmensBytesAgainstDigest(bytes, digestOf(new Uint8Array([0, 1, 2, 4]))),
     OmensRecipeChecksumError
   );
 });
 
-test("verified storage cannot be changed through public or parser-facing values", () => {
+test("synthetic verification cannot make arbitrary bytes parser-trusted", () => {
   const source = Buffer.from([4, 5, 6]);
-  const verification = verifyOmensBytesAgainstDigest(source, digestOf(source));
-  const parserBytes = readVerifiedOmensBytesForParser(verification);
+  const result = verifyOmensBytesAgainstDigest(source, digestOf(source));
 
   source[0] = 99;
-  parserBytes[1] = 99;
 
-  assert.equal(Buffer.isBuffer(parserBytes), false);
-  assert.deepEqual(readVerifiedOmensBytesForParser(verification), new Uint8Array([4, 5, 6]));
-  assert.throws(() => {
-    verification.bytes = source;
-  }, TypeError);
-  assert.deepEqual(verification, {});
+  assert.equal(result, undefined);
+  assert.throws(() => readVerifiedOmensBytesForParser(result), TypeError);
+  assert.throws(() => readVerifiedOmensBytesForParser(Object.freeze({})), TypeError);
 });
 
 test("the pinned Omens descriptor is immutable and identifies only the approved recipe", () => {
