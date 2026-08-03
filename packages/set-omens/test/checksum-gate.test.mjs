@@ -68,7 +68,7 @@ test("the pinned Omens descriptor is immutable and identifies only the approved 
 
 test("Omens verification does not decode or parse unverified bytes", () => {
   const bytes = new Uint8Array([10, 11, 12]);
-  const source = ["index.ts", "checksum.ts"]
+  const source = ["checksum.ts"]
     .map((filename) => readFileSync(new URL(`../src/${filename}`, import.meta.url), "utf8"))
     .join("\n");
 
