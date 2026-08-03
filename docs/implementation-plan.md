@@ -11,7 +11,7 @@ The planning decisions are accepted in [risks-and-decisions.md](risks-and-decisi
 - the captain-held community recipe is available under the accepted filename/recipe ID and exact SHA-256 `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`;
 - its community—not official—provenance and 14-card scope remain explicit;
 - published source/LSS terms have not materially changed, attribution boundaries remain satisfied, and the repository's standard MIT `LICENSE` is present;
-- the accepted cleanup, randomization, readiness, and removed-queue contracts remain unchanged;
+- the accepted cleanup, randomization, readiness, and vacated-seat queue contracts remain unchanged;
 - external Card Vault, Cloudflare, and Fabrary behavior is rechecked.
 
 **Acceptance:** explicit implementation authorization, immutable evidence/checksum record, no guessed factual rule or rear-card identity, and any drift handled as a new reviewed recipe/version.
