@@ -38,7 +38,7 @@ test("synthetic verification cannot make arbitrary bytes parser-trusted", () => 
 });
 
 test("optional accepted evidence remains verified after its source Buffer changes", {
-  skip: privateEvidencePath === undefined ? "private acceptance contract did not run; set OMENS_RECIPE_EVIDENCE_PATH or use npm run test:evidence" : false
+  skip: !privateEvidencePath ? "private acceptance contract did not run; set OMENS_RECIPE_EVIDENCE_PATH or use npm run test:evidence" : false
 }, () => {
   const sourceBytes = readFileSync(privateEvidencePath);
   const verified = verifyOmensRecipeBytes(sourceBytes);

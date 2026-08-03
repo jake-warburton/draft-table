@@ -20,7 +20,7 @@ npm run size
 Before shipping any `set-omens` slice that depends on the captain-held recipe, run the private acceptance pass locally (the path is never part of repository configuration):
 
 ```sh
-OMENS_RECIPE_EVIDENCE_PATH=<path-to-private-recipe> npm --workspace @draft-table/set-omens run test:evidence
+OMENS_RECIPE_EVIDENCE_PATH=<path-to-private-recipe> npm --silent --workspace @draft-table/set-omens run test:evidence
 ```
 
 Pull requests and pushes to `main` install with `npm ci` and run every quality command listed above. `npm run size` enforces a 2,048-byte total emitted-client ceiling; the server boundary is not emitted yet and reports as zero bytes.
