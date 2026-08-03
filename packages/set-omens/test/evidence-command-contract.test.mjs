@@ -45,10 +45,10 @@ test("evidence runner rejects a discovered skipped contract", {
   }
 });
 
-test("operator evidence invocation reports only a successful private pass", {
+test("operator evidence invocation succeeds with an inherited node:test context", {
   skip: !evidencePath ? "private acceptance contract did not run; set OMENS_RECIPE_EVIDENCE_PATH or use npm run test:evidence" : false
 }, () => {
-  const result = run({ ...process.env });
+  const result = run({ ...process.env, NODE_TEST_CONTEXT: "child-v8" });
   assert.equal(result.status, 0);
   assert.equal(result.stdout, "private evidence acceptance passed\n");
   assert.equal(result.stderr, "");

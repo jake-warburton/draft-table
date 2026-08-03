@@ -21,8 +21,13 @@ const testFiles = readdirSync("test")
   .filter((file) => file !== "evidence-command-contract.test.mjs")
   .map((file) => `test/${file}`);
 
+const childEnvironment = { ...process.env };
+// An inherited node:test context prevents a nested test run from executing.
+delete childEnvironment.NODE_TEST_CONTEXT;
+
 const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", ...testFiles], {
   encoding: "utf8",
+  env: childEnvironment,
   stdio: ["ignore", "pipe", "pipe"]
 });
 const skippedLine = result.stdout.match(/^# skipped (\d+)$/m);
