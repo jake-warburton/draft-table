@@ -150,7 +150,7 @@ The MVP may use this recipe only after application implementation is separately 
 3. Lock the six coefficient fixtures, all pool counts/totals, total layout weight, and headline derived probabilities in exact integer/rational tests—never a flaky statistical approximation.
 4. Treat `withReplacement=false` as a recipe contract for repeated draws from a card pool within one pack.
 5. Version the recipe independently from the card snapshot and store both immutable IDs/checksums in every room. Any upstream file drift requires a new version, a machine-generated comparison report, human review, and explicit captain approval.
-6. Keep the full source file outside this planning-only change. A future implementation may archive it only after provenance/licensing review; generated output receives the same review as the card snapshot.
+6. Keep the full source file outside the repository unless a separate provenance/licensing review approves archiving it; generated output requires the same review as the card snapshot.
 7. Generate the recipe's 14 visible cards, wrap them in the conceptual 16-position physical model described above, and remove the two rear markers. Do not pretend the recipe models rear-card identities or official print-run correlations.
 
 Do not derive alternative weights from set card counts, silently normalize malformed totals, invent print runs, or label these community probabilities official.
