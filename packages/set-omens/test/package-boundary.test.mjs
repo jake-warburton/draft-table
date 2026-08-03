@@ -33,14 +33,16 @@ const expectPackageBoundary = (source) => {
 };
 
 test("external consumers can import the supported Omens package root", () => {
-  const result = runConsumer('import { parseVerifiedOmensSettings, verifyOmensRecipeBytes } from "@draft-table/set-omens";\nconsole.log(typeof parseVerifiedOmensSettings, typeof verifyOmensRecipeBytes);');
+  const result = runConsumer('import { parseVerifiedOmensCustomCards, parseVerifiedOmensSettings, verifyOmensRecipeBytes } from "@draft-table/set-omens";\nconsole.log(typeof parseVerifiedOmensCustomCards, typeof parseVerifiedOmensSettings, typeof verifyOmensRecipeBytes);');
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "function function");
+  assert.equal(result.stdout.trim(), "function function function");
 });
 
 test("external consumers cannot import Omens internal source modules or the raw parser", () => {
   expectPackageBoundary('import "@draft-table/set-omens/src/settings.ts";');
+  expectPackageBoundary('import "@draft-table/set-omens/src/custom-cards.ts";');
+  expectPackageBoundary('import { parseOmensCustomCardsFromTrustedBytes } from "@draft-table/set-omens/src/custom-cards.ts";');
   expectPackageBoundary('import { parseOmensSettingsFromTrustedBytes } from "@draft-table/set-omens/src/settings.ts";');
   expectPackageBoundary('import "@draft-table/set-omens/src/checksum.ts";');
 });

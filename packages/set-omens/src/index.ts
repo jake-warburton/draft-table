@@ -5,12 +5,20 @@ import {
 } from "./checksum.ts";
 import { OMENS_RECIPE } from "./descriptor.ts";
 import {
+  parseOmensCustomCardsFromTrustedBytes,
+  type OmensRecipeCardReference
+} from "./custom-cards.ts";
+import {
   parseOmensSettingsFromTrustedBytes,
   type OmensSettings
 } from "./settings.ts";
 
 export { OmensRecipeChecksumError } from "./checksum.ts";
 export { OMENS_RECIPE } from "./descriptor.ts";
+export {
+  OmensRecipeCustomCardsError,
+  type OmensRecipeCardReference
+} from "./custom-cards.ts";
 export { OmensRecipeSettingsError, type OmensSettings } from "./settings.ts";
 
 export type VerifiedOmensRecipe = Readonly<{
@@ -27,5 +35,11 @@ export const verifyOmensRecipeBytes = (bytes: Uint8Array): VerifiedOmensRecipe =
 export const parseVerifiedOmensSettings = (
   recipe: VerifiedOmensRecipe
 ): OmensSettings => parseOmensSettingsFromTrustedBytes(
+  readVerifiedOmensBytesForParser(recipe.verification)
+);
+
+export const parseVerifiedOmensCustomCards = (
+  recipe: VerifiedOmensRecipe
+): ReadonlyArray<OmensRecipeCardReference> => parseOmensCustomCardsFromTrustedBytes(
   readVerifiedOmensBytesForParser(recipe.verification)
 );
