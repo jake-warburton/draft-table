@@ -66,6 +66,12 @@ test("the pinned Omens descriptor is immutable and identifies only the approved 
   }, TypeError);
 });
 
+test("Omens verification does not decode or parse unverified bytes", () => {
+  const source = readFileSync(new URL("../src/checksum.ts", import.meta.url), "utf8");
+
+  assert.doesNotMatch(source, /TextDecoder|Buffer\.from|\.toString\s*\(|JSON\.parse|parse[A-Z_a-z]*\s*\(/);
+});
+
 test("the public verification entry point rejects invalid UTF-8 before any decoding or parsing", () => {
   // The BOM makes this a parser-shaped envelope; 0xff is deliberately invalid UTF-8.
   const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0xff]);
