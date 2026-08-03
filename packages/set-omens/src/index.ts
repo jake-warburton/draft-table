@@ -18,6 +18,10 @@ import {
   validateOmensRecipeLayoutsAggregate,
   type OmensLayouts
 } from "./layouts.ts";
+import {
+  parseOmensPoolsFromTrustedBytes,
+  type OmensPools
+} from "./pools.ts";
 
 export { OmensRecipeChecksumError } from "./checksum.ts";
 export { OMENS_RECIPE } from "./descriptor.ts";
@@ -32,6 +36,12 @@ export {
   type OmensLayouts,
   type OmensLayoutSlot
 } from "./layouts.ts";
+export {
+  OmensRecipePoolsError,
+  type OmensPool,
+  type OmensPoolEntry,
+  type OmensPools
+} from "./pools.ts";
 
 export type VerifiedOmensRecipe = Readonly<{
   descriptor: typeof OMENS_RECIPE;
@@ -61,3 +71,9 @@ export const parseVerifiedOmensLayouts = (
 ): OmensLayouts => validateOmensRecipeLayoutsAggregate(parseOmensLayoutsFromTrustedBytes(
   readVerifiedOmensBytesForParser(recipe.verification)
 ));
+
+export const parseVerifiedOmensPools = (
+  recipe: VerifiedOmensRecipe
+): OmensPools => parseOmensPoolsFromTrustedBytes(
+  readVerifiedOmensBytesForParser(recipe.verification)
+);
