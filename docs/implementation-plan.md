@@ -12,7 +12,8 @@ Resolve or explicitly accept every blocking decision in [risks-and-decisions.md]
 - DT-2 source-data/LSS rights and repository license;
 - DT-3 disconnected idle cleanup;
 - DT-4 seat randomization after manual arrangement;
-- DT-5 timer-off/disconnected readiness.
+- DT-5 timer-off/disconnected readiness;
+- DT-6 queued-pick disposition after occupant removal.
 
 Recheck all external sources/Cloudflare/Fabrary behavior. No implementation should claim authentic boosters until DT-1 is closed.
 

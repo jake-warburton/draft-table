@@ -121,7 +121,7 @@ Hibernation-eligible objects do not accrue duration even before eviction; incomi
 Minimal dynamic routes:
 
 - `POST /api/rooms` — create code and initialize one room.
-- `GET /api/rooms/:code/socket` with `Upgrade: websocket` — validate shape/rate limits, route to object; password is not in URL.
+- `GET /api/rooms/:code/socket` with `Upgrade: websocket` — validate shape/rate limits, route to object; password is not in the WebSocket upgrade URL.
 - optional `GET /api/health` — static/simple version response only if operationally useful.
 
 Everything else is a static asset/SPA fallback. Reject oversized/malformed requests before Durable Object routing so invalid traffic does not consume both Worker and DO requests [CF-6].

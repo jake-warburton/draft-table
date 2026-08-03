@@ -133,7 +133,7 @@ All sources were accessed **2026-08-03** unless noted. Claims above are limited 
 - **[FAB-4]** [Omens Pre-Release Guide](https://fabtcg.com/articles/omens-of-the-third-age-pre-release-guide/) — May 29–June 4 events; eight packs; remove the last two cards; enumerated rear outcomes; exactly 30-card sealed deck. Article published 2026-05-26, modified 2026-07-20.
 - **[FAB-5]** [Card Legality Policy](https://fabtcg.com/rules-and-policy-center/card-legality-policy/) — new cards become legal on product release date; current format legality source.
 - **[FAB-6]** [Terms of Use for Game and Studio Assets and IP](https://fabtcg.com/resources/terms-use-licensed-assets/) — card-image, logo, asset, third-party-app, disclaimer, monetization, revocation, and commercial-entity terms.
-- **[FAB-7]** [Official Card Vault Omens product endpoint](https://api.cardvault.fabtcg.com/carddb/api/v1/product-cards/omens-of-the-third-age/) and its [public product UI](https://cardvault.fabtcg.com/products/omens-of-the-third-age/) — release date 2026-06-05, 260 current product entries, image URLs, and the nine `IAR` entries. Endpoint returned `Access-Control-Allow-Origin: *`; no stability promise was found.
+- **[FAB-7]** [Official Card Vault Omens product endpoint](https://api.cardvault.fabtcg.com/carddb/api/v1/product-cards/omens-of-the-third-age/) — release date 2026-06-05, 260 current product entries, image URLs, and the nine `IAR` entries. Endpoint returned `Access-Control-Allow-Origin: *`; no stability promise was found.
 
 ### Open card data
 

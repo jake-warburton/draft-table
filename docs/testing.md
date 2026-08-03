@@ -53,7 +53,7 @@ Suggested future test layers (tool choice finalized during scaffolding):
 | Alarm idempotency | Duplicate, early, late, old generation, retry after committed storage; no double award; current alarm restored. |
 | Lobby seats | Eight positions; move to empty; swap occupied; spectator move; start rejects <2/>8; unused gaps compact preserving order. |
 | Seat randomization | Default pending; same seed deterministic; every permutation reachable property; manual edit behavior per DT-4; randomization immediately before packs. |
-| Post-start seats | Reorder/swap rejected; remove leaves stable empty seat and clears queue; spectator fill inherits pool/pack; unused lobby slot rejected. |
+| Post-start seats | Reorder/swap rejected; remove leaves stable empty seat; queued-pick disposition follows the captain-approved DT-6 branch; spectator fill inherits pool/pack; unused lobby slot rejected. |
 | Participant cap | Up to 16; at most 8 drafters; spectator allow/deny; join phase rules. |
 | Reconnect | Credential reclaims identity/seat; new credential becomes spectator; latest connection supersedes; old socket command rejected; disconnect does not vacate. |
 | Host | Creator immutable; no transfer/recovery; controls fail while absent/forged; reconnect restores. |

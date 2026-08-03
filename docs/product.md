@@ -49,7 +49,7 @@ Room limit is 16 simultaneous participant identities, of which at most eight are
 - A new browser is a new identity. During a draft it joins as a spectator, if allowed, and only the host can place it into a vacated draft seat.
 - The room creator remains host permanently. There is no transfer, election, or recovery key.
 - If the host disconnects, the draft process remains server-owned and host controls are unavailable until that identity reconnects.
-- `Copy link` omits the password. `Copy link + password` encodes it in a URL fragment. The client reads it locally, authenticates over TLS, then removes it from the address bar. Threat limits are in [security.md](security-and-privacy.md#passwords-and-invitation-links).
+- `Copy link` omits the password. `Copy link + password` encodes it in a URL fragment. The client reads it locally, authenticates over TLS, then removes it from the address bar. Threat limits are in [the security and privacy boundaries](security-and-privacy.md#passwords-and-invitation-links).
 
 ## Seating contract
 
