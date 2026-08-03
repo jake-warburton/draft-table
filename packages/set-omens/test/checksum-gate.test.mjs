@@ -8,32 +8,40 @@ import {
   OmensRecipeChecksumError,
   verifyOmensRecipeBytes
 } from "../src/index.ts";
-import { verifyOmensBytesAgainstDigest } from "../src/checksum.ts";
+import {
+  readVerifiedOmensBytesForParser,
+  verifyOmensBytesAgainstDigest
+} from "../src/checksum.ts";
 
 const digestOf = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 test("the checksum boundary verifies and rejects synthetic bytes", () => {
   const bytes = new Uint8Array([0, 1, 2, 3]);
-  const verified = verifyOmensBytesAgainstDigest(bytes, digestOf(bytes));
+  const verification = verifyOmensBytesAgainstDigest(bytes, digestOf(bytes));
 
-  assert.deepEqual(verified, { bytes });
-  assert.ok(Object.isFrozen(verified));
-  assert.notEqual(verified.bytes, bytes);
+  assert.deepEqual(verification, {});
+  assert.ok(Object.isFrozen(verification));
+  assert.deepEqual(readVerifiedOmensBytesForParser(verification), bytes);
   assert.throws(
     () => verifyOmensBytesAgainstDigest(bytes, digestOf(new Uint8Array([0, 1, 2, 4]))),
     OmensRecipeChecksumError
   );
 });
 
-test("verified filesystem bytes cannot be changed through their Buffer source", () => {
+test("verified storage cannot be changed through public or parser-facing values", () => {
   const source = Buffer.from([4, 5, 6]);
-  const verified = verifyOmensBytesAgainstDigest(source, digestOf(source));
+  const verification = verifyOmensBytesAgainstDigest(source, digestOf(source));
+  const parserBytes = readVerifiedOmensBytesForParser(verification);
 
   source[0] = 99;
+  parserBytes[1] = 99;
 
-  assert.ok(verified.bytes instanceof Uint8Array);
-  assert.equal(Buffer.isBuffer(verified.bytes), false);
-  assert.deepEqual(verified.bytes, new Uint8Array([4, 5, 6]));
+  assert.equal(Buffer.isBuffer(parserBytes), false);
+  assert.deepEqual(readVerifiedOmensBytesForParser(verification), new Uint8Array([4, 5, 6]));
+  assert.throws(() => {
+    verification.bytes = source;
+  }, TypeError);
+  assert.deepEqual(verification, {});
 });
 
 test("the pinned Omens descriptor is immutable and identifies only the approved recipe", () => {

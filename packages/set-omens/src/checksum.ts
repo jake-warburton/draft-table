@@ -10,9 +10,13 @@ export class OmensRecipeChecksumError extends Error {
   }
 }
 
+declare const verifiedOmensBytesBrand: unique symbol;
+
 export type VerifiedOmensBytes = Readonly<{
-  bytes: Uint8Array;
+  [verifiedOmensBytesBrand]: true;
 }>;
+
+const bytesByVerification = new WeakMap<VerifiedOmensBytes, Uint8Array>();
 
 export const verifyOmensBytesAgainstDigest = (
   bytes: Uint8Array,
@@ -24,5 +28,19 @@ export const verifyOmensBytesAgainstDigest = (
     throw new OmensRecipeChecksumError();
   }
 
-  return Object.freeze({ bytes: verifiedBytes });
+  const verification = Object.freeze({}) as VerifiedOmensBytes;
+  bytesByVerification.set(verification, verifiedBytes);
+  return verification;
+};
+
+export const readVerifiedOmensBytesForParser = (
+  verification: VerifiedOmensBytes
+): Uint8Array => {
+  const bytes = bytesByVerification.get(verification);
+
+  if (bytes === undefined) {
+    throw new TypeError("Invalid Omens recipe verification.");
+  }
+
+  return new Uint8Array(bytes);
 };

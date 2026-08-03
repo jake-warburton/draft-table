@@ -1,4 +1,7 @@
-import { verifyOmensBytesAgainstDigest } from "./checksum.ts";
+import {
+  type VerifiedOmensBytes,
+  verifyOmensBytesAgainstDigest
+} from "./checksum.ts";
 
 export { OmensRecipeChecksumError } from "./checksum.ts";
 
@@ -12,11 +15,11 @@ export const OMENS_RECIPE = Object.freeze({
 
 export type VerifiedOmensRecipe = Readonly<{
   descriptor: typeof OMENS_RECIPE;
-  bytes: Uint8Array;
+  verification: VerifiedOmensBytes;
 }>;
 
-export const verifyOmensRecipeBytes = (bytes: Uint8Array): VerifiedOmensRecipe => {
-  const verified = verifyOmensBytesAgainstDigest(bytes, OMENS_RECIPE.sha256);
-
-  return Object.freeze({ descriptor: OMENS_RECIPE, bytes: verified.bytes });
-};
+export const verifyOmensRecipeBytes = (bytes: Uint8Array): VerifiedOmensRecipe =>
+  Object.freeze({
+    descriptor: OMENS_RECIPE,
+    verification: verifyOmensBytesAgainstDigest(bytes, OMENS_RECIPE.sha256)
+  });
