@@ -111,7 +111,7 @@ test("the public custom card parser requires a pinned verified Omens recipe", ()
   assert.throws(() => parseVerifiedOmensCustomCards(Object.freeze({})), TypeError);
 });
 
-test("private CustomCards parse passed", { skip: privateEvidencePath === undefined }, () => {
+test("private CustomCards parse passed", { skip: !privateEvidencePath ? "private acceptance contract did not run; set OMENS_RECIPE_EVIDENCE_PATH or use npm run test:evidence" : false }, () => {
   const references = parseVerifiedOmensCustomCards(verifyOmensRecipeBytes(readFileSync(privateEvidencePath)));
   assert.ok(Object.isFrozen(references));
   assert.ok(references.every(Object.isFrozen));

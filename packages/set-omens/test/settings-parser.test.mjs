@@ -104,7 +104,7 @@ test("the public parser requires a pinned verified Omens recipe", () => {
   assert.throws(() => parseVerifiedOmensSettings(Object.freeze({})), TypeError);
 });
 
-test("private settings parse passed", { skip: privateEvidencePath === undefined }, () => {
+test("private settings parse passed", { skip: !privateEvidencePath ? "private acceptance contract did not run; set OMENS_RECIPE_EVIDENCE_PATH or use npm run test:evidence" : false }, () => {
   const recipe = verifyOmensRecipeBytes(readFileSync(privateEvidencePath));
   const settings = parseVerifiedOmensSettings(recipe);
 
