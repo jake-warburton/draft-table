@@ -67,15 +67,23 @@ test("the pinned Omens descriptor is immutable and identifies only the approved 
 });
 
 test("Omens verification does not decode or parse unverified bytes", () => {
-  const bytes = new Uint8Array([10, 11, 12]);
-  const source = ["checksum.ts"]
-    .map((filename) => readFileSync(new URL(`../src/${filename}`, import.meta.url), "utf8"))
-    .join("\n");
+  const source = readFileSync(new URL("../src/checksum.ts", import.meta.url), "utf8");
 
-  assert.doesNotMatch(source, /TextDecoder|\.toString\s*\(|JSON\.parse|parse[A-Z_a-z]*\s*\(/);
+  assert.doesNotMatch(source, /TextDecoder|Buffer\.from|\.toString\s*\(|JSON\.parse|parse[A-Z_a-z]*\s*\(/);
+});
+
+test("the public verification entry point rejects invalid UTF-8 before any decoding or parsing", () => {
+  // The BOM makes this a parser-shaped envelope; 0xff is deliberately invalid UTF-8.
+  const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0xff]);
+
   assert.throws(
     () => verifyOmensRecipeBytes(bytes),
-    (error) => error instanceof OmensRecipeChecksumError
+    (error) => {
+      assert.ok(error instanceof OmensRecipeChecksumError);
+      assert.equal(error.code, "OMENS_RECIPE_CHECKSUM_MISMATCH");
+      assert.equal(error.message, "Omens recipe checksum mismatch.");
+      return true;
+    }
   );
 });
 
