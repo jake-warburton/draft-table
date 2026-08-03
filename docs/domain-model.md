@@ -181,7 +181,7 @@ After rear removal, instances move exactly once from pack to one seat pool. Pass
 - queued-at server time and command ID;
 - occupant participant ID that queued it.
 
-It is provisional and replaceable, and it is cleared atomically at commit. Removing an occupant also clears that seat's queued pick in the same authoritative mutation, before any replacement inherits the seat. The replacement may queue from the inherited pack; otherwise fallback resolves at the deadline.
+It is provisional and replaceable, and it is cleared atomically at commit. Any transition that vacates a non-host drafter seat—including explicit voluntary leave or host removal—also clears that seat's queued pick in the same authoritative mutation, before any replacement inherits the seat or fallback resolves. The replacement may queue from the inherited pack.
 
 ### `Deadline`
 
@@ -237,6 +237,7 @@ Uniform timeout fallback uses rejection sampling or an equivalent unbiased bound
 - Every visible physical instance is in exactly one of: current pack, unopened pack, or one seat pool.
 - Removed rear markers are in none of those three and no projected view.
 - A queued instance belongs to that seat's current pack and current phase.
+- Vacating a non-host drafter seat atomically clears its queued pick before replacement inheritance or fallback resolution.
 - One committed card per draft seat per pick transition; absent queues resolve uniformly at random.
 - No client supplies committed picks, pass operations, deadlines, time, random values, pool contents, or role.
 - `stateVersion` increases once per committed room mutation; projections from one event use the same resulting version.

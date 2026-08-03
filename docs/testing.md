@@ -57,7 +57,7 @@ Suggested future test layers (tool choice finalized during scaffolding):
 | Alarm idempotency | Duplicate, early, late, old generation, retry after committed storage; no double award; current alarm restored. |
 | Lobby seats | Eight positions; move to empty; swap occupied; spectator move; start rejects <2/>8; unused gaps compact preserving order. |
 | Seat randomization | `Randomize at start` defaults pending; same seed deterministic; every permutation reachable property; first manual move/swap disables it; `Randomize now` atomically shuffles and clears pending so start does not reshuffle; explicit re-enable restores one start shuffle before packs. |
-| Post-start seats | Reorder/swap and host removal rejected; non-host removal atomically leaves a stable empty seat and clears its queue; spectator fill inherits pool/pack with no queue; unused lobby slot rejected. |
+| Post-start seats | Reorder/swap and permanent-host removal rejected; every non-host seat-vacating transition (explicit voluntary leave or host removal) atomically leaves a stable empty seat and clears its queue before replacement inheritance or fallback; spectator fill inherits pool/pack with no queue; unused lobby slot rejected. |
 | Participant cap | Up to 16; at most 8 drafters; spectator allow/deny; join phase rules. |
 | Reconnect | Credential reclaims identity/seat; new credential becomes spectator; latest connection supersedes; old socket command rejected; disconnect does not vacate. |
 | Host | Creator immutable; no transfer/recovery; controls fail while absent/forged; reconnect restores. |
@@ -105,7 +105,7 @@ Each scenario uses isolated browser contexts/local storage; network frames are c
 | Timers disabled | no countdown until at least one connected occupied seat exists and all such seats queue; five-second confirmation; disconnected/empty random fallback; zero-connected state never loops. |
 | Pause | timer/progress freezes across clients, queue replacement works, stale alarm no visible advance, resume synchronized. |
 | Disconnect/reconnect | same context reclaims; new context spectator; deadlines/random fallback continue; host controls disappear/return. |
-| Seat replacement | host removes a disconnected non-host and queued choice disappears atomically; fills from spectator; inherited pack/pool correct; replacement sees no inherited queue; old identity cannot pick. |
+| Seat vacancy/replacement | explicit voluntary non-host drafter leave and host removal each atomically clear the queued choice before either fallback or spectator fill; fill inherits the correct pack/pool but no queue; old identity cannot pick. |
 | Password fragment | no fragment/password in HTTP request, WS URL, Referer, logs, Fabrary link; wrong password sees no room state; address scrubbed. |
 | Keyboard | Tab reaches every card/control; Enter queues/replaces; no pointer; seat Move/swap alternative; visible focus. |
 | Screen reader semantics | accessibility tree names cards/treatments/timer/role/status; live announcements bounded; no colour-only state. |

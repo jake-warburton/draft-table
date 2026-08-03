@@ -63,7 +63,7 @@ Pause records `frozenRemaining = max(0, deadlineAt - now)` when a phase deadline
 
 ### Seat removal/fill after start
 
-- `remove_participant` rejects the permanent host as a target. For another participant, one atomic mutation clears the occupant and that seat's provisional queued pick, revokes old seat authority, and logs one material event. Packs/pool remain.
+- `remove_participant` rejects the permanent host as a target. For another participant, one atomic mutation clears the occupant and that seat's provisional queued pick, revokes old seat authority, and logs one material event. It does so before replacement inheritance or fallback resolution. Packs/pool remain.
 - That identity becomes a spectator when spectator access is allowed; otherwise it leaves the active room projection but may reconnect only to an access-denied/removed response.
 - `move_participant` after start is accepted only for host moving a spectator to a vacated existing draft seat. No swap/reorder is allowed.
 - A newly filled occupant receives the inherited pool/current pack with no inherited queue. It may queue a card; otherwise uniform fallback applies at commit.
@@ -88,7 +88,7 @@ Reviews are always 60 seconds. Client animation has no authority. Handshake/snap
 5. Newest authenticated connection generation wins; an older socket for the same identity is closed.
 6. A socket close marks disconnected and logs a bounded material event; it does not remove/vacate a draft seat. Deadlines continue.
 7. Client reconnect uses bounded exponential backoff, sends last applied `stateVersion`, and receives deltas when safely retained or a fresh projected snapshot.
-8. Explicit `leave` removes a spectator; before start it vacates a lobby slot; after start a drafter seat becomes empty while retaining draft state.
+8. Explicit `leave` removes a spectator; before start it vacates a lobby slot; after start, a non-host drafter's leave atomically clears that seat's provisional queued pick and makes the seat empty while retaining draft state, before replacement inheritance or fallback resolution.
 9. If every participant explicitly leaves, close/delete immediately.
 10. When the lobby becomes all-disconnected, schedule abandonment for 30 minutes from that transition. When a paused started draft—or a timer-off started draft waiting with no connected drafter—becomes all-disconnected, schedule it for 24 hours. A successful reconnect invalidates that generation; a later return to all-disconnected starts a fresh full grace period. Disconnection otherwise preserves identity/seat.
 

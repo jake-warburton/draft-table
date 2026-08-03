@@ -34,7 +34,7 @@ The strict recipe parser must validate the exact format, 228 layouts/460,800 tot
 
 ## Phase 3 — pure engine
 
-Implement seeded random streams, weighted visible-layout/card-pool generation, conceptual 16-position pack wrapping and opaque rear-marker removal, seats/passing, provisional picks, timer/deadline transitions, fallback, pause, accepted cleanup/readiness/replacement rules, intermissions, vacancies, and visibility projection as pure functions. Start each behavior with tests from [testing.md](testing.md#unit-and-property-matrix).
+Implement seeded random streams, weighted visible-layout/card-pool generation, conceptual 16-position pack wrapping and opaque rear-marker removal, seats/passing, provisional picks, timer/deadline transitions, fallback, pause, accepted cleanup/readiness/replacement rules, intermissions, vacancies, and visibility projection as pure functions. Every non-host drafter seat vacancy, whether explicit voluntary leave or host removal, must atomically clear its provisional queue before replacement inheritance or fallback. Start each behavior with tests from [testing.md](testing.md#unit-and-property-matrix).
 
 **Acceptance:** unit/property matrix green for N=2..8; deterministic replay by seed/command trace; exact recipe integer fixtures; conservation/exclusion/visibility invariants; no platform imports; no fabricated rear identity or claim of official community probabilities.
 
