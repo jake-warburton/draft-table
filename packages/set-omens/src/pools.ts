@@ -28,6 +28,12 @@ export type OmensPools = Readonly<{
   pools: ReadonlyArray<OmensPool>;
 }>;
 
+const OMENS_POOL_AGGREGATES: Readonly<Record<string, readonly [number, number]>> = Object.freeze({
+  Wizard: [24, 159], Illusionist: [24, 160], Runeblade: [24, 164], Lightning: [42, 227],
+  Generic: [6, 28], Equipment: [14, 148], Rare: [60, 120], Majestic: [15, 30],
+  Rfcommon: [105, 105], RFRare: [59, 59], RFMajestic: [7, 7]
+});
+
 const invalidPools = (): never => {
   throw new OmensRecipePoolsError();
 };
@@ -55,6 +61,24 @@ const positiveSafeInteger = (token: string): number => {
   const value = Number(token);
   if (!Number.isSafeInteger(value)) return invalidPools();
   return value;
+};
+
+/** Internal seam for synthetic aggregate contracts; intentionally omitted from the package root. */
+export const validateOmensRecipePoolsAggregate = (pools: OmensPools): OmensPools => {
+  if (pools.pools.length !== Object.keys(OMENS_POOL_AGGREGATES).length) return invalidPools();
+  const seen = new Set<string>();
+  for (const pool of pools.pools) {
+    const fixture = OMENS_POOL_AGGREGATES[pool.name];
+    if (fixture === undefined || seen.has(pool.name) || pool.entries.length !== fixture[0]) return invalidPools();
+    seen.add(pool.name);
+    let total = 0;
+    for (const entry of pool.entries) {
+      if (entry.weight > Number.MAX_SAFE_INTEGER - total) return invalidPools();
+      total += entry.weight;
+    }
+    if (total !== fixture[1]) return invalidPools();
+  }
+  return pools;
 };
 
 /** Test-only seam for synthetic malformed-input contracts; not publicly exported. */

@@ -8,7 +8,7 @@ import {
   parseVerifiedOmensPools,
   verifyOmensRecipeBytes
 } from "../src/index.ts";
-import { parseOmensPoolsFromTrustedBytes } from "../src/pools.ts";
+import { parseOmensPoolsFromTrustedBytes, validateOmensRecipePoolsAggregate } from "../src/pools.ts";
 
 const privateEvidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 const settings = JSON.stringify({
@@ -115,6 +115,42 @@ test("pool errors never disclose source evidence", () => {
 test("the public pool parser accepts only pinned verified Omens bytes and verifies before parsing", () => {
   assert.throws(() => parseVerifiedOmensPools(Object.freeze({})), TypeError);
   assert.throws(() => parseVerifiedOmensPools(verifyOmensRecipeBytes(source(validPools))), OmensRecipeChecksumError);
+});
+
+const aggregateFixture = () => ({ pools: [
+  ["Wizard", 24, 159], ["Illusionist", 24, 160], ["Runeblade", 24, 164], ["Lightning", 42, 227],
+  ["Generic", 6, 28], ["Equipment", 14, 148], ["Rare", 60, 120], ["Majestic", 15, 30],
+  ["Rfcommon", 105, 105], ["RFRare", 59, 59], ["RFMajestic", 7, 7]
+].map(([name, count, total]) => ({ name, entries: Array.from({ length: count }, (_, index) => ({ weight: index === 0 ? total - count + 1 : 1, reference: `${name}-${index}` })) })) });
+
+test("validates pinned pool aggregates independently at the internal seam", () => {
+  const fixture = aggregateFixture();
+  fixture.pools.reverse();
+  assert.equal(validateOmensRecipePoolsAggregate(fixture), fixture);
+  assert.deepEqual(fixture.pools.map(({ name }) => name), [
+    "RFMajestic", "RFRare", "Rfcommon", "Majestic", "Rare", "Equipment",
+    "Generic", "Lightning", "Runeblade", "Illusionist", "Wizard"
+  ]);
+
+  for (const mutate of [
+    (p) => p.pools.pop(),
+    (p) => p.pools.push({ name: "Extra", entries: [{ weight: 1, reference: "x" }] }),
+    (p) => { p.pools[0].name = "Wrong"; },
+    (p) => { p.pools[10] = p.pools[0]; },
+    (p) => p.pools[0].entries.pop(),
+    (p) => { p.pools[0].entries[0] = { weight: 1, reference: "x" }; },
+    (p) => { p.pools[0].entries[0] = { weight: Number.MAX_SAFE_INTEGER, reference: "x" }; }
+  ]) {
+    const broken = aggregateFixture();
+    mutate(broken);
+    assert.throws(() => validateOmensRecipePoolsAggregate(broken), (error) => {
+      assert.ok(error instanceof OmensRecipePoolsError);
+      assert.equal(error.code, "OMENS_RECIPE_POOLS_INVALID");
+      assert.equal(error.message, "Omens recipe pools are invalid.");
+      assert.equal(error.stack, "OmensRecipePoolsError: Omens recipe pools are invalid.");
+      return true;
+    });
+  }
 });
 
 test("private pools parse passed", { skip: !privateEvidencePath ? "private acceptance contract did not run; set OMENS_RECIPE_EVIDENCE_PATH or use npm run test:evidence" : false }, () => {
