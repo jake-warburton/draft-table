@@ -32,7 +32,7 @@ Each seat is an ordered-list item with a visible seat number and either:
 
 Pointer/touch drag is an enhancement. Keyboard and screen-reader users activate `Move <name>`, select `Seat 1`…`Seat 8` or `Spectators`, and confirm a swap if occupied. Announce `Moved Alex to seat 3` or `Swapped Alex and Sam` in a polite live region. Escape cancels. Do not require a spatial drag gesture.
 
-The start area states occupied drafter count and blockers. Auto-randomization is visible. Any manual arrangement turns it off and announces that change; `Randomize now` and `Randomize at start` remain available pending DT-4.
+The start area states occupied drafter count and blockers. Pending start-time randomization is visible. The first manual move/swap turns it off and announces that change; `Randomize now` immediately applies a server-owned shuffle, while `Randomize at start` re-enables the pending start-time shuffle.
 
 ### 3. Draft pick
 

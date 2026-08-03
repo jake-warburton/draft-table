@@ -4,20 +4,17 @@ This plan begins only after the captain approves implementation. The current rep
 
 Every phase uses strict red–green–refactor and the full no-mistakes delivery workflow. A phase is not complete merely because code exists; its acceptance gate, docs, and measured budgets must pass.
 
-## Gate 0 — captain and evidence approval
+## Gate 0 — separate implementation authorization and evidence freeze
 
-Resolve or explicitly accept every blocking decision in [risks-and-decisions.md](risks-and-decisions.md), especially:
+The planning decisions are accepted in [risks-and-decisions.md](risks-and-decisions.md), but they do not themselves authorize application implementation. Before scaffolding, obtain that separate approval and verify that:
 
-- DT-1 collation weights/correlations and evidence;
-- DT-2 source-data/LSS rights and repository license;
-- DT-3 disconnected idle cleanup;
-- DT-4 seat randomization after manual arrangement;
-- DT-5 timer-off/disconnected readiness;
-- DT-6 queued-pick disposition after occupant removal.
+- the captain-held community recipe is available under the accepted filename/recipe ID and exact SHA-256 `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`;
+- its community—not official—provenance and 14-card scope remain explicit;
+- published source/LSS terms have not materially changed, attribution boundaries remain satisfied, and the repository's standard MIT `LICENSE` is present;
+- the accepted cleanup, randomization, readiness, and removed-queue contracts remain unchanged;
+- external Card Vault, Cloudflare, and Fabrary behavior is rechecked.
 
-Recheck all external sources/Cloudflare/Fabrary behavior. No implementation should claim authentic boosters until DT-1 is closed.
-
-**Acceptance:** signed decision record, archived small evidence/checksums, no guessed factual rule.
+**Acceptance:** explicit implementation authorization, immutable evidence/checksum record, no guessed factual rule or rear-card identity, and any drift handled as a new reviewed recipe/version.
 
 ## Phase 1 — workspace and quality spine
 
@@ -27,19 +24,19 @@ Avoid shared “utils”, plugin systems, generic event buses, multiple-set inhe
 
 **Acceptance:** clean install is reproducible; baseline commands documented; CI/no-mistakes green; no product behavior yet; bundle tooling can report client/server sizes.
 
-## Phase 2 — Omens import and reviewed snapshot
+## Phase 2 — Omens and community-recipe import
 
-Test-first importer reads pinned v8.2.0 inputs plus the official Card Vault membership fixture, verifies checksums, reconciles 251 OMN + 9 IAR entries, classifies all treatments/slots/exclusions, and emits a compact versioned snapshot. Card images remain URLs.
+A test-first build-time importer reads pinned v8.2.0 inputs, the official Card Vault membership fixture, and the checksum-verified community 3.8 recipe. It reconciles 251 OMN + 9 IAR product entries, classifies all treatments/slots/exclusions, maps all 209 recipe card names/collector IDs to snapshot identities/treatments, and emits compact independently versioned set and visible-recipe snapshots. Card images remain URLs; embedded recipe URLs are not runtime authority.
 
-Keep importer build-time only. Commit generated output only after human diff review and provenance report. Do not add a generic source marketplace.
+The strict recipe parser must validate the exact format, 228 layouts/460,800 total weight, 38×6 structure, six coefficients, all 11 pool counts/totals, `withReplacement=false`, and exact derived probabilities from [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe). Keep all import work build-time. Commit generated output or the full evidence file only after a separate provenance/license and human-diff review; do not add a generic source marketplace.
 
-**Acceptance:** every official product entry/treatment classified; no missing image/accessibility identity; excluded cards explicit; schema/checksum tests; snapshot size budget; reviewer can trace every field to source/evidence.
+**Acceptance:** every official product entry/treatment classified; every recipe reference mapped exactly once; no missing image/accessibility identity; excluded cards explicit; checksum/schema/integer-fixture tests; snapshot size budget; reviewer can trace every field to official, upstream, or clearly labelled community evidence.
 
 ## Phase 3 — pure engine
 
-Implement seeded random streams, physical pack generation/rear removal, seats/passing, provisional picks, timer/deadline transitions, fallback, pause, intermissions, vacancies, and visibility projection as pure functions. Start each behavior with tests from [testing.md](testing.md#unit-and-property-matrix).
+Implement seeded random streams, weighted visible-layout/card-pool generation, conceptual 16-position pack wrapping and opaque rear-marker removal, seats/passing, provisional picks, timer/deadline transitions, fallback, pause, accepted cleanup/readiness/replacement rules, intermissions, vacancies, and visibility projection as pure functions. Start each behavior with tests from [testing.md](testing.md#unit-and-property-matrix).
 
-**Acceptance:** unit/property matrix green for N=2..8; deterministic replay by seed/command trace; conservation/exclusion/visibility invariants; no platform imports; no unresolved collation unknown.
+**Acceptance:** unit/property matrix green for N=2..8; deterministic replay by seed/command trace; exact recipe integer fixtures; conservation/exclusion/visibility invariants; no platform imports; no fabricated rear identity or claim of official community probabilities.
 
 ## Phase 4 — contracts and Durable Object adapter
 
@@ -72,7 +69,7 @@ Run adversarial protocol/auth/visibility tests, reconnect/deploy simulation, quo
 **Acceptance:**
 
 - current external sources revalidated;
-- DT decisions closed;
+- accepted planning contracts unchanged or explicitly re-reviewed;
 - no critical/high security or accessibility findings;
 - measured per-room/quota model has captain-approved safety margin;
 - static/runtime bundles within ratcheted budgets;

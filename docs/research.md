@@ -1,4 +1,4 @@
-# External research
+# External research and approved evidence
 
 **Research date:** 2026-08-03. External services and free-tier terms can change; re-run the validation gates before implementation and release. Citation IDs used throughout `docs/` resolve in the [source register](#source-register).
 
@@ -29,7 +29,7 @@ Observed Omens coverage at v8.2.0:
 
 Material gaps:
 
-1. No formal `LICENSE` file and GitHub reports no detected license. The README calls the resource open source and invites broad use, but that is not a standard license grant. Captain/legal review is required before redistributing a derived snapshot (DT-2).
+1. No formal `LICENSE` file and GitHub reports no detected license. The README calls the resource open source and invites broad use, but that is not a standard license grant. The captain accepted proceeding under the currently published source terms without requiring separate written confirmation; the snapshot phase must still minimize redistribution, preserve provenance, and re-review any terms drift.
 2. No booster slot weights, sheet/run ordering, or pack generator.
 3. `expansion_slot` is printing metadata, not complete product-membership/collation evidence.
 4. The official Card Vault product list includes nine `IAR` Marvel entries not found by filtering upstream records to `set_id=OMN` [FAB-7].
@@ -54,6 +54,14 @@ The public Card Vault endpoint [FAB-7] is authoritative evidence for current pro
 
 A future `SetImporter` consumes immutable source documents and emits a set-specific snapshot with a schema version, source versions/checksums, identities, physical treatments, slot eligibility, image URLs, Fabrary IDs, and explicit inclusion/exclusion evidence. The platform-independent engine consumes only that snapshot. Adding a set means adding evidence and an adapter invocation, not subclassing the engine.
 
+## Captain-approved community collation evidence
+
+The captain downloaded `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt` from the Rantaways server, which the captain records as widely used by players to practice draft, and expressly approved it as the MVP recipe [COMMUNITY-1]. This provenance is community evidence, not an LSS statement. The source remains read-only outside this planning repository; neither the full file nor an application parser/generated snapshot is part of this change.
+
+Independent planning analysis confirmed the exact SHA-256, file format, all 228 weighted 14-card layouts, total layout weight 460,800, 209-card pool structure and internal totals, and the 70.833333%/29.166667% Rare/Majestic and 83%/15%/2% Rainbow Foil headline probabilities. The complete accepted fixture and future strict-parser contract are in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe).
+
+The recipe represents the 14 cards its simulator displays. It does not publish named/weighted rear-card outcomes or prove factory print runs. Draft Table therefore preserves the official conceptual 16-position pack and rear-two removal with opaque excluded rear markers rather than inventing those missing probabilities.
+
 ## Image hosting implications
 
 Card images remain remote and are never copied into the repository. The preferred dataset points at Legend Story Studios' public S3 host [DATA-1]. Consequences:
@@ -76,7 +84,7 @@ The current LSS asset terms state [FAB-6]:
 - third-party service/rules apps and related APIs may be created subject to the document, must carry its specified non-affiliation/property disclaimer, cannot be directly monetized without permission, and may not be created by a commercial entity;
 - FAB/LSS logos must not be used in third-party applications and passing off is prohibited.
 
-Draft Table therefore uses no FAB/LSS/set logos or copied trade dress, includes the full concise disclaimer in the README and product footer, is free, and treats these permissions as revocable. Public self-hosters remain responsible for their own compliance. Captain should decide whether to seek written LSS confirmation before public launch (DT-2).
+Draft Table therefore uses no FAB/LSS/set logos or copied trade dress, includes the full concise disclaimer in the README and product footer, is free, and treats these permissions as revocable. Public self-hosters remain responsible for their own compliance. The captain accepted proceeding under these currently published terms without requiring separate written confirmation; any material terms change reopens the launch review.
 
 ## Fabrary export/import research
 
@@ -142,6 +150,10 @@ All sources were accessed **2026-08-03** unless noted. Claims above are limited 
 - **[DATA-3]** [Card JSON Schema at v8.2.0](https://github.com/the-fab-cube/flesh-and-blood-cards/blob/v8.2.0/json-schema/card-schema.json) and [schema index](https://github.com/the-fab-cube/flesh-and-blood-cards/blob/v8.2.0/documentation/json-schemas.md) — schema capability. Repository and GitHub metadata had no formal license file/detected license.
 - **[DATA-4]** [Upstream releases](https://github.com/the-fab-cube/flesh-and-blood-cards/releases) and [commit history](https://github.com/the-fab-cube/flesh-and-blood-cards/commits/develop/) — v8.0.0 (2025-06-27), v8.1.0 (2025-10-08), v8.2.0 (2026-06-30), plus active spoiler/fix commits observed through 2026-08-03.
 - **[DATA-5]** [`fabrary/cards`](https://github.com/fabrary/cards), package [`@flesh-and-blood/cards`](https://www.npmjs.com/package/@flesh-and-blood/cards) — typed transformed dataset, documented ~12 MB generated export, MIT package metadata, printing/image fields, and active v4.0.49 update observed 2026-08-01.
+
+### Captain-approved community evidence
+
+- **[COMMUNITY-1]** Captain-held `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt`, downloaded by the captain from the Rantaways server and approved 2026-08-03 as the community MVP recipe. Independently inspected as a 120,617-byte UTF-8-BOM/CRLF sectioned file with SHA-256 `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`. It is not an official LSS publication and is intentionally not committed in this planning-only change.
 
 ### Fabrary
 

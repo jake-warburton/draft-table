@@ -16,10 +16,14 @@ Draft Table is a planned public, free-to-host multiplayer draft simulator for Fl
 - [Security and privacy boundaries](docs/security-and-privacy.md)
 - [TDD strategy and test matrix](docs/testing.md)
 - [Phased implementation plan](docs/implementation-plan.md)
-- [Risks, unknowns, and captain decisions](docs/risks-and-decisions.md)
+- [Accepted decisions, external unknowns, and risks](docs/risks-and-decisions.md)
 
 ## Unofficial product notice
 
 Draft Table is in no way affiliated with Legend Story Studios. Legend Story Studios®, Flesh and Blood™, and set names are trademarks of Legend Story Studios. Flesh and Blood characters, cards, logos, and art are property of Legend Story Studios. Card images are © Legend Story Studios.
 
 The product must not use Flesh and Blood or Legend Story Studios logos, set logos, or imitated trade dress. The official asset terms are summarized and cited in [the research](docs/research.md#legend-story-studios-image-and-app-terms).
+
+## License
+
+Draft Table's own software is licensed under the [MIT License](LICENSE). Third-party card data, images, names, trademarks, and other Legend Story Studios property are not relicensed by that file and remain subject to their respective terms.

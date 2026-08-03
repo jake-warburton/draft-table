@@ -102,7 +102,7 @@ Fabrary is contacted only after an explicit completion action. Query parameters 
 | WebSocket attachment | Connection identity/POV | Cloudflare socket attachment | Socket close/room deletion |
 | IP/platform metadata | Network/abuse/Cloudflare operation | Cloudflare transient/logs | Minimize; configure/document separately before launch |
 
-No email, payment, account, chat, contacts, precise location, analytics profile, or replay log. Completed rooms delete at one hour. Explicit all-left rooms delete immediately. DT-3 must prevent never-started/paused disconnected storage from persisting indefinitely.
+No email, payment, account, chat, contacts, precise location, analytics profile, or replay log. Completed rooms delete at one hour. Explicit all-left rooms delete immediately. An all-disconnected lobby deletes after 30 minutes; an all-disconnected paused started draft, or timer-off started draft waiting with no connected drafter, deletes after 24 hours. Successful reconnect resets the applicable cleanup generation/grace period.
 
 ## Logging
 
@@ -110,7 +110,7 @@ Allowed: room code hash, protocol version, command type, safe error code, state 
 
 ## LSS and public-repository boundary
 
-Use the exact third-party-app disclaimer required by current LSS terms and `© Legend Story Studios` by card images/footer [FAB-6]. No FAB/LSS/set logos, copied product backgrounds, or trade dress. The terms are revocable and disallow commercial-entity third-party apps; free/open source does not eliminate that risk. DT-2 is a launch gate.
+Use the exact third-party-app disclaimer required by current LSS terms and `© Legend Story Studios` by card images/footer [FAB-6]. No FAB/LSS/set logos, copied product backgrounds, or trade dress. The captain accepted proceeding without separate written confirmation, but the terms remain revocable and restrict commercial-entity third-party apps; free/open source does not eliminate that risk. The repository MIT license covers Draft Table's own software only and does not relicense card data, images, names, trademarks, or other LSS property. Material terms drift reopens launch review.
 
 ## Threat-focused acceptance cases
 

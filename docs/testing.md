@@ -21,7 +21,7 @@ Suggested future test layers (tool choice finalized during scaffolding):
 
 ## Determinism and fixtures
 
-- Fixed set snapshot/recipe versions and checksums in every collation fixture.
+- Fixed set snapshot and `rantaways-omn-draft-3.8-fixed-layout-probabilities` recipe versions/checksums in every collation fixture; byte mismatch fails before parse.
 - Test `RandomSource` seeded explicitly and serializable.
 - Production random source adapter tested separately for server ownership/domain separation, never for predictable output.
 - Fake monotonic/server clock; no test sleeps for engine timing.
@@ -34,31 +34,35 @@ Suggested future test layers (tool choice finalized during scaffolding):
 | Area | Required tests |
 |---|---|
 | Set import | Exact source checksums; 260 official product entries reconciled; 251 OMN + 9 IAR scope fixture; no duplicate stable IDs; every treatment classified; image host allowlist; unknown metadata fails closed. |
+| Community recipe bytes | Exact filename, 120,617 bytes, UTF-8 BOM/CRLF format, and SHA-256 `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`; any byte/version drift fails before parsing and requires a new reviewed fixture. |
+| Recipe parser | Deterministic Settings/CustomCards JSON plus indentation-sensitive Layout/pool parsing; required/unknown/duplicate section policy; 209 unique names/collector IDs; all references resolve to snapshot identity/treatment; embedded image URLs are ignored as authority; malformed syntax/unknown names/non-positive weights fail closed. |
+| Recipe invariants | 228 unique 14-card layouts; 38 base layouts × six rarity outcomes; total weight 460,800; every layout 11C (one Equipment) + 1R + 1R/M + 1RF; `withReplacement=false`; exact pool entry counts/totals for all 11 pools. |
+| Recipe probabilities | Exact six coefficients `1411,255,34,581,105,14` per 2,400-scaled base; aggregate integer weights `326400/134400` for R/M and `382464/69120/9216` for RF C/R/M; exact fractions `17/24`, `7/24`, `83/100`, `15/100`, `2/100` plus required rounded displays; no statistical-only assertion. |
 | Identity/treatment | Standard and Rainbow instances share identity; treatments remain distinct; deck/export quantities collapse by identity+pitch; remote URL never defines treatment. |
-| Physical booster | Exactly 16 pre-removal; slot recipe shape; unique instance IDs; deterministic same seed; different domain stream isolation. |
-| Rear exclusion | Exactly rear two removed; no replacement; every Basic/token/expansion/L/F/V/CF/other extra outcome excluded; no removed ID can enter projection/pool/fallback/export; all excluded entries retained with reason metadata. |
-| Visible collation | Exactly 14; 11 standard C + 1 standard R + 1 standard R/M + 1 legal RF; normal-slot M/RF draftable; integer weight selection reaches every eligible outcome and no ineligible one. |
-| Correlations | Evidence-backed run fixture reproduced exactly; when no model configured, documented independent slot streams; unknown/partial recipe refuses generation. |
+| Physical booster | Exactly 16 pre-removal positions: 14 recipe card instances plus two typed opaque rear markers; unique IDs; deterministic same seed; different domain stream isolation. |
+| Rear exclusion | Exactly positions 15/16 removed atomically; no fabricated rear card identity; no rear marker can enter projection/pool/fallback/export; every known Basic/token/expansion/L/F/V/CF/other extra treatment remains classified with reason metadata. |
+| Visible collation | Exactly 14 from one validated weighted layout; 11 standard C + 1 standard R + 1 standard R/M + 1 legal RF; normal-slot M/RF draftable; integer weighted selection reaches every eligible outcome and no ineligible one; repeated same-pool draws obey no-replacement. |
+| Correlations | The checksum-pinned layout correlation/weight model is reproduced exactly; unknown/partial recipe refuses generation; no test or product copy calls it an official print-run model. |
 | Random bounds | `nextInt(n)` always `0..n-1`; rejection path; no modulo bias for crafted source; uniform fallback over remaining instances. |
-| Pack count | For N=2..8, pre-generate `3N` packs, `48N` physical and `42N` visible instances. |
+| Pack count | For N=2..8, pre-generate `3N` packs, `48N` physical positions (`42N` card instances + `6N` rear markers), and `42N` visible card instances. |
 | Pass direction | N=2..8; pack 1 left, pack 2 right, pack 3 left; origin/current-holder mapping; no pack duplication/loss. |
 | Pool conservation | At completion every seat has 42 instances; union equals all visible instances; intersections empty; rear set disjoint. |
 | Queue | Valid queue, replacement, same-card idempotency, no unqueue, wrong pack/seat/phase rejection, queue cleared at commit. |
 | Secrecy views | Owner receives own queued ID; all others only boolean; host gains no hidden view; spectator POV omits queue ID. |
 | Official timers | Exact 14→2 schedule; 1 automatic; 60-second reviews; absolute deadline boundaries (`now == deadline` commits). |
-| Acceleration | All ready with >5s sets exactly 5s; <=5s unchanged; replace stays provisional; no extension/cancel; empty/disconnected readiness per accepted DT-5. |
-| Timers off | No deadline before readiness; readiness creates 5s; changes allowed; absent queue at commit random; pause interaction. |
+| Acceleration | All connected occupied seats ready with >5s sets exactly 5s; <=5s unchanged; replace stays provisional; no extension/cancel; empty/disconnected seats do not block and random-fill. |
+| Timers off | No deadline before a non-empty connected readiness set is complete; readiness creates 5s; changes allowed; absent queue at commit random; zero connected seats creates no loop; pause interaction. |
 | Pause/resume | Remaining time freezes; time spent paused irrelevant; stale alarm no-op; resume reconstructs; all-ready cap; queue while paused; review pause. |
 | Deadline commit | One card/seat; queued preferred; random fallback for disconnected/empty; atomic pass; last card auto-assigned. |
 | Alarm idempotency | Duplicate, early, late, old generation, retry after committed storage; no double award; current alarm restored. |
 | Lobby seats | Eight positions; move to empty; swap occupied; spectator move; start rejects <2/>8; unused gaps compact preserving order. |
-| Seat randomization | Default pending; same seed deterministic; every permutation reachable property; manual edit behavior per DT-4; randomization immediately before packs. |
-| Post-start seats | Reorder/swap rejected; remove leaves stable empty seat; queued-pick disposition follows the captain-approved DT-6 branch; spectator fill inherits pool/pack; unused lobby slot rejected. |
+| Seat randomization | `Randomize at start` defaults pending; same seed deterministic; every permutation reachable property; first manual move/swap disables it; `Randomize now` immediately shuffles; re-enable works; start shuffle occurs before packs. |
+| Post-start seats | Reorder/swap and host removal rejected; non-host removal atomically leaves a stable empty seat and clears its queue; spectator fill inherits pool/pack with no queue; unused lobby slot rejected. |
 | Participant cap | Up to 16; at most 8 drafters; spectator allow/deny; join phase rules. |
 | Reconnect | Credential reclaims identity/seat; new credential becomes spectator; latest connection supersedes; old socket command rejected; disconnect does not vacate. |
 | Host | Creator immutable; no transfer/recovery; controls fail while absent/forged; reconnect restores. |
 | Status feed | Material events only; no per-pick/card IDs/chat; bounded to configured count; structured copy. |
-| Lifecycle | explicit all-left delete; completion + exactly one hour; before boundary readable, at/after deleted; late alarm cannot resurrect; DT-3 policy fixture. |
+| Lifecycle | Explicit all-left immediate delete; completion + exactly one hour; all-disconnected lobby +30 minutes; all-disconnected paused or no-connected timer-off started draft +24 hours; successful reconnect resets generation/full grace; active timed draft unaffected; boundary/late-alarm idempotency. |
 | Protocol validation | Unknown version/type/field policy, oversized payload, invalid Unicode/control names, non-finite/bounds, role/phase errors, stable safe codes. |
 | Command dedupe | Duplicate ID same ack/no mutation; bounded eviction; ID scoped participant; stale version returns resync-safe response. |
 | Export | Deep link URL-encodes name/IDs, collapses treatments, includes `Draft`; below URL cap fixture; text parser form exact; no room/password/identity leakage. |
@@ -98,17 +102,17 @@ Each scenario uses isolated browser contexts/local storage; network frames are c
 | Pool hiding | Drafter pool absent during picks, visible review, absent again; spectator always sees; network payload obeys, not CSS-only. |
 | Provisional pick | click/Enter card A then B until deadline; only B commits; public status stays boolean; post-deadline click rejected. |
 | Acceleration | all queue with >5s, UI moves to five seconds, choices remain changeable, commit once. |
-| Timers disabled | no countdown until readiness, five-second confirmation, disconnected/empty behavior matches DT-5. |
+| Timers disabled | no countdown until at least one connected occupied seat exists and all such seats queue; five-second confirmation; disconnected/empty random fallback; zero-connected state never loops. |
 | Pause | timer/progress freezes across clients, queue replacement works, stale alarm no visible advance, resume synchronized. |
 | Disconnect/reconnect | same context reclaims; new context spectator; deadlines/random fallback continue; host controls disappear/return. |
-| Seat replacement | host removes disconnected player, fills from spectator, inherited pack/pool correct, old identity cannot pick. |
+| Seat replacement | host removes a disconnected non-host and queued choice disappears atomically; fills from spectator; inherited pack/pool correct; replacement sees no inherited queue; old identity cannot pick. |
 | Password fragment | no fragment/password in HTTP request, WS URL, Referer, logs, Fabrary link; wrong password sees no room state; address scrubbed. |
 | Keyboard | Tab reaches every card/control; Enter queues/replaces; no pointer; seat Move/swap alternative; visible focus. |
 | Screen reader semantics | accessibility tree names cards/treatments/timer/role/status; live announcements bounded; no colour-only state. |
 | Reduced motion/contrast | emulated reduced motion disables transitions; grayscale/high-contrast cues remain; timer/RF/queue recognizable. |
 | Responsive | desktop, tablet portrait/landscape, representative phone, 200% zoom; no blocked action/horizontal page overflow. |
 | External failure | image 404 preserves selectable card; clipboard denied reveals text; invalid Fabrary contract uses fallback. |
-| Lifecycle | completed room works before +1h and shows closed after; late reconnect gets terminal reason. |
+| Lifecycle | completed room works before +1h and closes at boundary; lobby all-disconnected closes at +30m; paused/no-connected timer-off started room at +24h; reconnect resets grace; stale cleanup alarm cannot close/resurrect incorrectly. |
 
 Use Chromium for Edge-equivalent engine coverage, Firefox, and WebKit for Safari-like coverage. WebKit is not a substitute for the manual current Safari/VoiceOver launch check.
 
@@ -122,7 +126,7 @@ Use Chromium for Edge-equivalent engine coverage, Firefox, and WebKit for Safari
 - axe has zero serious/critical findings; manual keyboard and screen-reader gates pass.
 - Load: one object with 16 sockets, burst queue/replacement/POV traffic, alarms, reconnect storm, and sustained room churn.
 - Free-tier model: measured requests, row reads/writes, duration, CPU, state bytes populate [architecture.md](architecture.md#per-room-budget); launch blocks if projected safe capacity is below approved target.
-- Dependency/license/security audit, docs link check, snapshot provenance/checksums, and no-mistakes all green.
+- Dependency/license/security audit, standard MIT `LICENSE` verification, docs link check, snapshot/community-recipe provenance and checksums, and no-mistakes all green.
 
 ## Bug protocol
 

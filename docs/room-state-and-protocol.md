@@ -18,6 +18,8 @@ PICKING --2-card commit + automatic last card--> REVIEW (after packs 1, 2)
 REVIEW --60-second deadline--> PICKING(next pack, alternate direction)
 PICKING --pack 3 automatic last card--> COMPLETED
 COMPLETED --1 hour alarm--> CLOSED/DELETED
+LOBBY --all disconnected for 30 minutes--> CLOSED/DELETED
+PAUSED/WAITING_TIMER_OFF(started) --all disconnected for 24 hours--> CLOSED/DELETED
 any non-closed phase --all participants explicitly leave--> CLOSED/DELETED
 ```
 
@@ -25,7 +27,7 @@ any non-closed phase --all participants explicitly leave--> CLOSED/DELETED
 
 ### Start transaction
 
-Validate host, lobby/config version, 2–8 occupied slots, participant cap, known snapshot, and resolved collation evidence. If pending randomization is enabled, shuffle occupied participant IDs with the server `seat-order` stream while preserving count. Compact occupied lobby positions into a clockwise ring, generate all three physical packs per seat, remove every pack's rear two cards, persist state/random streams/first deadline, then publish the first projected snapshot. Any failure leaves the room in lobby.
+Validate host, lobby/config version, 2–8 occupied slots, participant cap, known snapshot, and the exact approved visible-recipe ID/checksum. If pending `Randomize at start` is enabled, shuffle occupied participant IDs with the server `seat-order` stream while preserving count. The first prior manual seat move/swap must have disabled that flag unless the host explicitly re-enabled it; `Randomize now` has already persisted its immediate server-owned shuffle. Compact occupied lobby positions into a clockwise ring, generate the 14 visible card instances for all three packs per seat, wrap each in the 16-position physical model, remove both rear markers, persist state/random streams/first deadline, then publish the first projected snapshot. Any failure leaves the room in lobby.
 
 ### Pick transaction
 
@@ -38,7 +40,7 @@ When all readiness-eligible humans have queued:
 - timers off and no confirmation exists: set `now + 5s`;
 - an existing five-second confirmation is never extended/cancelled by replacing a queued card.
 
-The recommended readiness set is connected occupants of draft seats; empty/disconnected seats random-fill at commit. This avoids timer-off deadlock but requires captain confirmation (DT-5).
+The readiness set is the non-empty set of connected occupants of draft seats. Empty/disconnected seats do not block and random-fill at commit. If that set is empty, an existing timer-on deadline continues, but timer-off mode starts no confirmation. If every participant is then disconnected, the waiting timer-off draft uses the same 24-hour cleanup period as a paused started draft rather than creating an autonomous loop.
 
 ### Deadline transaction
 
@@ -57,15 +59,14 @@ Cloudflare alarms are at-least-once and retry, so phase/deadline generations mak
 
 ### Pause/resume
 
-Pause records `max(0, deadlineAt - now)` and increments alarm generation. Queue changes remain legal; no deadline/confirmation starts while paused. Resume sets `deadlineAt = now + frozenRemaining`, then applies the all-queued five-second cap. A timer-off all-queued condition reached while paused starts five seconds on resume. Only the connected permanent host may pause/resume.
+Pause records `max(0, deadlineAt - now)` and increments alarm generation. Queue changes remain legal; no pick/review deadline or confirmation starts while paused. Resume sets `deadlineAt = now + frozenRemaining`, then applies the all-queued five-second cap. A timer-off all-queued condition reached while paused starts five seconds on resume only when at least one occupied drafter seat is connected. Only the connected permanent host may pause/resume. If all participants remain disconnected while the started draft is paused, the separate 24-hour abandonment deadline applies.
 
 ### Seat removal/fill after start
 
-- `remove_participant` rejects the permanent host as a target. For another participant, it clears the occupant from that stable draft seat, revokes old seat authority, and logs one material event. Packs/pool remain.
-- Whether removal clears or retains that seat's queued pick is unresolved DT-6. Post-start removal/fill must not be implemented until the captain selects one branch; retaining keeps the card identity hidden from a replacement, who may replace it.
+- `remove_participant` rejects the permanent host as a target. For another participant, one atomic mutation clears the occupant and that seat's provisional queued pick, revokes old seat authority, and logs one material event. Packs/pool remain.
 - That identity becomes a spectator when spectator access is allowed; otherwise it leaves the active room projection but may reconnect only to an access-denied/removed response.
 - `move_participant` after start is accepted only for host moving a spectator to a vacated existing draft seat. No swap/reorder is allowed.
-- A newly filled occupant receives the inherited pool/current pack. Queued-pick inheritance follows the DT-6 decision and never discloses another participant's queued card identity.
+- A newly filled occupant receives the inherited pool/current pack with no inherited queue. It may queue a card; otherwise uniform fallback applies at commit.
 
 ## Timer schedule
 
@@ -88,7 +89,8 @@ Reviews are always 60 seconds. Client animation has no authority. Handshake/snap
 6. A socket close marks disconnected and logs a bounded material event; it does not remove/vacate a draft seat. Deadlines continue.
 7. Client reconnect uses bounded exponential backoff, sends last applied `stateVersion`, and receives deltas when safely retained or a fresh projected snapshot.
 8. Explicit `leave` removes a spectator; before start it vacates a lobby slot; after start a drafter seat becomes empty while retaining draft state.
-9. If every participant explicitly leaves, close/delete immediately. A safe idle policy for never-started/paused rooms with only disconnected identities remains DT-3; disconnection cannot simply equal leave without breaking reclaim semantics.
+9. If every participant explicitly leaves, close/delete immediately.
+10. When the lobby becomes all-disconnected, schedule abandonment for 30 minutes from that transition. When a paused started draft—or a timer-off started draft waiting with no connected drafter—becomes all-disconnected, schedule it for 24 hours. A successful reconnect invalidates that generation; a later return to all-disconnected starts a fresh full grace period. Disconnection otherwise preserves identity/seat.
 
 Cloudflare deployments/runtime shutdowns can disconnect WebSockets, so the client must reconnect and the object must reconstruct from SQLite even though infrastructure-restart durability is not a product promise [CF-6][CF-8].
 
@@ -120,8 +122,8 @@ protocolVersion, stateVersion, type, commandId?, serverNow, payload
 | `hello` | unauthenticated socket | credential?, password?, display name?, last state version |
 | `update_profile` | participant | display name |
 | `update_config` | host, lobby | complete validated room config patch |
-| `move_participant` | host | participant ID + lobby destination, or post-start vacated seat |
-| `set_seat_randomization` | host, lobby | enabled, or randomize-now action |
+| `move_participant` | host | participant ID + lobby destination, or post-start vacated seat; first manual lobby move/swap disables pending start randomization |
+| `set_seat_randomization` | host, lobby | `randomize_now` immediate shuffle or `randomize_at_start` enabled/disabled |
 | `start_draft` | host, lobby | expected config/seat version |
 | `queue_pick` | current seat occupant | phase ID + physical instance ID |
 | `pause` / `resume` | host | expected phase ID |
@@ -168,7 +170,10 @@ A host who is a spectator uses ordinary spectator POV visibility; host status ne
 
 ## Lifecycle cleanup
 
-- Completion schedules one alarm for exactly one hour later. The alarm closes sockets, clears attachments, and calls storage deletion. It is idempotent.
-- Explicit all-left closure does the same immediately.
-- Store only one current canonical snapshot plus bounded feed/dedupe metadata; no replay/event-sourcing system.
+- Completion schedules deletion exactly one hour later.
+- Explicit all-left closure deletes immediately.
+- An all-disconnected lobby schedules deletion after 30 minutes. An all-disconnected paused started draft, or timer-off started draft waiting with no connected drafter, schedules deletion after 24 hours. A successful reconnect increments the logical deadline generation and resets/cancels the grace period.
+- Active timed drafts keep advancing through authoritative deadlines even if all sockets disconnect. Timer-off drafts with nobody connected do not create confirmation loops and are bounded by the 24-hour rule once every participant is disconnected.
+- The object stores all logical candidates but calls `setAlarm` only for the earliest next event. Every alarm reloads canonical state/generations, handles the due event idempotently, and schedules the next candidate.
+- Cleanup closes sockets, clears attachments, and calls storage deletion. Store only one current canonical snapshot plus bounded feed/dedupe metadata; no replay/event-sourcing system.
 - Deleting storage also cancels/invalidates logical deadlines; alarm generation prevents late retries from recreating a room.

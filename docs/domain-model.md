@@ -1,6 +1,6 @@
 # Domain and data model
 
-This is a planning-level logical model. Names may become TypeScript types later, but this document is not a production schema.
+This is a planning-level logical model. Names may become TypeScript types later, but this document is not a production schema. Evidence IDs resolve in the [research source register](research.md#source-register).
 
 ## Design rules
 
@@ -20,8 +20,8 @@ This is a planning-level logical model. Names may become TypeScript types later,
 - display name/release date
 - upstream source tag, commit, file URLs, and checksums
 - official membership endpoint/checksum and research date
-- collation model version/evidence status
-- generated timestamp/tool version (future import phase)
+- visible-recipe ID/version/SHA-256 and evidence status;
+- generated timestamp/tool version (future import phase).
 
 ### `CardIdentity`
 
@@ -49,26 +49,50 @@ A printing/treatment that can occur in product:
 - `draftable` and one or more exclusion reasons;
 - verification state (`official`, `upstream`, `reconciled`, `unknown`).
 
-### `PackRecipe`
+### `VisiblePackRecipe`
 
-Versioned data, not engine code branches:
+Versioned community recipe data, not engine code branches:
 
-- 16 ordered `PhysicalSlotDefinition`s;
-- candidate treatment IDs and integer weights per slot outcome;
-- optional correlation/run model plus evidence reference;
-- rear-card count (`2`);
+- recipe ID `rantaways-omn-draft-3.8-fixed-layout-probabilities`;
+- source filename, byte length, SHA-256, and provenance/evidence status (`captain-approved-community`, never `official`);
+- strict format/version flags, including `withReplacement=false`;
+- 228 weighted 14-card layout definitions and total layout weight 460,800;
+- named candidate pools with card identity/treatment mappings and positive integer internal weights;
+- exact pool counts/totals, six layout-outcome coefficients, and derived-probability fixtures in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe);
 - post-removal invariant (`14`, with 11C + 1R + 1R/M + 1RF).
 
-Unknown weights fail validation. They are not represented as implicit uniform arrays.
+The imported representation refers only to reconciled snapshot IDs; raw community card objects/URLs are not runtime authority. Unknown fields, weights, or unresolved names fail validation. They are not silently normalized or represented as implicit uniform arrays.
+
+### `PhysicalPackRecipe`
+
+A composition boundary preserving official pack shape without fabricating missing rear probabilities:
+
+- immutable visible-recipe ID/version/checksum;
+- physical position count (`16`);
+- 14 generated visible `PhysicalCardInstance`s;
+- rear-card count (`2`) represented by typed opaque markers at positions 15 and 16;
+- the `removeRear(2)` operation required before draft projection.
+
+The community evidence covers only the visible 14-card layout [COMMUNITY-1]. A future evidence-backed rear recipe may replace opaque markers, but the MVP does not sample named rear cards.
 
 ### `PhysicalCardInstance`
 
-Created once during pack generation:
+Created for one visible recipe draw:
 
 - unique instance ID;
 - identity ID and treatment ID;
-- pack ID, original physical position, and slot family;
-- `removedRear` boolean/reason, kept only in canonical audit/testing data until room cleanup.
+- pack ID, original physical position (1–14), and slot/pool family.
+
+### `RemovedRearSlotInstance`
+
+Created solely to model and exclude each unseen physical rear position:
+
+- unique instance ID, pack ID, and original position (15 or 16);
+- physical slot family (`rear-basic` or `rear-premium`);
+- `draftable: false`, exclusion reasons, and official evidence reference;
+- no fabricated card identity/treatment.
+
+The set snapshot still classifies every known excluded product entry and treatment, but opaque rear markers do not pretend to select one.
 
 ## Room and people
 
@@ -85,7 +109,7 @@ Created once during pack generation:
 - monotonically increasing `stateVersion`;
 - protocol version;
 - next deadline/alarm generation;
-- terminal expiry time.
+- terminal expiry time and applicable all-disconnected grace generation.
 
 ### `RoomConfig`
 
@@ -96,7 +120,7 @@ Created once during pack generation:
 - spectators allowed;
 - seat randomization pending.
 
-Configuration is mutable only in lobby, except host pause/resume and spectator admission policy if the captain explicitly approves post-start changes. Recommended MVP freezes all listed configuration at start.
+All listed room configuration is mutable only in the lobby and freezes at draft start. Host pause/resume is a draft command, not configuration.
 
 ### `Participant`
 
@@ -119,7 +143,7 @@ Exactly eight numbered positions, each empty or containing one participant ID. T
 
 ### `Draft`
 
-- immutable set/recipe/snapshot versions;
+- immutable set snapshot and visible/physical recipe IDs, versions, and checksums;
 - production randomness metadata and current stream states (server-only);
 - ordered `DraftSeat[]` ring;
 - pre-generated pack pipelines, three per seat;
@@ -144,9 +168,9 @@ Removing/replacing a participant never moves this data. Empty seats remain in th
 ### `Pack`
 
 - pack ID, origin seat, pack number;
-- 16 generated physical instance IDs in original order;
-- two removed rear IDs;
-- ordered remaining visible IDs;
+- 16 ordered element IDs: 14 physical card instances followed by two rear markers;
+- two removed rear-marker IDs;
+- ordered remaining visible card-instance IDs;
 - current holder seat ID.
 
 After rear removal, instances move exactly once from pack to one seat pool. Passing changes only holder.
@@ -157,7 +181,7 @@ After rear removal, instances move exactly once from pack to one seat pool. Pass
 - queued-at server time and command ID;
 - occupant participant ID that queued it.
 
-It is provisional and replaceable, and it is cleared atomically at commit. Its disposition on occupant removal is blocked on DT-6: either remove it immediately or retain it as canonical state attributed to the old occupant. Under the retain branch, its card identity is not disclosed to the incoming participant, who may replace it. The recommended branch clears it and lets fallback resolve, avoiding inherited secret intent.
+It is provisional and replaceable, and it is cleared atomically at commit. Removing an occupant also clears that seat's queued pick in the same authoritative mutation, before any replacement inherits the seat. The replacement may queue from the inherited pack; otherwise fallback resolves at the deadline.
 
 ### `Deadline`
 
@@ -211,7 +235,7 @@ Uniform timeout fallback uses rejection sampling or an equivalent unbiased bound
 - Draft ring order and seat IDs never change after start.
 - Exactly three physical packs originate per initial draft seat.
 - Every visible physical instance is in exactly one of: current pack, unopened pack, or one seat pool.
-- Removed rear instances are in none of those three and no projected view.
+- Removed rear markers are in none of those three and no projected view.
 - A queued instance belongs to that seat's current pack and current phase.
 - One committed card per draft seat per pick transition; absent queues resolve uniformly at random.
 - No client supplies committed picks, pass operations, deadlines, time, random values, pool contents, or role.

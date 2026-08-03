@@ -31,7 +31,7 @@ The approved future shape is an npm-workspaces TypeScript monorepo:
 
 - `packages/engine`: pure deterministic draft/collation/state transitions; zero platform dependencies.
 - `packages/contracts`: protocol/domain view contracts and boundary validation.
-- `packages/set-omens`: reviewed generated snapshot and import evidence (created only after planning approval).
+- `packages/set-omens`: reviewed generated set snapshot plus checksum-pinned community visible-recipe output/import evidence (created only after separate implementation approval).
 - `apps/web`: static browser client.
 - `apps/server`: thin Worker router and Durable Object adapter.
 
@@ -74,14 +74,14 @@ These are conservative design estimates, not measured implementation results. Va
 
 ### Stored state
 
-A room has 336 visible physical instances (`8 × 3 × 14`) at maximum, plus compact references to 48 removed rear instances, eight seats, 16 participants, queues, RNG states, config, and at most 100 feed items. Store IDs/indices rather than repeated card objects. Target:
+A room has 336 visible physical card instances (`8 × 3 × 14`) at maximum, plus 48 compact removed-rear marker references, eight seats, 16 participants, queues, RNG states, config, and at most 100 feed items. Store IDs/indices rather than repeated card/recipe objects. Target:
 
 - canonical serialized room snapshot: **under 100 KiB**;
 - per-WebSocket serialized attachment: **under 1 KiB** (limit is 16,384 bytes [CF-6]);
 - protocol command: **under 16 KiB**;
 - one SQLite row safely below the 2 MB row/value limit [CF-5].
 
-At 100 KiB, even 10,000 undeleted rooms would approach 1 GB, so cleanup—not per-room size—is the storage risk. Completed deletion after one hour and explicit-all-left deletion are mandatory. DT-3 must add a bounded idle policy for never-started/paused disconnected rooms before launch.
+At 100 KiB, even 10,000 undeleted rooms would approach 1 GB, so cleanup—not per-room size—is the storage risk. Completed deletion after one hour and explicit-all-left deletion are mandatory. All-disconnected lobbies delete after 30 minutes; paused or no-connected timer-off started drafts delete after 24 hours. Successful reconnect resets the applicable grace period.
 
 ### Request estimate for one full eight-seat draft
 
@@ -136,7 +136,7 @@ Use a CSPRNG-generated, case-insensitive alphabet without ambiguous characters. 
 - Logs: no passwords, identity credentials, full pools/packs, invitation fragments, or Fabrary list content.
 - Quota response: disable new-room creation with a clear static notice before existing drafts fail; preserve existing room capacity.
 - Deployment: WebSockets disconnect on code updates [CF-6]. Deploy only with reconnect tests and compatible state/protocol migrations; do not promise uninterrupted drafts.
-- Data: no runtime upstream fetch. Snapshot and recipe are immutable for the lifetime of a room.
+- Data: no runtime upstream fetch or parsing of the 120 KiB community source. Build-time output is strict-checksum validated; set snapshot and community-recipe version/checksum are immutable for the lifetime of a room.
 
 ## Rejected alternatives
 

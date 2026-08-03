@@ -1,93 +1,93 @@
-# Risks, verified unknowns, and captain decisions
+# Accepted decisions, external unknowns, and risks
 
-External citation IDs resolve in the [research source register](research.md#source-register). `Blocking` means implementation or launch must not silently choose an answer.
+External citation IDs resolve in the [research source register](research.md#source-register). The captain accepted the contracts below on 2026-08-03. They replace the former pending-decision language but do not authorize application implementation, which remains a separate approval.
 
-## Decision register
+## Accepted planning contracts
 
-### DT-1 — missing Omens collation weights and print-run evidence
+### DT-1 — community Omens MVP recipe accepted
 
-- **Status:** Blocking implementation of authentic pack generation.
-- **Verified:** Official sources publish 11 Common, one Rare, one Rare-or-Majestic, one Rainbow Foil, and two rear Basic-family positions; Cold Foil is approximately 1/24 and replaces a Basic [FAB-3]. The rear two are removed [FAB-2][FAB-4].
-- **Unknown:** Rare/Majestic split, Rainbow Foil rarity/card weights, card sheet weights, Cold Foil position/card weights, and print-run correlations.
-- **Recommendation:** obtain official evidence or a captain-approved sealed-product observation fixture with sample size/confidence. Use independent published slot draws where correlation evidence remains absent. Never infer from card counts or call an estimate official.
-- **Captain must choose:** block public implementation until evidence exists (recommended), or approve a clearly labelled non-authentic experimental recipe. The latter conflicts with the MVP authenticity requirement and should not ship as MVP.
+- Official sources establish the visible 11C + 1R + 1R/M + 1RF shape and rear-two removal but do not publish the slot/card weights or print-run correlations [FAB-2][FAB-3][FAB-4].
+- The captain downloaded `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt` from the Rantaways server, which the captain records as widely used for draft practice, and approved it as the MVP recipe [COMMUNITY-1].
+- The accepted recipe ID is `rantaways-omn-draft-3.8-fixed-layout-probabilities`; its SHA-256 is `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`.
+- It is community evidence, not an official LSS publication or proof of factory print runs. Product copy must not call its probabilities official.
+- A future implementation may use it only after strict checksum pinning, deterministic parsing, exact layout/pool/derived-probability fixtures, and drift review described in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe).
+- Its 228 layouts model the visible 14 cards. The physical boundary remains a conceptual 16-position pack followed by removal of two opaque rear markers; no named rear-card weights are invented.
 
-### DT-2 — card data/image/app rights and repository license
+### DT-2 — published terms and MIT accepted
 
-- **Status:** Blocking public launch; data snapshot implementation should also wait for maintainer/legal comfort.
-- **Verified:** Preferred data repo has no formal/detected license despite permissive README language [DATA-1][DATA-2]. Fabrary package metadata says MIT but it transforms that source [DATA-5]. LSS grants revocable, conditional card-image/third-party-app permission, requires attribution/disclaimer, restricts direct monetization and commercial entities, and forbids third-party app logo use [FAB-6].
-- **Recommendation:** ask upstream for an explicit license and seek written LSS confirmation for a free public draft simulator; choose Draft Table's own open-source code license separately before code arrives. Keep official images remote and data provenance explicit.
-- **Captain must choose:** whether written confirmations are launch requirements and which code license the public repository will use.
+- Proceed under the currently published upstream-source and LSS terms without requiring separate written confirmation [DATA-1][DATA-2][FAB-6].
+- Draft Table's own software is MIT-licensed under the repository `LICENSE` file. That license does not relicense third-party card data, images, names, trademarks, or LSS property.
+- Preserve source provenance, remote-image use, attribution/unofficial notice, no-logo/no-trade-dress boundary, free/non-commercial scope, and the documented revocability/terms-drift risk.
 
-### DT-3 — idle cleanup for disconnected lobbies/paused drafts
+### DT-3 — all-disconnected cleanup accepted
 
-- **Status:** Blocking lifecycle implementation/free-storage safety.
-- **Verified requirements:** explicit all-left rooms close; completion expires after one hour; disconnect preserves identity/seat; host-disconnected controls remain unavailable.
-- **Conflict:** a never-started room or host-paused draft with all sockets disconnected may never reach completion or explicit leave, leaking storage indefinitely.
-- **Recommendation:** add an all-disconnected grace alarm: 30 minutes for lobby and 24 hours for paused started room, reset by successful reconnect. Warn before closure where connected. These durations are product policy, not external rules.
-- **Captain must choose:** grace durations and whether a paused draft should ever auto-close.
+- Close an all-disconnected lobby after 30 minutes.
+- Close an all-disconnected paused started draft after 24 hours.
+- A successful reconnect invalidates the current cleanup generation; a later transition back to all-disconnected starts a fresh full grace period.
+- Explicit all-left closure remains immediate; completion remains available for one hour. Active timed drafts keep their authoritative deadlines.
 
-### DT-4 — default randomization versus manual seat arrangement
+### DT-4 — manual seating and randomization accepted
 
-- **Status:** Needed before lobby implementation.
-- **Requirement tension:** seats randomize by default immediately before start, while the host can manually arrange seats before start.
-- **Recommendation:** pending randomization defaults on; the first manual move/swap turns it off with a visible announcement; host may re-enable or `Randomize now`. This makes manual arrangement meaningful without losing the default.
-- **Captain must choose:** approve this interaction or always randomize despite manual layout.
+- Pending `Randomize at start` is on by default.
+- The first manual seat move/swap disables it and announces the change.
+- `Randomize now` applies an immediate server-owned shuffle; `Randomize at start` re-enables the pending start-time shuffle.
 
-### DT-5 — timer-off readiness with disconnected/empty seats
+### DT-5 — timer-off readiness accepted
 
-- **Status:** Blocking engine semantics.
-- **Conflict:** `all active players queued` can deadlock timer-off rooms when an occupied seat disconnects; empty seats cannot queue but must preserve pack flow.
-- **Recommendation:** readiness includes connected occupied draft seats only. Empty/disconnected seats do not block the five-second confirmation and receive uniform random fallback. If no drafter is connected, do not spin repeated confirmations; use DT-3 cleanup, unless timers were already on and deadlines continue.
-- **Captain must choose:** approve, or define disconnected occupants as blockers and accept possible host intervention/deadlock.
+- Only connected occupied drafting seats gate the five-second confirmation.
+- Empty/disconnected seats do not block and receive uniform random fallback at commit.
+- If no drafting seat is connected, do not start an autonomous confirmation loop. Existing timer-on deadlines continue; an all-disconnected timer-off started draft uses the accepted 24-hour started-draft cleanup period.
 
-### DT-6 — queue state when a drafting occupant is removed
+### DT-6 — removed-player queue accepted
 
-- **Status:** Blocking post-start removal/fill implementation.
-- **Recommendation:** clear the removed occupant's queued selection. The replacement sees the inherited pack/pool and may queue; fallback applies if it does not. Keeping an undisclosed inherited choice is surprising and lets a removed player control the replacement's pick.
-- **Captain must choose:** clear (recommended) or retain.
+- Removing any non-host occupant atomically clears that seat's provisional pick before replacement.
+- The replacement inherits pool/current pack/future packs, may queue a new card, and receives uniform fallback if it does not.
+- The permanent host remains non-removable.
 
-### DT-7 — Fabrary deep link stability
+### DT-7 — Fabrary progressive enhancement accepted
 
-- **Status:** Non-blocking with fallback.
-- **Verified:** current public client supports `tab=import`, `cards`, `format`, and `name`, but this is deployed client behavior, not a versioned public API [FABR-1][FABR-2]. Sign-in and hero choice may remain.
-- **Decision:** adopt the deep link as preferred progressive enhancement and always ship the accepted text-list copy/open fallback. No private GraphQL usage. Captain review only if product copy must promise one click; recommendation is `Create in Fabrary` with a short sign-in caveat.
+- Prefer the current public `tab=import&cards=...&format=Draft&name=...` behavior [FABR-1][FABR-2].
+- Always provide the accepted text-list copy/open fallback. Do not use private authenticated GraphQL mutations and do not promise saved-deck creation without sign-in/confirmation.
 
 ## Risk register
 
 | Risk | Evidence/impact | Mitigation/gate |
 |---|---|---|
+| Community recipe provenance | Rantaways recipe is captain-approved practice-server evidence, not official LSS collation [COMMUNITY-1]. | Label it community everywhere; pin checksum/version; exact integer fixtures; require explicit review for drift. |
+| Recipe/card-source mismatch | Recipe embeds 209 custom cards while the product snapshot reconciles 260 official product entries and richer treatments. | Parser maps recipe names/collector IDs to the reviewed snapshot; fail on missing/ambiguous mapping; embedded URLs never become runtime authority. |
+| Rear-card identities unavailable | Community layouts start at 14 and official sources do not publish exact rear weights. | Use two typed opaque removed markers; retain excluded-entry metadata; never fabricate or expose rear outcomes. |
 | Card scope mismatch | Product page says 251; official Card Vault returns 260 entries including nine IAR Marvels [FAB-3][FAB-7]. | Reconciliation fixture; classify all official entries; fail on drift. |
-| Upstream drift/error | Data continues changing after tagged release and past tags are not back-patched [DATA-2][DATA-4]. | Pin tag/checksums; import validation report; update through reviewed PR only. |
-| Remote image outage/change | S3 URLs have no reviewed SLA; browser leaks normal request metadata. | Text fallback, no server dependency, no-referrer, host allowlist, launch smoke. |
-| LSS permission revocation | Current permissions expressly revocable [FAB-6]. | Minimal compliant use, contact path, ability to disable images, no logos/monetization. |
-| Free quota exhaustion | DO writes estimated tighter than requests; over-limit operations fail [CF-4]. | Measured counters, thrash limits, cleanup, stop new rooms before existing, quota alerts. |
-| 10 ms CPU ceiling | Serialization, password KDF, collation, and 16 projections can exceed Free Worker CPU [CF-1]. | Pre-generate packs, compact state, cache public fragment, benchmark worst transition, no SSR/heavy KDF. |
+| Upstream drift/error | Data changes after tagged release and past tags are not back-patched [DATA-2][DATA-4]. | Pin tag/checksums; import validation report; update through reviewed PR only. |
+| Upstream license ambiguity | Preferred data repository has no formal detected license despite broad README language [DATA-1][DATA-2]. | Accepted use is limited to current published terms; minimize redistribution, preserve provenance, and reopen review on terms change. |
+| LSS permission revocation | Current permissions are conditional and expressly revocable [FAB-6]. | Compliant minimal use, contact/disable path, required attribution, no logos/trade dress/direct monetization. |
+| Remote image outage/change | S3 URLs have no reviewed SLA; browser sends ordinary request metadata. | Text fallback, no server dependency, no-referrer, host allowlist, launch smoke. |
+| Free quota exhaustion | Durable Object writes are estimated tighter than requests; over-limit operations fail [CF-4]. | Measured counters, thrash limits, accepted cleanup, stop new rooms before existing, quota alerts. |
+| 10 ms CPU ceiling | Parsing, serialization, password verification, collation, and 16 projections can exceed Free Worker CPU [CF-1]. | Build-time recipe import, pre-generated packs, compact state, cached public fragments, worst-case benchmarks, no SSR/heavy KDF. |
 | WebSocket deploy disconnect | Cloudflare disconnects sockets on code updates [CF-6][CF-8]. | Persist every authority mutation; version compatibility; reconnect tests; careful deploy windows. |
-| At-least-once alarm | Deadline may retry [CF-7]. | Deadline generation + phase ID + storage transaction; idempotency tests. |
+| At-least-once alarm | Deadline/cleanup alarm may retry [CF-7]. | Deadline generation + phase ID + storage transaction; idempotency tests. |
 | Spectator privacy/collusion | Spectators intentionally see any POV's complete pack/pool. | Explicit role banner, server authorization, no queued card identity; acknowledge anti-collusion non-goal. |
 | Browser token theft | Identity is a local bearer secret. | Strict CSP/no third-party scripts, newest-socket-wins, short room lifecycle, clear limits. |
-| Password overconfidence | Fragment and fast verifier do not provide high-assurance secrecy. | Threat copy, WSS, rate limits, no logs, optional password labelled casual room access. |
-| Accessibility regression under card density | 14 card buttons, seat board, timers, live updates. | Semantic controls, bounded announcements, keyboard drag alternative, 8+8 browser/accessibility matrix. |
+| Password overconfidence | Fragment and fast verifier do not provide high-assurance secrecy. | Threat copy, WSS, rate limits, no logs, optional password labelled casual access. |
+| Accessibility regression under card density | 14 card buttons, seat board, timers, and live updates are dense. | Semantic controls, bounded announcements, keyboard drag alternative, 8+8 browser/accessibility matrix. |
 | Phone complexity | Eight seats and cards are dense. | Desktop/tablet primary, phone one-column/list alternatives; preserve all core actions. |
-| Status feed data growth | Reconnect churn can grow state/writes. | Enumerated events, dedupe/coalesce reconnect flaps if approved, cap 100, no per-pick events. |
+| Status feed data growth | Reconnect churn can grow state/writes. | Enumerated bounded events, cap 100, no per-pick events. |
 | Multiple tabs | Same identity could race picks/host actions. | Newest authenticated connection wins; old socket closed/rejected. |
-| Timer-off all-disconnected behavior | Empty readiness could cause autonomous rapid random drafting or deadlock. | DT-5 explicitly avoids vacuous readiness; DT-3 cleanup. |
-| No host recovery | Lost browser token permanently removes controls by design. | Explain before creation; no hidden transfer/recovery mechanism. |
+| All-disconnected timer-off behavior | Vacuous readiness could auto-draft repeatedly. | Require at least one connected occupied seat; use accepted paused/lobby cleanup. |
+| No host recovery | Lost browser token permanently removes controls by design. | Explain before creation; host cannot be removed; no hidden transfer/recovery mechanism. |
 
-## Verified unavailable data
+## Verified external unknowns
 
 As of the research date, no reviewed authoritative source was found for:
 
-- full Omens print-sheet/run correlations;
-- the missing normal-slot probabilities listed in DT-1;
-- a stable public Fabrary deck-creation API or a no-confirmation saved-deck deep link;
+- official Omens Rare/Majestic, Rainbow Foil card/rarity, or card-sheet weights;
+- full Omens factory print-sheet/run correlations or exact named rear-card weights;
+- a stable public Fabrary deck-creation API or no-confirmation saved-deck deep link;
 - an uptime/hotlink SLA for official image URLs;
 - a formal license for `the-fab-cube/flesh-and-blood-cards`;
 - a Cloudflare Free SLA or guarantee that cited allowances remain permanent.
 
-Absence is recorded rather than filled with assumptions.
+The accepted community recipe supplies the MVP simulator model for the first item without converting it into official evidence. These unknowns remain visible provenance/operational risks rather than silent assumptions.
 
-## Review order
+## Reopen conditions
 
-Captain review should resolve DT-1 and DT-2 first because they can stop the product, then DT-3/DT-5 because they alter authoritative lifecycle/timer behavior, then DT-4/DT-6 UI/state details. DT-7 already has a safe fallback.
+Reopen the relevant review if the recipe checksum/format changes, card mapping no longer reconciles, upstream or LSS terms materially change, official collation supersedes community evidence, Fabrary's import contract changes without a working fallback, or measured Cloudflare usage misses the approved free-tier margin.

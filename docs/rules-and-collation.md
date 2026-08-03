@@ -67,7 +67,9 @@ Majestics and Rainbow Foils in those normal slots are draftable. A normal and Ra
 
 ## Rear-slot exclusion contract
 
-The collator must first represent a 16-card physical booster and only then apply `removeRear(2)`. Removed instances must never enter a client projection, pool, remaining-card count, pick fallback, or Fabrary export. The versioned snapshot must nevertheless retain every excluded entry with:
+The approved community recipe begins at the 14-card simulator layout and does not identify or weight the two physical rear cards. The MVP physical model must therefore wrap each generated 14-card visible layout in a 16-position pack containing two explicit, opaque `RemovedRearSlotInstance` values at positions 15 and 16, then apply `removeRear(2)` before any client projection. It must not invent named rear-card probabilities. The rear markers carry unique instance IDs, position/family, `draftable: false`, and the official exclusion evidence, but no fabricated card identity/treatment.
+
+Removed rear markers must never enter a client projection, pool, remaining-card count, pick fallback, or Fabrary export. The versioned snapshot must nevertheless retain every known excluded product entry with:
 
 - source printing/collector identifier;
 - card identity;
@@ -79,27 +81,79 @@ The collator must first represent a 16-card physical booster and only then apply
 
 At minimum exclude all Basics/tokens, expansion-slot outcomes, Legendary, Fabled, Marvel, cold foils, and any other TRP extra-card treatment. Legendary Rainbow Foils in a rear slot are excluded. Do not infer that all Rainbow Foils are excluded: Common/Rare/Majestic Rainbow Foils in the legal normal slot remain eligible.
 
-## Correlation and probability evidence boundary
+## Captain-approved community MVP recipe
 
-No reviewed official source publishes:
+No reviewed official source publishes the Rare-versus-Majestic split, Rainbow Foil rarity/card weights, card-level sheets, exact rear-card weights, or print-run sequencing/pitch correlations. The product page publishes slot categories and the approximate 1-in-24 Cold Foil frequency, but not those values [FAB-3]. The open datasets describe cards and printings, not pack collation [DATA-1][DATA-5].
 
-- the Rare-versus-Majestic probability in the `Rare or Majestic` slot;
-- rarity weights for the Rainbow Foil slot;
-- card-level sheet weights;
-- which Basic position a Cold Foil replaces;
-- print-run sequencing or pitch/card correlations.
+The captain downloaded `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt` from the Rantaways server, which is widely used by players to practice draft, and approved it as Draft Table's MVP recipe [COMMUNITY-1]. It is a **captain-approved community recipe**, not an official Legend Story Studios publication, sealed-product observation study, or proof of factory print runs. Product copy and code identifiers must preserve that distinction.
 
-The product page publishes slot categories and the 1-in-24 approximate Cold Foil frequency, but not those missing weights [FAB-3]. The open datasets describe cards and printings, not pack collation [DATA-1][DATA-5]. **Do not derive weights from set card counts and do not invent print runs.**
+### Independently validated evidence
 
-Recommended implementation gate:
+The planning review independently parsed the read-only source and confirmed:
 
-1. Obtain an authoritative collation statement, or a captain-approved, documented observation dataset of sealed Omens product.
-2. Commit the evidence as small human-reviewed fixtures, not raw scraped/generated card data in this planning task.
-3. Version the resulting probability table separately from card data.
-4. Use independent slot draws only where no reliable correlation evidence exists, as the product brief directs.
-5. Mark empirical estimates with sample size and confidence; never label them official.
+- recipe ID: `rantaways-omn-draft-3.8-fixed-layout-probabilities`;
+- SHA-256: `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`;
+- 120,617 bytes and 5,083 lines, encoded as UTF-8 with BOM and CRLF endings;
+- sectioned format: JSON `Settings`, JSON `CustomCards`, an indentation-sensitive weighted `Layouts` DSL, then 11 named weighted card-pool sections;
+- settings `showSlots=true`, `withReplacement=false`, and one card-back URL;
+- 209 unique custom card names/collector IDs: 134 `common`, 60 `rare`, and 15 file-labelled `mythic` (the recipe's Majestic pool);
+- 228 uniquely identified, positive-integer weighted 14-card layouts with total weight **460,800**;
+- 38 base common-slot layouts, each expanded into the six exact Rare/Majestic × Rainbow-Foil-rarity outcomes;
+- every layout totals 11 normal Common-pool cards (including exactly one Equipment), one guaranteed Rare, one Rare-or-Majestic, and one Rainbow Foil;
+- every layout pool reference resolves, normal pools partition all custom cards by recipe category, Rainbow Foil pools are valid subsets, and all card weights are positive integers.
 
-Until the missing normal-slot weights are resolved, implementation may build and test the collation boundary but must not ship an `authentic` generator using guessed probabilities (DT-1).
+The six outcome coefficients within every base layout are the same, scaled by that base layout's integer multiplier:
+
+| Second rarity slot | Rainbow Foil pool | Coefficient out of 2,400 |
+|---|---|---:|
+| Rare | Common | 1,411 |
+| Rare | Rare | 255 |
+| Rare | Majestic | 34 |
+| Majestic | Common | 581 |
+| Majestic | Rare | 105 |
+| Majestic | Majestic | 14 |
+
+That yields exact aggregate fixtures:
+
+| Derived outcome | Layout weight | Probability |
+|---|---:|---:|
+| Second slot Rare | 326,400 | 70.833333% |
+| Second slot Majestic | 134,400 | 29.166667% |
+| Rainbow Foil Common | 382,464 | 83% |
+| Rainbow Foil Rare | 69,120 | 15% |
+| Rainbow Foil Majestic | 9,216 | 2% |
+
+The exact rational fixtures are `17/24` Rare and `7/24` Majestic for the second slot, and `83/100`, `15/100`, `2/100` for Rainbow Foil Common/Rare/Majestic; the six-decimal values above are display rounding.
+
+The internal card-pool fixtures are:
+
+| Pool | Entries | Total internal weight |
+|---|---:|---:|
+| Wizard | 24 | 159 |
+| Illusionist | 24 | 160 |
+| Runeblade | 24 | 164 |
+| Lightning | 42 | 227 |
+| Generic | 6 | 28 |
+| Equipment | 14 | 148 |
+| Rare | 60 | 120 |
+| Majestic | 15 | 30 |
+| Rainbow Foil Common (`Rfcommon`) | 105 | 105 |
+| Rainbow Foil Rare (`RFRare`) | 59 | 59 |
+| Rainbow Foil Majestic (`RFMajestic`) | 7 | 7 |
+
+### Implementation contract
+
+The MVP may use this recipe only after application implementation is separately approved and then only through a strict test-first import:
+
+1. Verify the exact filename/version, byte length, and SHA-256 before parsing; mismatch fails closed.
+2. Parse deterministically and reject unknown/missing/duplicate sections, malformed JSON/layout lines, duplicate IDs/names, non-positive weights, unresolved pool names/cards, a layout not totalling 14, or any changed invariant/total above.
+3. Lock the six coefficient fixtures, all pool counts/totals, total layout weight, and headline derived probabilities in exact integer/rational tests—never a flaky statistical approximation.
+4. Treat `withReplacement=false` as a recipe contract for repeated draws from a card pool within one pack.
+5. Version the recipe independently from the card snapshot and store both immutable IDs/checksums in every room. Any upstream file drift requires a new version, a machine-generated comparison report, human review, and explicit captain approval.
+6. Keep the full source file outside this planning-only change. A future implementation may archive it only after provenance/licensing review; generated output receives the same review as the card snapshot.
+7. Generate the recipe's 14 visible cards, wrap them in the conceptual 16-position physical model described above, and remove the two rear markers. Do not pretend the recipe models rear-card identities or official print-run correlations.
+
+Do not derive alternative weights from set card counts, silently normalize malformed totals, invent print runs, or label these community probabilities official.
 
 ## Card snapshot reconciliation
 
@@ -119,15 +173,16 @@ This is a future data-import phase. No generated snapshot belongs in the plannin
 
 ## Collation invariants for TDD
 
-Once DT-1 is resolved, the executable contract is:
+With the approved recipe, the executable contract is:
 
-1. Same set-data version + seed + seat count produces byte-equivalent unopened packs.
-2. Generate exactly `seatCount × 3 × 16` physical instances before exclusion and `seatCount × 3 × 14` draftable instances after it.
-3. Every physical instance ID is unique even when card identity/treatment repeats.
-4. The two rear positions contain only snapshot entries classified as rear-eligible; all are removed atomically.
-5. Every visible pack has the 11C + 1R + 1R/M + 1RF slot shape.
-6. Visible pools contain no excluded identity/treatment and all visible entries have a remote image URL.
-7. All weighted choices use a deterministic random source and unbiased bounded-index sampling.
-8. Production seed and random-source state are server-owned and are not sent during the draft.
-9. Pack, seat-order, and timeout-fallback random streams are domain-separated so a timeout cannot alter pre-generated packs.
-10. A completed N-seat draft assigns exactly 42 visible physical instances to every draft seat, with no loss or duplication.
+1. Same set-data version + recipe version/checksum + seed + seat count produces byte-equivalent unopened packs.
+2. Generate exactly `seatCount × 3 × 16` physical positions (14 card instances plus two rear markers per pack) before exclusion and `seatCount × 3 × 14` draftable card instances after it.
+3. Every visible card and rear-marker instance ID is unique even when card identity/treatment repeats.
+4. Positions 15 and 16 are typed removed-rear markers, never guessed card outcomes, and are removed atomically.
+5. Every visible pack has the 11C + 1R + 1R/M + 1RF slot shape and originates from one of the 228 validated weighted layouts.
+6. Layout total, six coefficients, pool counts/totals, `withReplacement=false`, and derived probabilities exactly match the checksum-pinned fixtures above.
+7. Visible pools contain no excluded identity/treatment and all visible entries have a remote image URL.
+8. All weighted choices use a deterministic random source and unbiased bounded-index sampling.
+9. Production seed and random-source state are server-owned and are not sent during the draft.
+10. Pack, seat-order, and timeout-fallback random streams are domain-separated so a timeout cannot alter pre-generated packs.
+11. A completed N-seat draft assigns exactly 42 visible physical card instances to every draft seat, with no loss or duplication.
