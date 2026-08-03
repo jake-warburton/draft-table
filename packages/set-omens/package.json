@@ -10,6 +10,7 @@
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "node ../../scripts/lint.mjs src",
-    "test": "node --experimental-strip-types --test test/*.test.mjs"
+    "test": "node --experimental-strip-types --test test/*.test.mjs",
+    "test:evidence": "node --experimental-strip-types scripts/test-private-evidence.mjs"
   }
 }
