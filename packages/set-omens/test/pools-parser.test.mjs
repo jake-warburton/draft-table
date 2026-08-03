@@ -240,7 +240,7 @@ const pinnedReferenceFixture = () => {
   const cards = normalPoolNames.map((name, index) => ({
     name: `Fictional ${name}`,
     collectorNumber: `OMN-${index + 1}`,
-    rarity: "common"
+    rarity: index === 6 ? "rare" : index === 7 ? "mythic" : "common"
   }));
   return {
     layouts: {
@@ -265,6 +265,18 @@ const pinnedReferenceFixture = () => {
 test("accepts the pinned normal partition and overlapping Rainbow Foil subsets", () => {
   const fixture = pinnedReferenceFixture();
   assert.equal(validateOmensRecipeReferences(fixture.layouts, fixture.pools, fixture.cards), undefined);
+});
+
+test("enforces each pinned pool's recipe rarity by name", () => {
+  const cases = [
+    ["Wizard", 0, "rare"], ["Rare", 6, "common"], ["Majestic", 7, "rare"],
+    ["Rfcommon", 0, "rare"], ["RFRare", 6, "common"], ["RFMajestic", 7, "rare"]
+  ];
+  for (const [pool, cardIndex, wrongRarity] of cases) {
+    const fixture = pinnedReferenceFixture();
+    fixture.cards[cardIndex].rarity = wrongRarity;
+    expectReferenceError(() => validateOmensRecipeReferences(fixture.layouts, fixture.pools, fixture.cards));
+  }
 });
 
 test("rejects uncovered cards and duplicates across normal pools independently", () => {
