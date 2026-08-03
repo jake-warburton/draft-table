@@ -14,6 +14,7 @@ import {
 } from "../src/checksum.ts";
 
 const digestOf = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const privateEvidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 
 test("the checksum boundary verifies and rejects synthetic bytes", () => {
   const bytes = new Uint8Array([0, 1, 2, 3]);
@@ -34,6 +35,21 @@ test("synthetic verification cannot make arbitrary bytes parser-trusted", () => 
   assert.equal(result, undefined);
   assert.throws(() => readVerifiedOmensBytesForParser(result), TypeError);
   assert.throws(() => readVerifiedOmensBytesForParser(Object.freeze({})), TypeError);
+});
+
+test("optional accepted evidence remains verified after its source Buffer changes", {
+  skip: privateEvidencePath === undefined
+}, () => {
+  const sourceBytes = readFileSync(privateEvidencePath);
+  const verified = verifyOmensRecipeBytes(sourceBytes);
+  const trustedBeforeMutation = readVerifiedOmensBytesForParser(verified.verification);
+
+  sourceBytes[0] ^= 1;
+
+  const trustedAfterMutation = readVerifiedOmensBytesForParser(verified.verification);
+  assert.equal(digestOf(trustedBeforeMutation), OMENS_RECIPE.sha256);
+  assert.equal(digestOf(trustedAfterMutation), OMENS_RECIPE.sha256);
+  assert.notStrictEqual(trustedBeforeMutation, trustedAfterMutation);
 });
 
 test("the pinned Omens descriptor is immutable and identifies only the approved recipe", () => {
