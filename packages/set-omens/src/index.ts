@@ -15,6 +15,7 @@ import {
 } from "./settings.ts";
 import {
   parseOmensLayoutsFromTrustedBytes,
+  validateOmensRecipeLayoutsAggregate,
   type OmensLayouts
 } from "./layouts.ts";
 
@@ -57,6 +58,6 @@ export const parseVerifiedOmensCustomCards = (
 
 export const parseVerifiedOmensLayouts = (
   recipe: VerifiedOmensRecipe
-): OmensLayouts => parseOmensLayoutsFromTrustedBytes(
+): OmensLayouts => validateOmensRecipeLayoutsAggregate(parseOmensLayoutsFromTrustedBytes(
   readVerifiedOmensBytesForParser(recipe.verification)
-);
+));
