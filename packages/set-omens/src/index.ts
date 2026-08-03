@@ -21,6 +21,7 @@ import {
 import {
   parseOmensPoolsFromTrustedBytes,
   validateOmensRecipePoolsAggregate,
+  validateOmensRecipeReferences,
   type OmensPools
 } from "./pools.ts";
 
@@ -75,6 +76,11 @@ export const parseVerifiedOmensLayouts = (
 
 export const parseVerifiedOmensPools = (
   recipe: VerifiedOmensRecipe
-): OmensPools => validateOmensRecipePoolsAggregate(parseOmensPoolsFromTrustedBytes(
-  readVerifiedOmensBytesForParser(recipe.verification)
-));
+): OmensPools => {
+  const bytes = readVerifiedOmensBytesForParser(recipe.verification);
+  const pools = validateOmensRecipePoolsAggregate(parseOmensPoolsFromTrustedBytes(bytes));
+  const layouts = validateOmensRecipeLayoutsAggregate(parseOmensLayoutsFromTrustedBytes(bytes));
+  const cards = validateOmensRecipeCustomCardsAggregate(parseOmensCustomCardsFromTrustedBytes(bytes));
+  validateOmensRecipeReferences(layouts, pools, cards);
+  return pools;
+};
