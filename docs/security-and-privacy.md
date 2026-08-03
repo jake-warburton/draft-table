@@ -102,7 +102,7 @@ Fabrary is contacted only after an explicit completion action. Query parameters 
 | WebSocket attachment | Connection identity/POV | Cloudflare socket attachment | Socket close/room deletion |
 | IP/platform metadata | Network/abuse/Cloudflare operation | Cloudflare transient/logs | Minimize; configure/document separately before launch |
 
-No email, payment, account, chat, contacts, precise location, analytics profile, or replay log. Completed rooms delete at one hour. Explicit all-left rooms delete immediately. An all-disconnected lobby deletes after 30 minutes; an all-disconnected paused started draft, or timer-off started draft waiting with no connected drafter, deletes after 24 hours. Successful reconnect resets the applicable cleanup generation/grace period.
+No email, payment, account, chat, contacts, precise location, analytics profile, or replay log. Completed rooms delete at one hour. Explicit all-left rooms delete immediately. An all-disconnected lobby deletes after 30 minutes; an all-disconnected paused started draft, or an all-disconnected timer-off started draft waiting with no connected drafter, deletes after 24 hours. Successful reconnect resets the applicable cleanup generation/grace period.
 
 ## Logging
 

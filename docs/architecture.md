@@ -81,7 +81,7 @@ A room has 336 visible physical card instances (`8 × 3 × 14`) at maximum, plus
 - protocol command: **under 16 KiB**;
 - one SQLite row safely below the 2 MB row/value limit [CF-5].
 
-At 100 KiB, even 10,000 undeleted rooms would approach 1 GB, so cleanup—not per-room size—is the storage risk. Completed deletion after one hour and explicit-all-left deletion are mandatory. All-disconnected lobbies delete after 30 minutes; paused or no-connected timer-off started drafts delete after 24 hours. Successful reconnect resets the applicable grace period.
+At 100 KiB, even 10,000 undeleted rooms would approach 1 GB, so cleanup—not per-room size—is the storage risk. Completed deletion after one hour and explicit-all-left deletion are mandatory. All-disconnected lobbies delete after 30 minutes; all-disconnected paused started drafts and all-disconnected timer-off started drafts waiting with no connected drafter delete after 24 hours. Successful reconnect resets the applicable grace period.
 
 ### Request estimate for one full eight-seat draft
 

@@ -172,7 +172,7 @@ A host who is a spectator uses ordinary spectator POV visibility; host status ne
 
 - Completion schedules deletion exactly one hour later.
 - Explicit all-left closure deletes immediately.
-- An all-disconnected lobby schedules deletion after 30 minutes. An all-disconnected paused started draft, or timer-off started draft waiting with no connected drafter, schedules deletion after 24 hours. A successful reconnect increments the logical deadline generation and resets/cancels the grace period.
+- An all-disconnected lobby schedules deletion after 30 minutes. An all-disconnected paused started draft, or an all-disconnected timer-off started draft waiting with no connected drafter, schedules deletion after 24 hours. A successful reconnect increments the logical deadline generation and resets/cancels the grace period.
 - Active timed drafts keep advancing through authoritative deadlines even if all sockets disconnect. Timer-off drafts with nobody connected do not create confirmation loops and are bounded by the 24-hour rule once every participant is disconnected.
 - The object stores all logical candidates but calls `setAlarm` only for the earliest next event. Every alarm reloads canonical state/generations, handles the due event idempotently, and schedules the next candidate.
 - Cleanup closes sockets, clears attachments, and calls storage deletion. Store only one current canonical snapshot plus bounded feed/dedupe metadata; no replay/event-sourcing system.

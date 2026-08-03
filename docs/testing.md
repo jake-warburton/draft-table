@@ -62,7 +62,7 @@ Suggested future test layers (tool choice finalized during scaffolding):
 | Reconnect | Credential reclaims identity/seat; new credential becomes spectator; latest connection supersedes; old socket command rejected; disconnect does not vacate. |
 | Host | Creator immutable; no transfer/recovery; controls fail while absent/forged; reconnect restores. |
 | Status feed | Material events only; no per-pick/card IDs/chat; bounded to configured count; structured copy. |
-| Lifecycle | Explicit all-left immediate delete; completion + exactly one hour; all-disconnected lobby +30 minutes; all-disconnected paused or no-connected timer-off started draft +24 hours; successful reconnect resets generation/full grace; active timed draft unaffected; boundary/late-alarm idempotency. |
+| Lifecycle | Explicit all-left immediate delete; completion + exactly one hour; all-disconnected lobby +30 minutes; all-disconnected paused started draft or all-disconnected timer-off started draft waiting with no connected drafter +24 hours; successful reconnect resets generation/full grace; active timed draft unaffected; boundary/late-alarm idempotency. |
 | Protocol validation | Unknown version/type/field policy, oversized payload, invalid Unicode/control names, non-finite/bounds, role/phase errors, stable safe codes. |
 | Command dedupe | Duplicate ID same ack/no mutation; bounded eviction; ID scoped participant; stale version returns resync-safe response. |
 | Export | Deep link URL-encodes name/IDs, collapses treatments, includes `Draft`; below URL cap fixture; text parser form exact; no room/password/identity leakage. |
@@ -112,7 +112,7 @@ Each scenario uses isolated browser contexts/local storage; network frames are c
 | Reduced motion/contrast | emulated reduced motion disables transitions; grayscale/high-contrast cues remain; timer/RF/queue recognizable. |
 | Responsive | desktop, tablet portrait/landscape, representative phone, 200% zoom; no blocked action/horizontal page overflow. |
 | External failure | image 404 preserves selectable card; clipboard denied reveals text; invalid Fabrary contract uses fallback. |
-| Lifecycle | completed room works before +1h and closes at boundary; lobby all-disconnected closes at +30m; paused/no-connected timer-off started room at +24h; reconnect resets grace; stale cleanup alarm cannot close/resurrect incorrectly. |
+| Lifecycle | completed room works before +1h and closes at boundary; all-disconnected lobby closes at +30m; all-disconnected paused started room or all-disconnected timer-off started room waiting with no connected drafter closes at +24h; reconnect resets grace; stale cleanup alarm cannot close/resurrect incorrectly. |
 
 Use Chromium for Edge-equivalent engine coverage, Firefox, and WebKit for Safari-like coverage. WebKit is not a substitute for the manual current Safari/VoiceOver launch check.
 

@@ -22,7 +22,7 @@ External citation IDs resolve in the [research source register](research.md#sour
 ### DT-3 — all-disconnected cleanup accepted
 
 - Close an all-disconnected lobby after 30 minutes.
-- Close an all-disconnected paused started draft after 24 hours.
+- Close an all-disconnected paused started draft, or an all-disconnected timer-off started draft waiting with no connected drafter, after 24 hours.
 - A successful reconnect invalidates the current cleanup generation; a later transition back to all-disconnected starts a fresh full grace period.
 - Explicit all-left closure remains immediate; completion remains available for one hour. Active timed drafts keep their authoritative deadlines.
 

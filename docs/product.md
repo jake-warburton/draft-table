@@ -99,7 +99,7 @@ Room limit is 16 simultaneous participant identities, of which at most eight are
 ## Completion and abandonment
 
 - A completed room remains available for one hour, then all room storage is deleted and sockets are closed.
-- A lobby with every participant disconnected closes after 30 minutes; a paused started draft with every participant disconnected closes after 24 hours. A successful reconnect resets the applicable grace period. Active timed drafts continue under their deadlines rather than using this paused-room grace rule.
+- A lobby with every participant disconnected closes after 30 minutes. A paused started draft, or a timer-off started draft waiting with no connected drafter, closes after 24 hours only when every participant is disconnected. A successful reconnect resets the applicable grace period. Active timed drafts continue under their deadlines rather than using this abandonment rule.
 - `Create in Fabrary` opens the current public import deep link with repeated card identifiers, `format=Draft`, and a pool name. It pre-populates an import form; it does not bypass Fabrary sign-in or hero selection [FABR-1][FABR-2].
 - The fallback copies a Fabrary-accepted text list and opens `https://fabrary.net/decks?tab=import`.
 - There is no internal deck construction, legality solver, or gameplay.
