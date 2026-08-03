@@ -1,6 +1,6 @@
 # Phased implementation plan and acceptance gates
 
-Gate 0 is complete and the walking-skeleton slice of Phase 1 has begun. The repository now contains the minimal npm-workspaces TypeScript scaffold, an unofficial neutral browser shell, and its smoke contract; generated card data, product behavior, and deployment configuration have not begun.
+Gate 0 is complete, and the repository contains the walking-skeleton slice of Phase 1. Phase 2 has begun only with the Omens source-identity and checksum gate; parsing, import, generated card data, product behavior, and deployment configuration remain unimplemented.
 
 Every phase uses strict red–green–refactor and the full no-mistakes delivery workflow. A phase is not complete merely because code exists; its acceptance gate, docs, and measured budgets must pass.
 
