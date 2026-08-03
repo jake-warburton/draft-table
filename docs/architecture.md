@@ -25,9 +25,9 @@ Use a single Worker project to serve static assets and implement small HTTP/WebS
 
 Use one SQLite-backed Durable Object per short room code. Free Workers supports SQLite-backed Durable Objects; legacy KV-backed objects are unavailable on Free [CF-4]. Do not add D1, KV, R2, Queues, a pub/sub service, or a second Worker.
 
-## Future monorepo boundary
+## Monorepo boundary
 
-The approved future shape is an npm-workspaces TypeScript monorepo:
+The approved npm-workspaces TypeScript scaffold now establishes these boundaries:
 
 - `packages/engine`: pure deterministic draft/collation/state transitions; zero platform dependencies.
 - `packages/contracts`: protocol/domain view contracts and boundary validation.
@@ -35,7 +35,7 @@ The approved future shape is an npm-workspaces TypeScript monorepo:
 - `apps/web`: static browser client.
 - `apps/server`: thin Worker router and Durable Object adapter.
 
-This is a boundary plan, not scaffolding. Keep the server plain rather than adding a general web framework. Select a small client rendering approach only after a bundle/accessibility spike; do not let a framework enter engine/contracts.
+Only the browser hello-world shell is implemented; the other boundaries remain empty. Keep the server plain rather than adding a general web framework. Select a small client rendering approach only after a bundle/accessibility spike; do not let a framework enter engine/contracts.
 
 ## Why Durable Objects fit
 

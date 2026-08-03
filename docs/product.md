@@ -6,7 +6,7 @@ External citation IDs in this document resolve in the [research source register]
 
 Draft Table is an unlisted-room browser tool for running a rules-faithful, server-authoritative Flesh and Blood booster draft without accounts, bots, chat, or a built-in deckbuilder. It is a public repository and must remain practical to self-host permanently for $0 on the current Cloudflare free tier. Omens visible-pack probabilities use the captain-approved community recipe documented in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe); they are not represented as an official Legend Story Studios publication.
 
-This document is a product contract, not an implementation. No application code exists yet.
+This document is the product contract, not an inventory of implemented behavior. Only the walking-skeleton browser shell exists today; the MVP outcomes below remain planned.
 
 ## MVP outcomes
 

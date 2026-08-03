@@ -12,7 +12,7 @@ All implementation follows red–green–refactor:
 
 No generated snapshot, parser, engine transition, protocol handler, client behavior, deployment adapter, or bug fix lands without a prior failing test. Keep pure tests fast and numerous; keep platform/browser tests focused on boundaries.
 
-Suggested future test layers (tool choice finalized during scaffolding):
+Additional future test layers (tool choice finalized when each layer is introduced):
 
 - pure TypeScript unit/property tests; a property-testing library is dev-only;
 - Cloudflare's supported Workers/Durable Objects integration test pool with isolated SQLite/alarm state;
@@ -121,7 +121,7 @@ Use Chromium for Edge-equivalent engine coverage, Firefox, and WebKit for Safari
 - Type checking and lint are clean; zero ignored warnings without recorded rationale.
 - Unit/property suite has deterministic repeatability and no wall-clock sleeps.
 - Critical engine branches and protocol validators have high coverage; coverage is a diagnostic, not a replacement for matrix behavior.
-- Client initial JS/CSS/data and server bundle budgets are set during scaffolding and ratcheted down; server stays under 3 MB Free limit [CF-1].
+- The scaffold reports actual client and server bundle sizes; budgets must be set and then ratcheted down before runtime implementation, with the server remaining under the 3 MB Free limit [CF-1].
 - Lighthouse CI agreed thresholds: recommend Performance ≥90 and Accessibility/Best Practices/SEO ≥95 on representative desktop and tablet, with any exception captain-reviewed.
 - axe has zero serious/critical findings; manual keyboard and screen-reader gates pass.
 - Load: one object with 16 sockets, burst queue/replacement/POV traffic, alarms, reconnect storm, and sustained room churn.

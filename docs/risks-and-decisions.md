@@ -1,6 +1,6 @@
 # Accepted decisions, external unknowns, and risks
 
-External citation IDs resolve in the [research source register](research.md#source-register). The captain accepted the contracts below on 2026-08-03. They replace the former pending-decision language but do not authorize application implementation, which remains a separate approval.
+External citation IDs resolve in the [research source register](research.md#source-register). The captain accepted the contracts below on 2026-08-03 and subsequently authorized Gate 0 and the walking-skeleton implementation slice. That authorization does not extend to the Phase 2 card-data importer or generated snapshot.
 
 ## Accepted planning contracts
 
