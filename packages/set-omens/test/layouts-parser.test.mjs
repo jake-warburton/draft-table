@@ -86,11 +86,13 @@ test("rejects malformed identifiers, pool references, numbers, duplicate IDs, an
     "\t- Fictional Layout (0)",
     "\t- Fictional Layout (-1)",
     "\t- Fictional Layout (9007199254740992)",
+    "\t- Fictional\u0080Layout (7)",
     "\t\t0 Fictional Alpha Pool",
     "\t\t02 Fictional Alpha Pool",
     "\t\t2  Fictional Alpha Pool",
     "\t\t2 Fictional Alpha Pool ",
-    "\t\t2 Fictional Alpha\u0000Pool"
+    "\t\t2 Fictional Alpha\u0000Pool",
+    "\t\t2 Fictional Alpha\u009fPool"
   ]) {
     const layouts = replacement.startsWith("\t-")
       ? validLayouts.replace("\t- Fictional Layout (7)", replacement)

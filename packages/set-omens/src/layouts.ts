@@ -51,7 +51,7 @@ const decodeEnvelope = (bytes: Uint8Array): string => {
 };
 
 const isNormalizedText = (value: string): boolean =>
-  value.length > 0 && value === value.trim() && value === value.normalize("NFC") && !/[\u0000-\u001f\u007f]/.test(value);
+  value.length > 0 && value === value.trim() && value === value.normalize("NFC") && !/\p{Cc}/u.test(value);
 
 const positiveSafeInteger = (token: string): number => {
   if (!/^[1-9][0-9]*$/.test(token)) return invalidLayouts();
