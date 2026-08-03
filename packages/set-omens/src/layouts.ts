@@ -35,6 +35,36 @@ const invalidLayouts = (): never => {
   throw new OmensRecipeLayoutsError();
 };
 
+export const validateOmensRecipeLayoutsAggregate = (layouts: OmensLayouts): OmensLayouts => {
+  if (layouts.layouts.length !== 228) return invalidLayouts();
+
+  let totalWeight = 0;
+  for (const layout of layouts.layouts) {
+    if (totalWeight > Number.MAX_SAFE_INTEGER - layout.weight) return invalidLayouts();
+    totalWeight += layout.weight;
+  }
+  if (totalWeight !== 460800) return invalidLayouts();
+
+  const coefficients = new Map<number, number>();
+  for (let offset = 0; offset < layouts.layouts.length; offset += 6) {
+    const group = layouts.layouts.slice(offset, offset + 6);
+    const divisor = group.reduce((common, layout) => {
+      let a = common;
+      let b = layout.weight;
+      while (b !== 0) [a, b] = [b, a % b];
+      return a;
+    }, 0);
+    for (const layout of group) {
+      const coefficient = layout.weight / divisor;
+      coefficients.set(coefficient, (coefficients.get(coefficient) ?? 0) + 1);
+    }
+  }
+  if (coefficients.size !== 6 || [...coefficients.values()].some((count) => count !== 38)) {
+    return invalidLayouts();
+  }
+  return layouts;
+};
+
 const hasUtf8Bom = (bytes: Uint8Array): boolean =>
   UTF8_BOM.every((byte, index) => bytes[index] === byte);
 

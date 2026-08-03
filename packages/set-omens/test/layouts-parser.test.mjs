@@ -7,7 +7,10 @@ import {
   parseVerifiedOmensLayouts,
   verifyOmensRecipeBytes
 } from "../src/index.ts";
-import { parseOmensLayoutsFromTrustedBytes } from "../src/layouts.ts";
+import {
+  parseOmensLayoutsFromTrustedBytes,
+  validateOmensRecipeLayoutsAggregate
+} from "../src/layouts.ts";
 
 const privateEvidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 const settings = JSON.stringify({
@@ -28,6 +31,18 @@ const source = (layouts, pools = "uninterpreted pool body") => Buffer.from(
   "utf8"
 );
 const validLayouts = "\t- Fictional Layout (7)\r\n\t\t2 Fictional Alpha Pool\r\n\t\t12 Fictional Beta Pool";
+const aggregateFixture = () => {
+  const coefficients = [1, 2, 3, 4, 5, 9];
+  const layouts = Array.from({ length: 38 }, (_, group) => {
+    const multiplier = group === 37 ? 19163 : 1;
+    return coefficients.map((coefficient, outcome) => Object.freeze({
+      id: `Synthetic ${group}-${outcome}`,
+      weight: coefficient * multiplier,
+      slots: Object.freeze([])
+    }));
+  }).flat();
+  return Object.freeze({ layouts: Object.freeze(layouts) });
+};
 
 const expectLayoutsError = (bytes) => {
   assert.throws(() => parseOmensLayoutsFromTrustedBytes(bytes), (error) => {
@@ -111,6 +126,34 @@ test("rejects malformed identifiers, pool references, numbers, duplicate IDs, an
 test("requires the directly represented fourteen-visible-card structural total for each layout", () => {
   expectLayoutsError(source(validLayouts.replace("\t\t12", "\t\t11")));
   expectLayoutsError(source("\t- Fictional Layout (7)\r\n\t\t14 Fictional Alpha Pool\r\n\t\t1 Fictional Beta Pool"));
+});
+
+test("rejects deliberate pinned Layouts aggregate breaks", () => {
+  const fixture = aggregateFixture();
+  assert.equal(validateOmensRecipeLayoutsAggregate(fixture), fixture);
+
+  const withWeights = (weights) => Object.freeze({
+    layouts: Object.freeze(fixture.layouts.map((layout, index) => Object.freeze({
+      ...layout,
+      weight: weights[index]
+    })))
+  });
+  const wrongTotal = fixture.layouts.map((layout) => layout.weight);
+  wrongTotal[wrongTotal.length - 1] += 1;
+  const overflow = fixture.layouts.map((layout) => layout.weight);
+  overflow[0] = Number.MAX_SAFE_INTEGER;
+  const wrongCoefficients = fixture.layouts.map((layout) => layout.weight);
+  wrongCoefficients[0] = 2;
+  wrongCoefficients[2] = 2;
+
+  for (const invalid of [
+    Object.freeze({ layouts: Object.freeze(fixture.layouts.slice(1)) }),
+    withWeights(wrongTotal),
+    withWeights(overflow),
+    withWeights(wrongCoefficients)
+  ]) {
+    assert.throws(() => validateOmensRecipeLayoutsAggregate(invalid), OmensRecipeLayoutsError);
+  }
 });
 
 test("validates the Settings and CustomCards boundaries while leaving following pool bodies uninterpreted", () => {
