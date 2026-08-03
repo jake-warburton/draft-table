@@ -10,10 +10,11 @@
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test tests/*.test.mjs && npm run test --workspaces --if-present",
     "size": "npm run build && node scripts/bundle-size.mjs"
   },
   "devDependencies": {
+    "@types/node": "^22.20.1",
     "typescript": "5.9.2"
   }
 }
