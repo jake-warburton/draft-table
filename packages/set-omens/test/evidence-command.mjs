@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
 const evidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 
