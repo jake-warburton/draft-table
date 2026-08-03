@@ -100,7 +100,7 @@ The planning review independently parsed the read-only source and confirmed:
 - 228 uniquely identified, positive-integer weighted 14-card layouts with total weight **460,800**;
 - 38 base common-slot layouts, each expanded into the six exact Rare/Majestic × Rainbow-Foil-rarity outcomes;
 - every layout totals 11 normal Common-pool cards (including exactly one Equipment), one guaranteed Rare, one Rare-or-Majestic, and one Rainbow Foil;
-- every layout pool reference resolves, normal pools partition all custom cards by recipe category, Rainbow Foil pools are valid subsets, and all card weights are positive integers.
+- every layout pool reference resolves; the Wizard, Illusionist, Runeblade, Lightning, Generic, Equipment, Rare, and Majestic pools partition all custom cards exactly once; the `Rfcommon`, `RFRare`, and `RFMajestic` pools are valid, potentially overlapping subsets of those cards; every declared pool is used by at least one layout slot; and all card weights are positive integers.
 
 The six outcome coefficients within every base layout are the same, scaled by that base layout's integer multiplier:
 
