@@ -31,11 +31,11 @@ The approved npm-workspaces TypeScript scaffold now establishes these boundaries
 
 - `packages/engine`: pure deterministic draft/collation/state transitions; zero platform dependencies.
 - `packages/contracts`: protocol/domain view contracts and boundary validation.
-- `packages/set-omens`: reviewed generated set snapshot plus checksum-pinned community visible-recipe output/import evidence (created only after separate implementation approval).
+- `packages/set-omens`: Omens-specific build-time source identity and checksum boundary; reviewed generated set snapshot and visible-recipe output/import evidence follow only after separate review.
 - `apps/web`: static browser client.
 - `apps/server`: thin Worker router and Durable Object adapter.
 
-Only the neutral browser shell is implemented; the other boundaries remain empty. Keep the server plain rather than adding a general web framework. Select a small client rendering approach only after a bundle/accessibility spike; do not let a framework enter engine/contracts.
+Only the neutral browser shell and the Omens checksum boundary are implemented; parsing and import remain unimplemented, and the other boundaries remain empty. Keep the server plain rather than adding a general web framework. Select a small client rendering approach only after a bundle/accessibility spike; do not let a framework enter engine/contracts.
 
 ## Why Durable Objects fit
 

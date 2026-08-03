@@ -58,7 +58,7 @@ test("CI validates pull requests and main with read-only permissions and the qua
   assert.match(workflow, /^\s*pull_request:\s*$/m);
   assert.match(workflow, /^\s*push:\s*\n\s*branches:\s*\[main\]/m);
   assert.match(workflow, /^permissions:\s*\n\s*contents:\s*read\s*$/m);
-  assert.match(workflow, /node-version:\s*22/);
+  assert.match(workflow, /^\s*node-version:\s*22\s*$/m);
   assert.match(workflow, /cache:\s*npm/);
   for (const command of ["npm ci", "npm run build", "npm run typecheck", "npm run lint", "npm test", "npm run size"]) {
     const whitespaceFlexibleCommand = command.split(" ").join("\\s+");

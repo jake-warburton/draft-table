@@ -56,7 +56,7 @@ A future `SetImporter` consumes immutable source documents and emits a set-speci
 
 ## Captain-approved community collation evidence
 
-The captain downloaded `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt` from the Rantaways server, which the captain records as widely used by players to practice draft, and expressly approved it as the MVP recipe [COMMUNITY-1]. This provenance is community evidence, not an LSS statement. The source remains read-only outside this planning repository; neither the full file nor an application parser/generated snapshot is part of this change.
+The captain downloaded `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt` from the Rantaways server, which the captain records as widely used by players to practice draft, and expressly approved it as the MVP recipe [COMMUNITY-1]. This provenance is community evidence, not an LSS statement. The source remains outside the repository; parsing and snapshot generation remain unimplemented.
 
 Independent planning analysis confirmed the exact SHA-256, file format, all 228 weighted 14-card layouts, total layout weight 460,800, 209-card pool structure and internal totals, and the 70.833333%/29.166667% Rare/Majestic and 83%/15%/2% Rainbow Foil headline probabilities. The complete accepted fixture and future strict-parser contract are in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe).
 
@@ -153,7 +153,7 @@ All sources were accessed **2026-08-03** unless noted. Claims above are limited 
 
 ### Captain-approved community evidence
 
-- **[COMMUNITY-1]** Captain-held `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt`, downloaded by the captain from the Rantaways server and approved 2026-08-03 as the community MVP recipe. Independently inspected as a 120,617-byte UTF-8-BOM/CRLF sectioned file with SHA-256 `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`. It is not an official LSS publication and is intentionally not committed in this planning-only change.
+- **[COMMUNITY-1]** Captain-held `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt`, downloaded by the captain from the Rantaways server and approved 2026-08-03 as the community MVP recipe. Independently inspected as a 120,617-byte UTF-8-BOM/CRLF sectioned file with SHA-256 `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`. It is not an official LSS publication and remains intentionally uncommitted pending the required provenance and licensing review.
 
 ### Fabrary
 

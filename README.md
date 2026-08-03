@@ -2,11 +2,11 @@
 
 Draft Table is a planned public, free-to-host multiplayer draft simulator for Flesh and Blood. The MVP is scoped to **Omens of the Third Age**, with 2–8 human drafters and up to 16 total room participants including spectators.
 
-> **Status: walking skeleton implementation begun.** The repository contains only a neutral browser shell and otherwise empty workspace boundaries. Card-data import, draft behavior, rooms, networking, deployment, Fabrary integration, and product UI have not begun.
+> **Status: walking skeleton implementation begun.** Phase 2 checksum verification has begun for the captain-approved community Omens recipe; parsing and import remain unimplemented. The repository otherwise contains only a neutral browser shell and workspace boundaries. Draft behavior, rooms, networking, deployment, Fabrary integration, and product UI have not begun.
 
 ## Walking skeleton setup
 
-Requires Node.js 22+ and npm 10+.
+Requires Node.js 22.6+ and npm 10+.
 
 ```sh
 npm install
