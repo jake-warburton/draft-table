@@ -121,7 +121,7 @@ Use Chromium for Edge-equivalent engine coverage, Firefox, and WebKit for Safari
 - Type checking and lint are clean; zero ignored warnings without recorded rationale.
 - Unit/property suite has deterministic repeatability and no wall-clock sleeps.
 - Critical engine branches and protocol validators have high coverage; coverage is a diagnostic, not a replacement for matrix behavior.
-- The scaffold reports actual client and server bundle sizes; budgets must be set and then ratcheted down before runtime implementation, with the server remaining under the 3 MB Free limit [CF-1].
+- The scaffold enforces the client budget documented in [the setup guide](../README.md#walking-skeleton-setup) and reports actual client and server bundle sizes; ratchet budgets down as implementation proceeds, with the server remaining under the 3 MB Free limit [CF-1].
 - Lighthouse CI agreed thresholds: recommend Performance ≥90 and Accessibility/Best Practices/SEO ≥95 on representative desktop and tablet, with any exception captain-reviewed.
 - axe has zero serious/critical findings; manual keyboard and screen-reader gates pass.
 - Load: one object with 16 sockets, burst queue/replacement/POV traffic, alarms, reconnect storm, and sustained room churn.

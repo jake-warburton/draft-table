@@ -1,6 +1,6 @@
 # Phased implementation plan and acceptance gates
 
-Gate 0 is complete and the walking-skeleton slice of Phase 1 has begun. The repository now contains the minimal npm-workspaces TypeScript scaffold, an unofficial hello-world browser shell, and its smoke contract; generated card data, product behavior, and deployment configuration have not begun.
+Gate 0 is complete and the walking-skeleton slice of Phase 1 has begun. The repository now contains the minimal npm-workspaces TypeScript scaffold, an unofficial neutral browser shell, and its smoke contract; generated card data, product behavior, and deployment configuration have not begun.
 
 Every phase uses strict red–green–refactor and the full no-mistakes delivery workflow. A phase is not complete merely because code exists; its acceptance gate, docs, and measured budgets must pass.
 
@@ -22,7 +22,7 @@ Complete the minimal npm-workspaces TypeScript layout approved in [architecture.
 
 Avoid shared “utils”, plugin systems, generic event buses, multiple-set inheritance, deployment environments, and runtime dependencies without an immediate MVP use.
 
-**Acceptance:** clean install is reproducible; baseline commands documented; CI/no-mistakes green; no product behavior yet; bundle tooling can report client/server sizes.
+**Acceptance:** clean install is reproducible; baseline commands documented; CI/no-mistakes green; no product behavior yet; bundle tooling enforces the emitted-client budget and reports the zero-byte, not-yet-emitted server boundary.
 
 ## Phase 2 — Omens and community-recipe import
 

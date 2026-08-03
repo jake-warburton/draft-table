@@ -35,7 +35,7 @@ The approved npm-workspaces TypeScript scaffold now establishes these boundaries
 - `apps/web`: static browser client.
 - `apps/server`: thin Worker router and Durable Object adapter.
 
-Only the browser hello-world shell is implemented; the other boundaries remain empty. Keep the server plain rather than adding a general web framework. Select a small client rendering approach only after a bundle/accessibility spike; do not let a framework enter engine/contracts.
+Only the neutral browser shell is implemented; the other boundaries remain empty. Keep the server plain rather than adding a general web framework. Select a small client rendering approach only after a bundle/accessibility spike; do not let a framework enter engine/contracts.
 
 ## Why Durable Objects fit
 
