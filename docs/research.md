@@ -56,7 +56,7 @@ A future `SetImporter` consumes immutable source documents and emits a set-speci
 
 ## Captain-approved community collation evidence
 
-The captain downloaded `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt` from the Rantaways server, which the captain records as widely used by players to practice draft, and expressly approved it as the MVP recipe [COMMUNITY-1]. This provenance is community evidence, not an LSS statement. The source remains outside the repository. Checksum verification, strict Settings-envelope and CustomCards-schema parsing, and aggregate fixture enforcement exist; source reconciliation, layouts, pools, import, and snapshots remain unimplemented.
+The captain downloaded `OMN_Draft_3.8 - Fixed New Layout Probabilities.txt` from the Rantaways server, which the captain records as widely used by players to practice draft, and expressly approved it as the MVP recipe [COMMUNITY-1]. This provenance is community evidence, not an LSS statement. The source remains outside the repository. Checksum verification, strict Settings-envelope, CustomCards-schema and aggregate validation, and indentation-sensitive Layouts-schema parsing exist; layout aggregate/coefficient fixtures, pool resolution/parsing, source reconciliation, generation, import, and snapshots remain unimplemented.
 
 Independent planning analysis confirmed the exact SHA-256, file format, all 228 weighted 14-card layouts, total layout weight 460,800, 209-card pool structure and internal totals, and the 70.833333%/29.166667% Rare/Majestic and 83%/15%/2% Rainbow Foil headline probabilities. The complete accepted fixture and future strict-parser contract are in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe).
 

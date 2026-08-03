@@ -44,7 +44,9 @@ const expectLayoutsError = (bytes) => {
 };
 
 test("parses the observed synthetic indentation-sensitive Layouts grammar into a minimal immutable schema", () => {
-  const schema = parseOmensLayoutsFromTrustedBytes(source(validLayouts));
+  const bytes = source(validLayouts);
+  const schema = parseOmensLayoutsFromTrustedBytes(bytes);
+  bytes.fill(0);
 
   assert.deepEqual(schema, {
     layouts: [{
@@ -87,12 +89,16 @@ test("rejects malformed identifiers, pool references, numbers, duplicate IDs, an
     "\t- Fictional Layout (-1)",
     "\t- Fictional Layout (9007199254740992)",
     "\t- Fictional\u0080Layout (7)",
+    "\t- Fictional Cafe\u0301 (7)",
     "\t\t0 Fictional Alpha Pool",
+    "\t\t-1 Fictional Alpha Pool",
+    "\t\t9007199254740992 Fictional Alpha Pool",
     "\t\t02 Fictional Alpha Pool",
     "\t\t2  Fictional Alpha Pool",
     "\t\t2 Fictional Alpha Pool ",
     "\t\t2 Fictional Alpha\u0000Pool",
-    "\t\t2 Fictional Alpha\u009fPool"
+    "\t\t2 Fictional Alpha\u009fPool",
+    "\t\t2 Fictional Cafe\u0301 Pool"
   ]) {
     const layouts = replacement.startsWith("\t-")
       ? validLayouts.replace("\t- Fictional Layout (7)", replacement)
