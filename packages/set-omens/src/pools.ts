@@ -81,13 +81,8 @@ export const validateOmensRecipeReferences = (
       if (!NORMAL_POOL_NAMES.has(pool.name)) continue;
       for (const entry of pool.entries) normalCounts.set(entry.reference, (normalCounts.get(entry.reference) ?? 0) + 1);
     }
-    if (normalCounts.size !== cardNames.size) return invalidPools();
     for (const cardName of cardNames) {
       if (normalCounts.get(cardName) !== 1) return invalidPools();
-    }
-    for (const pool of pools.pools) {
-      if (!RF_POOL_NAMES.has(pool.name)) continue;
-      for (const entry of pool.entries) if (!cardNames.has(entry.reference)) return invalidPools();
     }
   }
 };
