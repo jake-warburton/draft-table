@@ -120,6 +120,19 @@ test("rejects malformed JSON, top-level non-arrays, empty arrays, and exact sche
   expectCustomCardsError(Buffer.from(`\ufeff[Settings]\r\n${settings}\r\n[CustomCards]\r\n[{"name":"Fictional Aster","name":"Other"}]\r\n[Layouts]\r\nopaque`, "utf8"));
 });
 
+test("rejects C1 Unicode controls in every CustomCards textual field", () => {
+  for (const [field, value] of [
+    ["name", "Fictional\u0085Aster"],
+    ["collector_number", "OMN-\u0085-001"],
+    ["mana_cost", "2\u0085"],
+    ["rarity", "common\u0085"],
+    ["type", "action\u0085"],
+    ["image_uris", { en: "https://cards.invalid/fictional-aster\u0085.png" }]
+  ]) {
+    expectCustomCardsError(source([card({ [field]: value })]));
+  }
+});
+
 test("custom card errors never disclose source records", () => {
   const sensitive = source([card({ name: "Private Card Name", image_uris: { en: "https://private.invalid/secret" }, extra: true })]);
   assert.throws(() => parseOmensCustomCardsFromTrustedBytes(sensitive), (error) => {
