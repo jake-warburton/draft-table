@@ -59,7 +59,7 @@ const decodeEnvelope = (bytes: Uint8Array): string => {
 };
 
 const isNormalizedText = (value: unknown): value is string =>
-  typeof value === "string" && value.length > 0 && value === value.trim() && value === value.normalize("NFC") && !/[\u0000-\u001f\u007f]/.test(value);
+  typeof value === "string" && value.length > 0 && value === value.trim() && value === value.normalize("NFC") && !/\p{Cc}/u.test(value);
 
 const isHttpsUrl = (value: unknown): value is string => {
   if (!isNormalizedText(value)) {
