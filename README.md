@@ -2,7 +2,7 @@
 
 Draft Table is a planned public, free-to-host multiplayer draft simulator for Flesh and Blood. The MVP is scoped to **Omens of the Third Age**, with 2–8 human drafters and up to 16 total room participants including spectators.
 
-> **Status: walking skeleton implementation begun.** Phase 2 checksum verification plus strict Settings-envelope, CustomCards-schema, indentation-sensitive Layouts-schema parsing, pinned Layouts aggregate fixtures, and strict immutable pool-section schema parsing with pinned pool aggregates are implemented, including exact Layout-to-pool and pool-to-CustomCards reference resolution. Cross-reference membership and subset-coverage validation, source reconciliation, probability derivation, pack generation, import, and snapshots remain unimplemented. The repository otherwise contains only a neutral browser shell and workspace boundaries. Draft behavior, rooms, networking, deployment, Fabrary integration, and product UI have not begun.
+> **Status: walking skeleton implementation begun.** Phase 2 checksum verification plus strict Settings-envelope, CustomCards-schema, indentation-sensitive Layouts-schema parsing, pinned Layouts aggregate fixtures, and strict immutable pool-section schema parsing with pinned pool aggregates are implemented, including exact Layout-to-pool and pool-to-CustomCards reference resolution. Pool partition and subset-coverage validation, source reconciliation, probability derivation, pack generation, import, and snapshots remain unimplemented. The repository otherwise contains only a neutral browser shell and workspace boundaries. Draft behavior, rooms, networking, deployment, Fabrary integration, and product UI have not begun.
 
 ## Walking skeleton setup
 
