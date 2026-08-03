@@ -7,7 +7,10 @@ import {
   parseVerifiedOmensCustomCards,
   verifyOmensRecipeBytes
 } from "../src/index.ts";
-import { parseOmensCustomCardsFromTrustedBytes } from "../src/custom-cards.ts";
+import {
+  parseOmensCustomCardsFromTrustedBytes,
+  validateOmensRecipeCustomCardsAggregate
+} from "../src/custom-cards.ts";
 
 const privateEvidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 const settings = JSON.stringify({
@@ -64,6 +67,25 @@ test("parses minimal immutable recipe references from synthetic CustomCards reco
   assert.throws(() => { references.push({}); }, TypeError);
   assert.equal("image_uris" in references[0], false);
   assert.equal("type" in references[0], false);
+});
+
+test("rejects incorrect Omens aggregate totals and rarity distributions", () => {
+  const references = (common, rare, mythic) => [
+    ...Array.from({ length: common }, (_, index) => ({ name: `Common ${index}`, collectorNumber: `C-${index}`, rarity: "common" })),
+    ...Array.from({ length: rare }, (_, index) => ({ name: `Rare ${index}`, collectorNumber: `R-${index}`, rarity: "rare" })),
+    ...Array.from({ length: mythic }, (_, index) => ({ name: `Mythic ${index}`, collectorNumber: `M-${index}`, rarity: "mythic" }))
+  ];
+
+  for (const invalidReferences of [
+    references(133, 60, 15),
+    references(135, 60, 15),
+    references(133, 61, 15)
+  ]) {
+    assert.throws(
+      () => validateOmensRecipeCustomCardsAggregate(invalidReferences),
+      OmensRecipeCustomCardsError
+    );
+  }
 });
 
 test("validates CustomCards section framing while leaving later bodies uninterpreted", () => {
