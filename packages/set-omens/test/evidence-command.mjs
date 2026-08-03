@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 const evidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 
@@ -15,15 +15,21 @@ try {
   process.exit(1);
 }
 
-const result = spawnSync(process.execPath, [
-  "--experimental-strip-types",
-  "--test",
-  "test/checksum-gate.test.mjs",
-  "test/settings-parser.test.mjs"
-], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+const testFiles = readdirSync("test")
+  .filter((file) => file.endsWith(".test.mjs"))
+  // The contract spawns this runner; including it would recurse.
+  .filter((file) => file !== "evidence-command-contract.test.mjs")
+  .map((file) => `test/${file}`);
 
-if (result.status !== 0) {
-  console.error("private evidence acceptance failed.");
+const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", ...testFiles], {
+  encoding: "utf8",
+  stdio: ["ignore", "pipe", "pipe"]
+});
+const skippedLine = result.stdout.match(/^# skipped (\d+)$/m);
+const skipped = skippedLine === null ? null : Number(skippedLine[1]);
+
+if (result.status !== 0 || skipped === null || skipped !== 0) {
+  console.error("private evidence acceptance did not run all contracts.");
   process.exit(1);
 }
 

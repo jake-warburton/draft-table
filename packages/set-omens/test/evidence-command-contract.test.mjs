@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const evidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 const packageDirectory = fileURLToPath(new URL("..", import.meta.url));
-const runner = fileURLToPath(new URL("../scripts/test-private-evidence.mjs", import.meta.url));
+const runner = fileURLToPath(new URL("./evidence-command.mjs", import.meta.url));
 
 const run = (env) => spawnSync("npm", [
   "--silent",
@@ -32,10 +32,17 @@ test("evidence command rejects an unset or empty variable without private detail
   }
 });
 
-test("evidence runner rejects skipped contracts from TAP output", () => {
-  const source = readFileSync(runner, "utf8");
-  assert.match(source, /# skipped/);
-  assert.match(source, /skipped > 0/);
+test("evidence runner rejects a discovered skipped contract", {
+  skip: !evidencePath ? "private acceptance contract did not run; set OMENS_RECIPE_EVIDENCE_PATH or use npm run test:evidence" : false
+}, () => {
+  const testFile = "test/evidence-command-skip-probe.test.mjs";
+  writeFileSync(testFile, 'import test from "node:test"; test("probe", { skip: "probe" }, () => {});');
+  try {
+    const result = run({ ...process.env });
+    assert.notEqual(result.status, 0);
+  } finally {
+    rmSync(testFile, { force: true });
+  }
 });
 
 test("operator evidence invocation reports only a successful private pass", {
