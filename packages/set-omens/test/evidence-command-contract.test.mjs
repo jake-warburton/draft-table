@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const evidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 const packageDirectory = fileURLToPath(new URL("..", import.meta.url));
+const runner = fileURLToPath(new URL("../scripts/test-private-evidence.mjs", import.meta.url));
 
 const run = (env) => spawnSync("npm", [
   "--silent",
@@ -28,6 +30,12 @@ test("evidence command rejects an unset or empty variable without private detail
     assert.equal(result.stdout, "");
     assert.match(result.stderr, /OMENS_RECIPE_EVIDENCE_PATH is required/);
   }
+});
+
+test("evidence runner rejects skipped contracts from TAP output", () => {
+  const source = readFileSync(runner, "utf8");
+  assert.match(source, /# skipped/);
+  assert.match(source, /skipped > 0/);
 });
 
 test("operator evidence invocation reports only a successful private pass", {
