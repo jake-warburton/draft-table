@@ -78,6 +78,7 @@ test("the approved workspaces build without product implementations", () => {
   }
 
   const staleOutput = fromRoot("apps/web/dist/stale-output.js");
+  mkdirSync(fromRoot("apps/web/dist"), { recursive: true });
   writeFileSync(staleOutput, "stale");
 
   execFileSync("npm", ["run", "build"], { cwd: root, stdio: "pipe" });
