@@ -178,8 +178,7 @@ const toReference = (value: unknown): OmensRecipeCardReference => {
   });
 };
 
-/** Test-only seam for synthetic malformed-input contracts; not publicly exported. */
-/** Validates the pinned community recipe's documented aggregate fixtures at the verified boundary. */
+/** Internal seam validating pinned-recipe aggregates at the verified boundary; not publicly exported. */
 export const validateOmensRecipeCustomCardsAggregate = (
   references: ReadonlyArray<OmensRecipeCardReference>
 ): ReadonlyArray<OmensRecipeCardReference> => {
@@ -192,6 +191,7 @@ export const validateOmensRecipeCustomCardsAggregate = (
   return references;
 };
 
+/** Test-only seam for synthetic malformed-input contracts; not publicly exported. */
 export const parseOmensCustomCardsFromTrustedBytes = (bytes: Uint8Array): ReadonlyArray<OmensRecipeCardReference> => {
   try {
     const json = customCardsJsonFromTrustedBytes(bytes);
