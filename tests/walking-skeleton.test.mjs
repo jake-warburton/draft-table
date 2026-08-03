@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -45,7 +45,8 @@ test("the bundle-size report deterministically accepts the 2,048-byte client cei
   assert.match(atCeiling.stdout, /Client bundle: 2048 bytes/);
   assert.match(atCeiling.stdout, /Server bundle: 0 bytes \(not yet emitted; boundary typechecked only\)/);
 
-  writeClientShell(directory, { "index.html": 1025, "styles.css": 1024, "main.js": 0 });
+  mkdirSync(join(directory, "assets"));
+  writeFileSync(join(directory, "assets", "extra.js"), "x");
   const overCeiling = runSizeReport(directory);
   assert.notEqual(overCeiling.status, 0);
   assert.match(overCeiling.stdout, /Client bundle: 2049 bytes/);
