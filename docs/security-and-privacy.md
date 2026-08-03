@@ -6,7 +6,7 @@ External citation IDs resolve in the [research source register](research.md#sour
 
 - Server owns picks, deadlines, packs, passing, seats, roles, randomness, and expiry.
 - Clients receive only the projection authorized for their current role/POV.
-- Invitation passwords and browser identity credentials never enter URLs, logs, analytics, or status events.
+- Invitation passwords never enter HTTP request paths/queries, application logs, analytics, or status events; browser identity credentials never enter URLs or those outputs.
 - No account/profile database and no room data retained beyond its lifecycle.
 - Clear unofficial/non-affiliation presentation and compliant image attribution [FAB-6].
 

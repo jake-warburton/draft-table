@@ -61,10 +61,11 @@ Pause records `max(0, deadlineAt - now)` and increments alarm generation. Queue 
 
 ### Seat removal/fill after start
 
-- `remove_participant` clears occupant from that stable draft seat, clears any queued pick, revokes its old seat authority, and logs one material event. Packs/pool remain.
+- `remove_participant` rejects the permanent host as a target. For another participant, it clears the occupant from that stable draft seat, revokes old seat authority, and logs one material event. Packs/pool remain.
+- Whether removal clears or retains that seat's queued pick is unresolved DT-6. Post-start removal/fill must not be implemented until the captain selects one branch; retaining keeps the card identity hidden from a replacement, who may replace it.
 - That identity becomes a spectator when spectator access is allowed; otherwise it leaves the active room projection but may reconnect only to an access-denied/removed response.
 - `move_participant` after start is accepted only for host moving a spectator to a vacated existing draft seat. No swap/reorder is allowed.
-- A newly filled occupant receives the inherited pool/current pack, but never the removed occupant's queued choice.
+- A newly filled occupant receives the inherited pool/current pack. Queued-pick inheritance follows the DT-6 decision and never discloses another participant's queued card identity.
 
 ## Timer schedule
 
@@ -125,7 +126,7 @@ protocolVersion, stateVersion, type, commandId?, serverNow, payload
 | `queue_pick` | current seat occupant | phase ID + physical instance ID |
 | `pause` / `resume` | host | expected phase ID |
 | `select_pov` | spectator | draft seat ID |
-| `remove_participant` | host | participant ID/reason code |
+| `remove_participant` | host | non-host participant ID + reason code |
 | `leave` | participant | no arbitrary text |
 | `resync` | authenticated socket | last state version |
 

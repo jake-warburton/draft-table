@@ -43,7 +43,7 @@ External citation IDs resolve in the [research source register](research.md#sour
 
 ### DT-6 — queue state when a drafting occupant is removed
 
-- **Status:** Needed before post-start seat replacement.
+- **Status:** Blocking post-start removal/fill implementation.
 - **Recommendation:** clear the removed occupant's queued selection. The replacement sees the inherited pack/pool and may queue; fallback applies if it does not. Keeping an undisclosed inherited choice is surprising and lets a removed player control the replacement's pick.
 - **Captain must choose:** clear (recommended) or retain.
 

@@ -157,7 +157,7 @@ After rear removal, instances move exactly once from pack to one seat pool. Pass
 - queued-at server time and command ID;
 - occupant participant ID that queued it.
 
-It is provisional and replaceable. It is cleared atomically at commit. After a seat replacement, the queued identity remains canonical but is not disclosed to the incoming participant; the host may instead choose to clear it as a future captain decision. Recommended behavior is to clear on removal and let fallback resolve, avoiding inherited secret intent.
+It is provisional and replaceable, and it is cleared atomically at commit. Its disposition on occupant removal is blocked on DT-6: either remove it immediately or retain it as canonical state attributed to the old occupant. Under the retain branch, its card identity is not disclosed to the incoming participant, who may replace it. The recommended branch clears it and lets fallback resolve, avoiding inherited secret intent.
 
 ### `Deadline`
 
