@@ -67,8 +67,9 @@ test("rejects malformed Settings JSON and its exact key and value contract", () 
   expectSettingsError(source(JSON.stringify({ showSlots: true, withReplacement: false, cardBack: 1 })));
 });
 
-test("requires strict UTF-8, a BOM, CRLF-only lines, and no terminal newline", () => {
+test("requires strict UTF-8, exactly one BOM, CRLF-only lines, and no terminal newline", () => {
   expectSettingsError(Buffer.from(`[Settings]\r\n${validSettings}\r\n[CustomCards]\r\nopaque`, "utf8"));
+  expectSettingsError(Buffer.from(`\ufeff\ufeff[Settings]\r\n${validSettings}\r\n[CustomCards]\r\nopaque`, "utf8"));
   expectSettingsError(Buffer.from(`\ufeff[Settings]\n${validSettings}\n[CustomCards]\nopaque`, "utf8"));
   expectSettingsError(Buffer.from(`\ufeff[Settings]\r\n${validSettings}\r\n[CustomCards]\r\nopaque\r\n`, "utf8"));
   expectSettingsError(new Uint8Array([0xef, 0xbb, 0xbf, 0x5b, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x5d, 0x0d, 0x0a, 0xc3]));

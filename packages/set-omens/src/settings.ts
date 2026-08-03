@@ -31,7 +31,7 @@ const decodeEnvelope = (bytes: Uint8Array): string => {
   }
 
   try {
-    const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(UTF8_BOM.length));
+    const source = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes.subarray(UTF8_BOM.length));
 
     if (source.endsWith("\r\n") || /\r(?!\n)|(?<!\r)\n/.test(source)) {
       return invalidSettings();
