@@ -1,0 +1,19 @@
+{
+  "name": "draft-table",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "node --test tests/*.test.mjs",
+    "size": "npm run build && node scripts/bundle-size.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}
