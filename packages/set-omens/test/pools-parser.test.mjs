@@ -125,17 +125,31 @@ const aggregateFixture = () => ({ pools: [
 
 test("validates pinned pool aggregates independently at the internal seam", () => {
   const fixture = aggregateFixture();
+  fixture.pools.reverse();
   assert.equal(validateOmensRecipePoolsAggregate(fixture), fixture);
+  assert.deepEqual(fixture.pools.map(({ name }) => name), [
+    "RFMajestic", "RFRare", "Rfcommon", "Majestic", "Rare", "Equipment",
+    "Generic", "Lightning", "Runeblade", "Illusionist", "Wizard"
+  ]);
+
   for (const mutate of [
     (p) => p.pools.pop(),
+    (p) => p.pools.push({ name: "Extra", entries: [{ weight: 1, reference: "x" }] }),
     (p) => { p.pools[0].name = "Wrong"; },
+    (p) => { p.pools[10] = p.pools[0]; },
     (p) => p.pools[0].entries.pop(),
     (p) => { p.pools[0].entries[0] = { weight: 1, reference: "x" }; },
     (p) => { p.pools[0].entries[0] = { weight: Number.MAX_SAFE_INTEGER, reference: "x" }; }
   ]) {
     const broken = aggregateFixture();
     mutate(broken);
-    assert.throws(() => validateOmensRecipePoolsAggregate(broken), OmensRecipePoolsError);
+    assert.throws(() => validateOmensRecipePoolsAggregate(broken), (error) => {
+      assert.ok(error instanceof OmensRecipePoolsError);
+      assert.equal(error.code, "OMENS_RECIPE_POOLS_INVALID");
+      assert.equal(error.message, "Omens recipe pools are invalid.");
+      assert.equal(error.stack, "OmensRecipePoolsError: Omens recipe pools are invalid.");
+      return true;
+    });
   }
 });
 
