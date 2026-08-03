@@ -38,7 +38,7 @@ The permanent creator/host controls:
 | Timers | On by default, using the official judge schedule [FAB-2]. |
 | Pool visibility | When hidden, drafters see prior picks only in the one-minute reviews; spectators always see their selected POV's pool. |
 | Spectators | Host may disallow them. The host still occupies one of the 16 participant identities. |
-| Seat randomization | Enabled by default immediately before start. The first manual host move/swap visibly disables pending auto-randomization. `Randomize now` applies a server-owned shuffle immediately; `Randomize at start` re-enables the pending start-time shuffle. |
+| Seat randomization | Enabled by default immediately before start. The first manual host move/swap visibly disables pending auto-randomization. `Randomize now` atomically applies a server-owned shuffle and disables pending start-time randomization; `Randomize at start` explicitly re-enables it. |
 
 Room limit is 16 simultaneous participant identities, of which at most eight are drafting seats. A host can be a drafter or spectator.
 
@@ -60,7 +60,7 @@ Room limit is 16 simultaneous participant identities, of which at most eight are
 - Dragging to an empty seat moves a participant; dragging onto an occupied seat swaps them; dragging between seats and spectators is allowed.
 - Every drag operation has a keyboard equivalent: a `Move` action opens a destination list and announces move/swap results.
 - Starting requires 2–8 occupied seat positions. Only occupied positions become the initial circular draft ring; unused lobby positions are skipped and receive no packs.
-- Seat order randomizes just before pack generation while `Randomize at start` remains enabled. The first manual move/swap disables it; `Randomize now` and `Randomize at start` remain explicit host controls.
+- Seat order randomizes just before pack generation only while `Randomize at start` remains enabled. The first manual move/swap disables it. `Randomize now` immediately shuffles and disables the pending start shuffle; `Randomize at start` explicitly re-enables it.
 
 ### After start
 
@@ -83,7 +83,7 @@ Room limit is 16 simultaneous participant identities, of which at most eight are
 - The final single card in a pack is assigned automatically; the official schedule gives it no pick interval [FAB-2].
 - With timers on, when all readiness-eligible humans have queued and more than five seconds remain, the deadline is shortened once to five seconds from that moment. Picks remain replaceable.
 - With timers off, only connected occupied draft seats gate readiness. Once all of them have queued, the same five-second confirmation starts. Empty/disconnected seats do not block and receive uniform random fallback at confirmation. If no drafting seat is connected, no confirmation starts; when every participant is disconnected, this waiting state uses the 24-hour started-draft cleanup period rather than looping autonomously.
-- Host pause freezes any pick/review deadline. Queues may still be changed while paused. Resume reconstructs the remaining duration and then applies any five-second acceleration condition.
+- Host pause freezes an existing pick/review deadline; a timer-off pick phase may instead have no deadline to freeze. Queues may still be changed while paused. Resume reconstructs an existing remaining duration and then applies any five-second acceleration condition, but creates a timer-off deadline only for a complete non-empty connected readiness set.
 - Reviews between packs 1–2 and 2–3 last one minute [FAB-2]. They occur even if pick timers are disabled.
 - The timer trends continuously from white to red by elapsed percentage and also exposes text/icon/progress semantics.
 

@@ -30,13 +30,13 @@ External citation IDs resolve in the [research source register](research.md#sour
 
 - Pending `Randomize at start` is on by default.
 - The first manual seat move/swap disables it and announces the change.
-- `Randomize now` applies an immediate server-owned shuffle; `Randomize at start` re-enables the pending start-time shuffle.
+- `Randomize now` atomically applies an immediate server-owned shuffle and disables the pending start-time shuffle; `Randomize at start` explicitly re-enables it.
 
 ### DT-5 — timer-off readiness accepted
 
 - Only connected occupied drafting seats gate the five-second confirmation.
 - Empty/disconnected seats do not block and receive uniform random fallback at commit.
-- If no drafting seat is connected, do not start an autonomous confirmation loop. Existing timer-on deadlines continue; an all-disconnected timer-off started draft uses the accepted 24-hour started-draft cleanup period.
+- A timer-off pick phase has no deadline until a complete, non-empty connected readiness set starts its five-second confirmation, including after resume. If no drafting seat is connected, do not start an autonomous confirmation loop. Existing timer-on deadlines continue; an all-disconnected timer-off started draft uses the accepted 24-hour started-draft cleanup period.
 
 ### DT-6 — removed-player queue accepted
 

@@ -148,7 +148,7 @@ Exactly eight numbered positions, each empty or containing one participant ID. T
 - ordered `DraftSeat[]` ring;
 - pre-generated pack pipelines, three per seat;
 - pack number, current remaining-card count, and direction;
-- phase/deadline/pause state;
+- phase state, optional phase deadline, and optional paused remaining duration;
 - completed timestamp.
 
 ### `DraftSeat`

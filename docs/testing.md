@@ -51,12 +51,12 @@ Suggested future test layers (tool choice finalized during scaffolding):
 | Secrecy views | Owner receives own queued ID; all others only boolean; host gains no hidden view; spectator POV omits queue ID. |
 | Official timers | Exact 14→2 schedule; 1 automatic; 60-second reviews; absolute deadline boundaries (`now == deadline` commits). |
 | Acceleration | All connected occupied seats ready with >5s sets exactly 5s; <=5s unchanged; replace stays provisional; no extension/cancel; empty/disconnected seats do not block and random-fill. |
-| Timers off | No deadline before a non-empty connected readiness set is complete; readiness creates 5s; changes allowed; absent queue at commit random; zero connected seats creates no loop; pause interaction. |
-| Pause/resume | Remaining time freezes; time spent paused irrelevant; stale alarm no-op; resume reconstructs; all-ready cap; queue while paused; review pause. |
+| Timers off | Start persists no phase deadline; no deadline before a non-empty connected readiness set is complete; readiness creates 5s; changes allowed; absent queue at commit random; zero connected seats creates no loop; pause before confirmation preserves no deadline; resume creates 5s only when non-empty readiness is complete. |
+| Pause/resume | Optional remaining time freezes; time spent paused irrelevant; stale alarm no-op; resume reconstructs only an existing deadline; all-ready cap; queue while paused; review pause. |
 | Deadline commit | One card/seat; queued preferred; random fallback for disconnected/empty; atomic pass; last card auto-assigned. |
 | Alarm idempotency | Duplicate, early, late, old generation, retry after committed storage; no double award; current alarm restored. |
 | Lobby seats | Eight positions; move to empty; swap occupied; spectator move; start rejects <2/>8; unused gaps compact preserving order. |
-| Seat randomization | `Randomize at start` defaults pending; same seed deterministic; every permutation reachable property; first manual move/swap disables it; `Randomize now` immediately shuffles; re-enable works; start shuffle occurs before packs. |
+| Seat randomization | `Randomize at start` defaults pending; same seed deterministic; every permutation reachable property; first manual move/swap disables it; `Randomize now` atomically shuffles and clears pending so start does not reshuffle; explicit re-enable restores one start shuffle before packs. |
 | Post-start seats | Reorder/swap and host removal rejected; non-host removal atomically leaves a stable empty seat and clears its queue; spectator fill inherits pool/pack with no queue; unused lobby slot rejected. |
 | Participant cap | Up to 16; at most 8 drafters; spectator allow/deny; join phase rules. |
 | Reconnect | Credential reclaims identity/seat; new credential becomes spectator; latest connection supersedes; old socket command rejected; disconnect does not vacate. |

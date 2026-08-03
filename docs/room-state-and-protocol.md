@@ -27,7 +27,7 @@ any non-closed phase --all participants explicitly leave--> CLOSED/DELETED
 
 ### Start transaction
 
-Validate host, lobby/config version, 2–8 occupied slots, participant cap, known snapshot, and the exact approved visible-recipe ID/checksum. If pending `Randomize at start` is enabled, shuffle occupied participant IDs with the server `seat-order` stream while preserving count. The first prior manual seat move/swap must have disabled that flag unless the host explicitly re-enabled it; `Randomize now` has already persisted its immediate server-owned shuffle. Compact occupied lobby positions into a clockwise ring, generate the 14 visible card instances for all three packs per seat, wrap each in the 16-position physical model, remove both rear markers, persist state/random streams/first deadline, then publish the first projected snapshot. Any failure leaves the room in lobby.
+Validate host, lobby/config version, 2–8 occupied slots, participant cap, known snapshot, and the exact approved visible-recipe ID/checksum. If pending `Randomize at start` is enabled, shuffle occupied participant IDs with the server `seat-order` stream while preserving count. The first prior manual seat move/swap must have disabled that flag unless the host explicitly re-enabled it; `Randomize now` has already atomically persisted its immediate server-owned shuffle and disabled the pending start shuffle. Compact occupied lobby positions into a clockwise ring, generate the 14 visible card instances for all three packs per seat, wrap each in the 16-position physical model, remove both rear markers, persist state/random streams and the first phase deadline when timers are enabled, then publish the first projected snapshot. A timer-off draft begins with no phase deadline. Any failure leaves the room in lobby.
 
 ### Pick transaction
 
@@ -44,9 +44,9 @@ The readiness set is the non-empty set of connected occupants of draft seats. Em
 
 ### Deadline transaction
 
-An alarm contains no trusted phase data; canonical storage does. On wake:
+The phase `deadlineAt` is optional and distinct from lifecycle cleanup deadlines. An alarm contains no trusted phase data; canonical storage does. On wake:
 
-1. Load state and compare `deadlineAt`, phase ID, and alarm generation.
+1. Load state and compare the optional `deadlineAt`, phase ID, and alarm generation.
 2. If early/stale/duplicate, do nothing or schedule the current next deadline.
 3. If paused, do nothing.
 4. For every draft seat in ring order, commit its valid queue or choose uniformly from its current pack.
@@ -59,7 +59,7 @@ Cloudflare alarms are at-least-once and retry, so phase/deadline generations mak
 
 ### Pause/resume
 
-Pause records `max(0, deadlineAt - now)` and increments alarm generation. Queue changes remain legal; no pick/review deadline or confirmation starts while paused. Resume sets `deadlineAt = now + frozenRemaining`, then applies the all-queued five-second cap. A timer-off all-queued condition reached while paused starts five seconds on resume only when at least one occupied drafter seat is connected. Only the connected permanent host may pause/resume. If all participants remain disconnected while the started draft is paused, the separate 24-hour abandonment deadline applies.
+Pause records `frozenRemaining = max(0, deadlineAt - now)` when a phase deadline exists, otherwise records no frozen phase deadline, and increments alarm generation. Queue changes remain legal; no pick/review deadline or confirmation starts while paused. Resume restores `deadlineAt = now + frozenRemaining` only when frozen remaining exists, then applies the all-queued five-second cap. A timer-off phase with no frozen deadline remains deadline-free on resume unless its non-empty connected readiness set is all queued, in which case resume starts five seconds. Only the connected permanent host may pause/resume. If all participants remain disconnected while the started draft is paused, the separate 24-hour abandonment deadline applies.
 
 ### Seat removal/fill after start
 
@@ -123,7 +123,7 @@ protocolVersion, stateVersion, type, commandId?, serverNow, payload
 | `update_profile` | participant | display name |
 | `update_config` | host, lobby | complete validated room config patch |
 | `move_participant` | host | participant ID + lobby destination, or post-start vacated seat; first manual lobby move/swap disables pending start randomization |
-| `set_seat_randomization` | host, lobby | `randomize_now` immediate shuffle or `randomize_at_start` enabled/disabled |
+| `set_seat_randomization` | host, lobby | `randomize_now` atomically shuffles and disables pending start randomization, or `randomize_at_start` sets it enabled/disabled |
 | `start_draft` | host, lobby | expected config/seat version |
 | `queue_pick` | current seat occupant | phase ID + physical instance ID |
 | `pause` / `resume` | host | expected phase ID |
