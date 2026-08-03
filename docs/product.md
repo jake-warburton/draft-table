@@ -67,8 +67,8 @@ Room limit is 16 simultaneous participant identities, of which at most eight are
 - The draft ring and its order are immutable.
 - Disconnecting does not vacate a seat.
 - The host may remove any non-host occupant, leaving that existing draft seat empty. The permanent host cannot be removed. The seat's pool, pack, and pack pipeline stay attached.
-- The host may move a spectator into a vacated draft seat. The participant inherits that seat's complete pool, current pack, and future packs.
-- Removing the occupant atomically clears that seat's provisional queued pick before a replacement can inherit the seat. The replacement may queue from the inherited current pack; uniform random fallback applies if they do not.
+- Any transition that vacates a non-host drafter seat—including that drafter's explicit voluntary leave or host removal—atomically clears its provisional queued pick before a replacement inherits the seat or fallback resolution occurs.
+- The host may move a spectator into a vacated draft seat. The participant inherits that seat's complete pool, current pack, and future packs, but never a queued pick. The replacement may queue from the inherited current pack; uniform random fallback applies if they do not.
 - Empty or disconnected draft seats use the same deadline random fallback as any seat with no queued selection. This is timeout resolution, not a bot.
 - The host cannot create a new drafting seat from one of the unused lobby positions after start.
 

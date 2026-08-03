@@ -38,9 +38,9 @@ External citation IDs resolve in the [research source register](research.md#sour
 - Empty/disconnected seats do not block and receive uniform random fallback at commit.
 - A timer-off pick phase has no deadline until a complete, non-empty connected readiness set starts its five-second confirmation, including after resume. If no drafting seat is connected, do not start an autonomous confirmation loop. Existing timer-on deadlines continue; an all-disconnected timer-off started draft uses the accepted 24-hour started-draft cleanup period.
 
-### DT-6 — removed-player queue accepted
+### DT-6 — vacated-seat queue accepted
 
-- Removing any non-host occupant atomically clears that seat's provisional pick before replacement.
+- Every transition that vacates a non-host drafter seat, including explicit voluntary leave and host removal, atomically clears that seat's provisional pick before replacement inheritance or fallback resolution.
 - The replacement inherits pool/current pack/future packs, may queue a new card, and receives uniform fallback if it does not.
 - The permanent host remains non-removable.
 

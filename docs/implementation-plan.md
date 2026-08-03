@@ -11,7 +11,7 @@ The planning decisions are accepted in [risks-and-decisions.md](risks-and-decisi
 - the captain-held community recipe is available under the accepted filename/recipe ID and exact SHA-256 `97a964c8c5b6a962404398ca2b57c9ceeeb2dfb714512e61ff22e07ea1ec2328`;
 - its community—not official—provenance and 14-card scope remain explicit;
 - published source/LSS terms have not materially changed, attribution boundaries remain satisfied, and the repository's standard MIT `LICENSE` is present;
-- the accepted cleanup, randomization, readiness, and removed-queue contracts remain unchanged;
+- the accepted cleanup, randomization, readiness, and vacated-seat queue contracts remain unchanged;
 - external Card Vault, Cloudflare, and Fabrary behavior is rechecked.
 
 **Acceptance:** explicit implementation authorization, immutable evidence/checksum record, no guessed factual rule or rear-card identity, and any drift handled as a new reviewed recipe/version.
@@ -34,7 +34,7 @@ The strict recipe parser must validate the exact format, 228 layouts/460,800 tot
 
 ## Phase 3 — pure engine
 
-Implement seeded random streams, weighted visible-layout/card-pool generation, conceptual 16-position pack wrapping and opaque rear-marker removal, seats/passing, provisional picks, timer/deadline transitions, fallback, pause, accepted cleanup/readiness/replacement rules, intermissions, vacancies, and visibility projection as pure functions. Start each behavior with tests from [testing.md](testing.md#unit-and-property-matrix).
+Implement seeded random streams, weighted visible-layout/card-pool generation, conceptual 16-position pack wrapping and opaque rear-marker removal, seats/passing, provisional picks, timer/deadline transitions, fallback, pause, accepted cleanup/readiness/replacement rules, intermissions, vacancies, and visibility projection as pure functions. Every non-host drafter seat vacancy, whether explicit voluntary leave or host removal, must atomically clear its provisional queue before replacement inheritance or fallback. Start each behavior with tests from [testing.md](testing.md#unit-and-property-matrix).
 
 **Acceptance:** unit/property matrix green for N=2..8; deterministic replay by seed/command trace; exact recipe integer fixtures; conservation/exclusion/visibility invariants; no platform imports; no fabricated rear identity or claim of official community probabilities.
 
