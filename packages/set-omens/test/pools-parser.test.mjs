@@ -230,6 +230,67 @@ test("rejects duplicate pool and card resolution targets", () => {
   expectReferenceError(() => validateOmensRecipeReferences(duplicateCard.layouts, duplicateCard.pools, duplicateCard.cards));
 });
 
+const pinnedPoolNames = [
+  "Wizard", "Illusionist", "Runeblade", "Lightning", "Generic", "Equipment", "Rare", "Majestic",
+  "Rfcommon", "RFRare", "RFMajestic"
+];
+
+const pinnedReferenceFixture = () => {
+  const normalPoolNames = pinnedPoolNames.slice(0, 8);
+  const cards = normalPoolNames.map((name, index) => ({
+    name: `Fictional ${name}`,
+    collectorNumber: `OMN-${index + 1}`,
+    rarity: "common"
+  }));
+  return {
+    layouts: {
+      layouts: [{
+        id: "FictionalPinnedLayout",
+        weight: 1,
+        slots: pinnedPoolNames.map((pool) => ({ count: 1, pool }))
+      }]
+    },
+    pools: {
+      pools: [
+        ...normalPoolNames.map((name, index) => ({ name, entries: [{ weight: 1, reference: cards[index].name }] })),
+        { name: "Rfcommon", entries: [{ weight: 1, reference: cards[0].name }] },
+        { name: "RFRare", entries: [{ weight: 1, reference: cards[6].name }] },
+        { name: "RFMajestic", entries: [{ weight: 1, reference: cards[7].name }] }
+      ]
+    },
+    cards
+  };
+};
+
+test("accepts the pinned normal partition and overlapping Rainbow Foil subsets", () => {
+  const fixture = pinnedReferenceFixture();
+  assert.equal(validateOmensRecipeReferences(fixture.layouts, fixture.pools, fixture.cards), undefined);
+});
+
+test("rejects uncovered cards and duplicates across normal pools independently", () => {
+  const uncovered = pinnedReferenceFixture();
+  uncovered.pools.pools[0].entries.pop();
+  expectReferenceError(() => validateOmensRecipeReferences(uncovered.layouts, uncovered.pools, uncovered.cards));
+
+  const duplicate = pinnedReferenceFixture();
+  duplicate.pools.pools[1].entries.push({ weight: 1, reference: duplicate.cards[0].name });
+  expectReferenceError(() => validateOmensRecipeReferences(duplicate.layouts, duplicate.pools, duplicate.cards));
+});
+
+test("rejects an out-of-set Rainbow Foil reference", () => {
+  const fixture = pinnedReferenceFixture();
+  fixture.pools.pools[8].entries[0].reference = "Fictional Outsider";
+  expectReferenceError(() => validateOmensRecipeReferences(fixture.layouts, fixture.pools, fixture.cards));
+});
+
+test("rejects each unused declared pinned pool", () => {
+  for (const unusedPool of pinnedPoolNames) {
+    const fixture = pinnedReferenceFixture();
+    fixture.layouts.layouts[0].slots = fixture.layouts.layouts[0].slots.filter(({ pool }) => pool !== unusedPool);
+    expectReferenceError(() => validateOmensRecipeReferences(fixture.layouts, fixture.pools, fixture.cards));
+  }
+});
+
 test("private pools parse passed", { skip: !privateEvidencePath ? "private acceptance contract did not run; set OMENS_RECIPE_EVIDENCE_PATH or use npm run test:evidence" : false }, () => {
   const schema = parseVerifiedOmensPools(verifyOmensRecipeBytes(readFileSync(privateEvidencePath)));
   assert.ok(Object.isFrozen(schema));

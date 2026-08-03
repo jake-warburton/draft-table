@@ -34,6 +34,9 @@ const OMENS_POOL_AGGREGATES: Readonly<Record<string, readonly [number, number]>>
   Generic: [6, 28], Equipment: [14, 148], Rare: [60, 120], Majestic: [15, 30],
   Rfcommon: [105, 105], RFRare: [59, 59], RFMajestic: [7, 7]
 });
+const NORMAL_POOL_NAMES = new Set(["Wizard", "Illusionist", "Runeblade", "Lightning", "Generic", "Equipment", "Rare", "Majestic"]);
+const RF_POOL_NAMES = new Set(["Rfcommon", "RFRare", "RFMajestic"]);
+const PINNED_POOL_NAMES = new Set([...NORMAL_POOL_NAMES, ...RF_POOL_NAMES]);
 
 const invalidPools = (): never => {
   throw new OmensRecipePoolsError();
@@ -55,14 +58,31 @@ export const validateOmensRecipeReferences = (
     if (cardNames.has(card.name)) return invalidPools();
     cardNames.add(card.name);
   }
+  const pinnedPools = pools.pools.length === PINNED_POOL_NAMES.size &&
+    pools.pools.every((pool) => PINNED_POOL_NAMES.has(pool.name));
+  const usedPools = new Set<string>();
   for (const layout of layouts.layouts) {
     for (const slot of layout.slots) {
       if (!poolNames.has(slot.pool)) return invalidPools();
+      usedPools.add(slot.pool);
     }
   }
   for (const pool of pools.pools) {
     for (const entry of pool.entries) {
       if (!cardNames.has(entry.reference)) return invalidPools();
+    }
+  }
+  if (pinnedPools) {
+    for (const poolName of PINNED_POOL_NAMES) {
+      if (!usedPools.has(poolName)) return invalidPools();
+    }
+    const normalCounts = new Map<string, number>();
+    for (const pool of pools.pools) {
+      if (!NORMAL_POOL_NAMES.has(pool.name)) continue;
+      for (const entry of pool.entries) normalCounts.set(entry.reference, (normalCounts.get(entry.reference) ?? 0) + 1);
+    }
+    for (const cardName of cardNames) {
+      if (normalCounts.get(cardName) !== 1) return invalidPools();
     }
   }
 };
