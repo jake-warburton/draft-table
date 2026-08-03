@@ -23,7 +23,6 @@ const writeClientShell = (directory, bytes) => {
 
 test("the browser shell identifies Draft Table as an unofficial walking skeleton without playable behavior", () => {
   const html = readFileSync(fromRoot("apps/web/index.html"), "utf8");
-  const source = readFileSync(fromRoot("apps/web/src/main.ts"), "utf8");
 
   assert.match(html, /<title>Draft Table<\/title>/);
   assert.match(html, /<h1>Draft Table<\/h1>/);
@@ -32,7 +31,7 @@ test("the browser shell identifies Draft Table as an unofficial walking skeleton
   assert.match(html, /No playable draft behavior exists yet\./);
   assert.match(html, /<main[^>]*>/);
   assert.doesNotMatch(html, /hello world/i);
-  assert.doesNotMatch(source, /textContent\s*=/);
+  assert.doesNotMatch(html, /main\.js/);
 });
 
 test("the bundle-size report deterministically accepts the 2,048-byte client ceiling and rejects overflow", (t) => {
@@ -62,7 +61,8 @@ test("CI validates pull requests and main with read-only permissions and the qua
   assert.match(workflow, /node-version:\s*22/);
   assert.match(workflow, /cache:\s*npm/);
   for (const command of ["npm ci", "npm run build", "npm run typecheck", "npm run lint", "npm test", "npm run size"]) {
-    assert.match(workflow, new RegExp(command.replace(" ", "\\s+")));
+    const whitespaceFlexibleCommand = command.split(" ").join("\\s+");
+    assert.match(workflow, new RegExp(`^\\s*-\\s+run:\\s*${whitespaceFlexibleCommand}\\s*$`, "m"));
   }
 });
 
@@ -77,6 +77,12 @@ test("the approved workspaces build without product implementations", () => {
     assert.ok(existsSync(fromRoot(`${workspace}/package.json`)), `${workspace} has a package manifest`);
   }
 
+  const staleOutput = fromRoot("apps/web/dist/stale-output.js");
+  writeFileSync(staleOutput, "stale");
+
   execFileSync("npm", ["run", "build"], { cwd: root, stdio: "pipe" });
   assert.ok(existsSync(fromRoot("apps/web/dist/index.html")), "the browser shell is built");
+  assert.ok(existsSync(fromRoot("apps/web/dist/styles.css")), "the browser stylesheet is built");
+  assert.ok(!existsSync(fromRoot("apps/web/dist/main.js")), "no unreferenced browser JavaScript is emitted");
+  assert.ok(!existsSync(staleOutput), "the web build removes stale output before emitting");
 });
