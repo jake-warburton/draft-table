@@ -1,4 +1,6 @@
-import { sha256Hex } from "./sha256.ts";
+import { verifyOmensBytesAgainstDigest } from "./checksum.ts";
+
+export { OmensRecipeChecksumError } from "./checksum.ts";
 
 export const OMENS_RECIPE = Object.freeze({
   id: "rantaways-omn-draft-3.8-fixed-layout-probabilities",
@@ -8,24 +10,13 @@ export const OMENS_RECIPE = Object.freeze({
   visibleCardScope: 14
 });
 
-export class OmensRecipeChecksumError extends Error {
-  readonly code = "OMENS_RECIPE_CHECKSUM_MISMATCH";
-
-  constructor() {
-    super("Omens recipe checksum mismatch.");
-    this.name = "OmensRecipeChecksumError";
-  }
-}
-
 export type VerifiedOmensRecipe = Readonly<{
   descriptor: typeof OMENS_RECIPE;
   bytes: Uint8Array;
 }>;
 
 export const verifyOmensRecipeBytes = (bytes: Uint8Array): VerifiedOmensRecipe => {
-  if (sha256Hex(bytes) !== OMENS_RECIPE.sha256) {
-    throw new OmensRecipeChecksumError();
-  }
+  const verified = verifyOmensBytesAgainstDigest(bytes, OMENS_RECIPE.sha256);
 
-  return Object.freeze({ descriptor: OMENS_RECIPE, bytes: bytes.slice() });
+  return Object.freeze({ descriptor: OMENS_RECIPE, bytes: verified.bytes });
 };

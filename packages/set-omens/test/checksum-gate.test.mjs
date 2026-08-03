@@ -7,15 +7,21 @@ import {
   OmensRecipeChecksumError,
   verifyOmensRecipeBytes
 } from "../src/index.ts";
-import { sha256Hex } from "../src/sha256.ts";
+import { verifyOmensBytesAgainstDigest } from "../src/checksum.ts";
 
 const digestOf = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
-test("the lowest checksum layer deterministically hashes synthetic bytes", () => {
+test("the checksum boundary verifies and rejects synthetic bytes", () => {
   const bytes = new Uint8Array([0, 1, 2, 3]);
+  const verified = verifyOmensBytesAgainstDigest(bytes, digestOf(bytes));
 
-  assert.equal(sha256Hex(bytes), digestOf(bytes));
-  assert.notEqual(sha256Hex(bytes), sha256Hex(new Uint8Array([0, 1, 2, 4])));
+  assert.deepEqual(verified, { bytes });
+  assert.ok(Object.isFrozen(verified));
+  assert.notEqual(verified.bytes, bytes);
+  assert.throws(
+    () => verifyOmensBytesAgainstDigest(bytes, digestOf(new Uint8Array([0, 1, 2, 4]))),
+    OmensRecipeChecksumError
+  );
 });
 
 test("the pinned Omens descriptor is immutable and identifies only the approved recipe", () => {
@@ -34,7 +40,9 @@ test("the pinned Omens descriptor is immutable and identifies only the approved 
 
 test("Omens verification does not decode or parse unverified bytes", () => {
   const bytes = new Uint8Array([10, 11, 12]);
-  const source = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
+  const source = ["index.ts", "checksum.ts"]
+    .map((filename) => readFileSync(new URL(`../src/${filename}`, import.meta.url), "utf8"))
+    .join("\n");
 
   assert.doesNotMatch(source, /TextDecoder|\.toString\s*\(|JSON\.parse|parse[A-Z_a-z]*\s*\(/);
   assert.throws(
@@ -52,7 +60,8 @@ test("Omens verification rejects a checksum mismatch with a stable safe error", 
       assert.ok(error instanceof OmensRecipeChecksumError);
       assert.equal(error.code, "OMENS_RECIPE_CHECKSUM_MISMATCH");
       assert.equal(error.message, "Omens recipe checksum mismatch.");
-      assert.doesNotMatch(String(error), /99|98|97|\//);
+      assert.equal(error.stack, "OmensRecipeChecksumError: Omens recipe checksum mismatch.");
+      assert.doesNotMatch(JSON.stringify(error), /99|98|97|\/|\\/);
       return true;
     }
   );
