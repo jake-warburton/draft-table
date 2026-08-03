@@ -6,7 +6,7 @@ Draft Table is a planned public, free-to-host multiplayer draft simulator for Fl
 
 ## Walking skeleton setup
 
-Requires Node.js 22+ and npm 10+.
+Requires Node.js 22.6+ and npm 10+.
 
 ```sh
 npm install

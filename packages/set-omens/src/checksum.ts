@@ -18,9 +18,11 @@ export const verifyOmensBytesAgainstDigest = (
   bytes: Uint8Array,
   expectedSha256: string
 ): VerifiedOmensBytes => {
-  if (sha256Hex(bytes) !== expectedSha256) {
+  const verifiedBytes = new Uint8Array(bytes);
+
+  if (sha256Hex(verifiedBytes) !== expectedSha256) {
     throw new OmensRecipeChecksumError();
   }
 
-  return Object.freeze({ bytes: bytes.slice() });
+  return Object.freeze({ bytes: verifiedBytes });
 };

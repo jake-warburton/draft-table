@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -22,6 +23,17 @@ test("the checksum boundary verifies and rejects synthetic bytes", () => {
     () => verifyOmensBytesAgainstDigest(bytes, digestOf(new Uint8Array([0, 1, 2, 4]))),
     OmensRecipeChecksumError
   );
+});
+
+test("verified filesystem bytes cannot be changed through their Buffer source", () => {
+  const source = Buffer.from([4, 5, 6]);
+  const verified = verifyOmensBytesAgainstDigest(source, digestOf(source));
+
+  source[0] = 99;
+
+  assert.ok(verified.bytes instanceof Uint8Array);
+  assert.equal(Buffer.isBuffer(verified.bytes), false);
+  assert.deepEqual(verified.bytes, new Uint8Array([4, 5, 6]));
 });
 
 test("the pinned Omens descriptor is immutable and identifies only the approved recipe", () => {
