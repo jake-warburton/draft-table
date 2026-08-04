@@ -120,6 +120,8 @@ test("RF per-base guard mutation is caught by the named redistributed-row contra
   const path = `${dirname(fileURLToPath(sourcePath))}/suffix-foiling-mutation-${process.pid}-rf-per-base.ts`;
   writeFileSync(path, mutated);
   try {
+    const childEnvironment = { ...process.env, [rfMutationModuleEnvironmentKey]: pathToFileURL(path).href };
+    delete childEnvironment.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, [
       "--experimental-strip-types",
       "--test",
@@ -128,7 +130,7 @@ test("RF per-base guard mutation is caught by the named redistributed-row contra
       fileURLToPath(import.meta.url)
     ], {
       encoding: "utf8",
-      env: { ...process.env, [rfMutationModuleEnvironmentKey]: pathToFileURL(path).href }
+      env: childEnvironment
     });
     const outputLines = result.stdout.split(/\r?\n/);
     assert.equal(result.status, 1, `RF per-base mutation did not fail the focused contract\n${result.stdout}\n${result.stderr}`);
