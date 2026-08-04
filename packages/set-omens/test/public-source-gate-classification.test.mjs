@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { classifyPublicSourceEvidenceTests } from "./public-source-gate-classification.mjs";
 
@@ -13,6 +14,11 @@ const withSandbox = (files, callback) => {
   for (const [name, source] of Object.entries(files)) writeFileSync(join(directory, name), source);
   try { return callback(directory); } finally { rmSync(directory, { recursive: true, force: true }); }
 };
+
+test("real public source evidence tests are genuinely gated", () => {
+  const testDirectory = fileURLToPath(new URL(".", import.meta.url));
+  assert.deepEqual(classifyPublicSourceEvidenceTests(testDirectory), { ok: true });
+});
 
 test("gate classifier rejects a falsely suffixed ordinary test and accepts a genuinely gated test", () => {
   const falseGate = withSandbox({ "false.public-source-evidence.test.mjs": ordinary }, classifyPublicSourceEvidenceTests);
