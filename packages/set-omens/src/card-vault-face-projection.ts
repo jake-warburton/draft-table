@@ -86,6 +86,7 @@ const OFFICIAL_AGGREGATE: FaceProjectionAggregate = Object.freeze({
 });
 
 const IMAGE_HOST = "legendstory-production-s3-public.s3.amazonaws.com";
+const faceProjectionCapabilities = new WeakSet<object>();
 
 const fail = (): never => { throw new CardVaultFaceProjectionError(); };
 
@@ -179,7 +180,9 @@ const project = (
   });
 
   if (entries.length !== expected.entries || totals.faces !== expected.faces || totals.oneFaceEntries !== expected.oneFaceEntries || totals.twoFaceEntries !== expected.twoFaceEntries || totals.position10Faces !== expected.position10Faces || totals.position20Faces !== expected.position20Faces || renditionUrls.small.size !== expected.smallUrls || renditionUrls.normal.size !== expected.normalUrls || renditionUrls.large.size !== expected.largeUrls || urls.size !== expected.allUrls || totals.unsuffixedEntries !== expected.unsuffixedEntries || totals.unsuffixedFaces !== expected.unsuffixedFaces || totals.unsuffixedOneFaceEntries !== expected.unsuffixedOneFaceEntries || totals.unsuffixedTwoFaceEntries !== expected.unsuffixedTwoFaceEntries || totals.rfEntries !== expected.rfEntries || totals.rfFaces !== expected.rfFaces || totals.rfOneFaceEntries !== expected.rfOneFaceEntries || totals.rfTwoFaceEntries !== expected.rfTwoFaceEntries || totals.cfEntries !== expected.cfEntries || totals.cfFaces !== expected.cfFaces || totals.cfOneFaceEntries !== expected.cfOneFaceEntries || totals.cfTwoFaceEntries !== expected.cfTwoFaceEntries || totals.mvEntries !== expected.mvEntries || totals.mvFaces !== expected.mvFaces || totals.mvOneFaceEntries !== expected.mvOneFaceEntries || totals.mvTwoFaceEntries !== expected.mvTwoFaceEntries) fail();
-  return Object.freeze(entries);
+  const capability = Object.freeze(entries);
+  faceProjectionCapabilities.add(capability);
+  return capability;
 };
 
 /** Projects only exact face positions and image renditions for a validated official membership. */
@@ -200,6 +203,11 @@ export const projectCardVaultOfficialFaceMetadata = (
   membership: OfficialCardVaultMembership,
   bytes: Uint8Array
 ): OfficialCardVaultFaceProjection => projectSafely(membership, bytes, OFFICIAL_AGGREGATE);
+
+/** Reads only an opaque completed official face-projection capability for a following build-time slice. */
+export const readOfficialCardVaultFaceProjectionForMultiplicityReconciliation = (
+  projection: OfficialCardVaultFaceProjection
+): OfficialCardVaultFaceProjection => faceProjectionCapabilities.has(projection) ? projection : fail();
 
 /** Package-internal test seam for compact fictional capability-bound contracts. */
 export const projectCardVaultOfficialFaceMetadataForTest = (
