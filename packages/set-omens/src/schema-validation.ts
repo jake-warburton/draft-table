@@ -26,15 +26,22 @@ import {
   classifyOfficialCardVaultSuffixFoiling as classifySuffixFoiling,
   type OfficialSuffixFoilingClassification
 } from "./official-suffix-foiling-classification.ts";
+import {
+  CardVaultFaceProjectionError,
+  projectCardVaultOfficialFaceMetadata as projectFaces,
+  type OfficialCardVaultFaceProjection
+} from "./card-vault-face-projection.ts";
 
 export {
   FabCardSourceSchemaValidationError,
   OmnSourceProjectionError,
   OfficialUpstreamIdReconciliationError,
   OfficialSuffixFoilingClassificationError,
+  CardVaultFaceProjectionError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
+  type OfficialCardVaultFaceProjection,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -76,3 +83,16 @@ export const reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData 
 export const classifyOfficialCardVaultSuffixFoiling = (
   reconciliation: OfficialUpstreamIdReconciliation
 ): OfficialSuffixFoilingClassification => classifySuffixFoiling(reconciliation);
+
+/** Build-time-only canonical-membership-order projection retaining source-order face positions and exact image-rendition text. */
+export const projectOfficialCardVaultFaceMetadata = (
+  membership: OfficialCardVaultMembership,
+  responseBytes: Uint8Array
+): OfficialCardVaultFaceProjection => {
+  try {
+    return projectFaces(membership, responseBytes);
+  } catch (error) {
+    if (error instanceof CardVaultFaceProjectionError) throw error;
+    throw new CardVaultFaceProjectionError();
+  }
+};

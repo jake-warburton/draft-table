@@ -158,7 +158,8 @@ class JsonSyntaxScanner {
   }
 }
 
-const parseResponse = (bytes: Uint8Array): unknown => {
+/** Package-internal parser shared by capability-bound Card Vault build-time projections. */
+export const parseCardVaultResponseBytes = (bytes: Uint8Array): unknown => {
   try {
     const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     new JsonSyntaxScanner(text).scan();
@@ -168,7 +169,8 @@ const parseResponse = (bytes: Uint8Array): unknown => {
   }
 };
 
-const canonicalMembership = (response: unknown): readonly string[] => {
+/** Package-internal canonical membership derivation shared by Card Vault build-time projections. */
+export const canonicalCardVaultMembershipFromResponse = (response: unknown): readonly string[] => {
   if (response === null || typeof response !== "object" || Array.isArray(response)) throw new CardVaultOfficialMembershipError();
   const product = response as { product_name?: unknown; release_date?: unknown; cards?: unknown };
   if (product.product_name !== "Omens of the Third Age" || product.release_date !== "2026-06-05" || !Array.isArray(product.cards)) {
@@ -191,7 +193,7 @@ export const validateCardVaultOfficialMembershipBytesAgainstFact = (
   bytes: Uint8Array,
   fact: MembershipFact
 ): OfficialCardVaultMembership => {
-  const ids = canonicalMembership(parseResponse(bytes));
+  const ids = canonicalCardVaultMembershipFromResponse(parseCardVaultResponseBytes(bytes));
   const canonicalBytes = new TextEncoder().encode(`${ids.join("\n")}\n`);
   const omn = ids.filter((id) => id.startsWith("OMN")).length;
   const iar = ids.filter((id) => id.startsWith("IAR")).length;
@@ -210,8 +212,8 @@ export const validateCardVaultOmensOfficialMembershipBytes = (bytes: Uint8Array)
 /** Package-internal reconciliation seam; always returns an independent canonical-order copy. */
 export const readOfficialCardVaultMembershipPrintIdsForReconciliation = (
   membership: OfficialCardVaultMembership
-): string[] => {
+): readonly string[] => {
   const ids = idsByMembership.get(membership);
   if (ids === undefined) throw new CardVaultOfficialMembershipError();
-  return [...ids];
+  return Object.freeze([...ids]);
 };

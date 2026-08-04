@@ -65,11 +65,14 @@ test("fictional membership contracts strictly reject product facts, unsafe IDs, 
   expectSafeError(() => validateCardVaultOfficialMembershipBytesAgainstFact(new Uint8Array([0xc3, 0x28]), factFor(ids)));
 });
 
-test("membership capabilities retain private immutable IDs and only yield independent copies", () => {
+test("membership capabilities retain private immutable IDs and only yield frozen independent copies", () => {
   const membership = valid();
   const first = readOfficialCardVaultMembershipPrintIdsForReconciliation(membership);
-  first[0] = "OMN999";
-  assert.deepEqual(readOfficialCardVaultMembershipPrintIdsForReconciliation(membership), ["IAR001", "OMN001", "OMN002"]);
+  const second = readOfficialCardVaultMembershipPrintIdsForReconciliation(membership);
+  assert.ok(Object.isFrozen(first));
+  assert.notEqual(first, second);
+  assert.throws(() => { first[0] = "OMN999"; }, TypeError);
+  assert.deepEqual(second, ["IAR001", "OMN001", "OMN002"]);
   expectSafeError(() => readOfficialCardVaultMembershipPrintIdsForReconciliation(Object.freeze({})));
   expectSafeError(() => validateCardVaultOmensOfficialMembership(encode(response(ids))));
 });

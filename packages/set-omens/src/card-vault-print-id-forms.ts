@@ -28,7 +28,7 @@ const FORM = /^(OMN|IAR)([0-9]{3})(?:-(RF|CF|MV))?$/;
 export const readOfficialCardVaultPrintIdForms = (
   membership: OfficialCardVaultMembership
 ): readonly CardVaultPrintIdForm[] => {
-  let ids: string[];
+  let ids: readonly string[];
   try {
     ids = readOfficialCardVaultMembershipPrintIdsForReconciliation(membership);
   } catch (error) {
