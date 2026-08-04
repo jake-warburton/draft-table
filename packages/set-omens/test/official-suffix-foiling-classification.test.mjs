@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   OfficialSuffixFoilingClassificationError,
@@ -84,7 +84,15 @@ test("forgery and every marker, row-selection, multiplicity, uniqueness, and agg
   for (const key of Object.keys(aggregate)) safe(() => classify(source(), forms, { ...aggregate, [key]: aggregate[key] + 1 }));
 });
 
-test("RF structural contract rejects redistributed 3-plus-1 rows despite valid aggregates", () => {
+const rfStructuralContractName = "RF structural contract rejects redistributed 3-plus-1 rows despite valid aggregates";
+const rfStructuralContractMarker = "RF_STRUCTURAL_CONTRACT_EXECUTED:redistributed-3-plus-1";
+const rfMutationModuleEnvironmentKey = "DRAFT_TABLE_TEST_RF_CLASSIFICATION_MODULE";
+
+test(rfStructuralContractName, async () => {
+  console.log(rfStructuralContractMarker);
+  const classificationModule = process.env[rfMutationModuleEnvironmentKey]
+    ? await import(process.env[rfMutationModuleEnvironmentKey])
+    : { OfficialSuffixFoilingClassificationError, classifyOfficialSuffixFoilingForTest };
   const rfForms = Object.freeze([
     Object.freeze({ officialPrintId: "OMN010-RF", baseCollectorId: "OMN010", sourceSet: "OMN", suffixMarker: "RF" }),
     Object.freeze({ officialPrintId: "OMN011-RF", baseCollectorId: "OMN011", sourceSet: "OMN", suffixMarker: "RF" }),
@@ -96,9 +104,9 @@ test("RF structural contract rejects redistributed 3-plus-1 rows despite valid a
     c("iar", [p("IAR000", "iar-c", "C")])
   ];
   const rfExpected = Object.freeze({ unspecifiedEntries: 1, unspecifiedCandidates: 1, rfEntries: 2, rfCandidates: 4, rfSelected: 2, cfEntries: 0, cfCandidates: 0, cfSelected: 0, mvEntries: 0, mvCandidates: 0, mvSelected: 0, mvOneRowEntries: 0, mvTwoRowEntries: 0, suffixEntries: 2, suffixCandidates: 4, selected: 2 });
-  assert.throws(() => classifyOfficialSuffixFoilingForTest(
+  assert.throws(() => classificationModule.classifyOfficialSuffixFoilingForTest(
     reconcileOfficialUpstreamIdRecordsForTest(rfForms, rfRows, { entries: 3, omnEntries: 2, iarEntries: 1, omnPrintings: 4, iarPrintings: 1 }), rfExpected
-  ), OfficialSuffixFoilingClassificationError);
+  ), classificationModule.OfficialSuffixFoilingClassificationError, "RF_PER_BASE_GUARD_REJECTED_REDISTRIBUTED_ROWS");
 });
 
 test("RF per-base guard mutation is caught by the named redistributed-row contract", () => {
@@ -112,10 +120,21 @@ test("RF per-base guard mutation is caught by the named redistributed-row contra
   const path = `${dirname(fileURLToPath(sourcePath))}/suffix-foiling-mutation-${process.pid}-rf-per-base.ts`;
   writeFileSync(path, mutated);
   try {
-    const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(new URL("../src/official-upstream-id-reconciliation.ts", import.meta.url).href)}; import { classifyOfficialSuffixFoilingForTest as c } from ${JSON.stringify(new URL(`file://${path}`).href)}; const p=(id,u,f)=>({unique_id:u,set_printing_unique_id:id.startsWith('IAR')?'si':'so',id,set_id:id.slice(0,3),edition:'e',foiling:f,rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a'}); const f=[{officialPrintId:'OMN010-RF',baseCollectorId:'OMN010',sourceSet:'OMN',suffixMarker:'RF'},{officialPrintId:'OMN011-RF',baseCollectorId:'OMN011',sourceSet:'OMN',suffixMarker:'RF'},{officialPrintId:'IAR000',baseCollectorId:'IAR000',sourceSet:'IAR',suffixMarker:null}]; const x=[{unique_id:'a',name:'n',printings:[p('OMN010','a-c','C'),p('OMN010','a-r1','R'),p('OMN010','a-r2','R')]},{unique_id:'b',name:'n',printings:[p('OMN011','b-c','C')]},{unique_id:'i',name:'n',printings:[p('IAR000','i-c','C')]}]; const q=r(f,x,{entries:3,omnEntries:2,iarEntries:1,omnPrintings:4,iarPrintings:1}); c(q,{unspecifiedEntries:1,unspecifiedCandidates:1,rfEntries:2,rfCandidates:4,rfSelected:2,cfEntries:0,cfCandidates:0,cfSelected:0,mvEntries:0,mvCandidates:0,mvSelected:0,mvOneRowEntries:0,mvTwoRowEntries:0,suffixEntries:2,suffixCandidates:4,selected:2}); console.log('MUTATION_ACCEPTED:rf-per-base');`;
-    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", program], { encoding: "utf8" });
-    assert.equal(result.status, 0, `RF per-base mutation did not execute\n${result.stderr}`);
-    assert.equal(result.stdout.trim(), "MUTATION_ACCEPTED:rf-per-base");
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types",
+      "--test",
+      "--test-name-pattern",
+      `^${rfStructuralContractName}$`,
+      fileURLToPath(import.meta.url)
+    ], {
+      encoding: "utf8",
+      env: { ...process.env, [rfMutationModuleEnvironmentKey]: pathToFileURL(path).href }
+    });
+    const outputLines = result.stdout.split(/\r?\n/);
+    assert.equal(result.status, 1, `RF per-base mutation did not fail the focused contract\n${result.stdout}\n${result.stderr}`);
+    assert.equal(outputLines.filter((line) => line === `# ${rfStructuralContractMarker}`).length, 1, "exact RF focused-contract execution marker");
+    assert.equal(outputLines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(rfStructuralContractName)).length, 1, "exact named RF focused-contract failure");
+    assert.equal(outputLines.filter((line) => line.includes("Missing expected exception") && line.includes("RF_PER_BASE_GUARD_REJECTED_REDISTRIBUTED_ROWS")).length, 1, "exact RF focused-contract failure output");
   } finally { rmSync(path, { force: true }); }
 });
 
