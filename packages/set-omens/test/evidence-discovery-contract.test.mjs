@@ -57,6 +57,7 @@ ${gate}
         OMENS_RECIPE_EVIDENCE_PATH: evidencePath,
         FAB_CARD_SOURCE_EVIDENCE_PATH: evidencePath,
         FAB_CARD_SCHEMA_EVIDENCE_PATH: evidencePath,
+        FAB_CARD_VAULT_EVIDENCE_PATH: evidencePath,
         ...environment
       }
     });

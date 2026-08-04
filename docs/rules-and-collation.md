@@ -157,9 +157,9 @@ Do not derive alternative weights from set card counts, silently normalize malfo
 
 ## Card snapshot reconciliation
 
-The preferred release dataset, `the-fab-cube/flesh-and-blood-cards` v8.2.0, has 251 OMN collector IDs and 482 OMN printing/treatment rows, all with image URLs in the inspected release. The official Card Vault product endpoint currently reports 260 product entries: 251 `OMN` plus nine `IAR` Marvel entries [DATA-1][FAB-7]. The product page itself says `251 cards in set` [FAB-3], so these counts are different scopes, not safely interchangeable.
+The preferred release dataset, `the-fab-cube/flesh-and-blood-cards` v8.2.0, has 251 OMN collector IDs and 482 OMN printing/treatment rows, all with image URLs in the inspected release. Research inspection of the official Card Vault product endpoint observed 260 product entries: 251 `OMN` plus nine `IAR` Marvel entries [DATA-1][FAB-7]. The product page itself says `251 cards in set` [FAB-3], so these counts are different scopes, not safely interchangeable.
 
-Completed build-time slices pin the exact upstream tag and file checksums, validate the full card source against its pinned schema, and project exact source-order `set_id === "OMN"` rows with 251-card/482-printing/251-distinct-collector-ID guards. The remaining import validation must:
+Completed build-time slices pin the exact upstream tag and file checksums, validate the full card source against its pinned schema, project exact source-order `set_id === "OMN"` rows with 251-card/482-printing/251-distinct-collector-ID guards, and checksum-gate one caller-held observed Card Vault response without parsing it. The remaining import validation must:
 
 - start from the official Card Vault product membership list;
 - join all matching upstream identities/printings, including the nine `IAR` entries;
