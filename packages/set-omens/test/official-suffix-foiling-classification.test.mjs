@@ -84,6 +84,41 @@ test("forgery and every marker, row-selection, multiplicity, uniqueness, and agg
   for (const key of Object.keys(aggregate)) safe(() => classify(source(), forms, { ...aggregate, [key]: aggregate[key] + 1 }));
 });
 
+test("RF structural contract rejects redistributed 3-plus-1 rows despite valid aggregates", () => {
+  const rfForms = Object.freeze([
+    Object.freeze({ officialPrintId: "OMN010-RF", baseCollectorId: "OMN010", sourceSet: "OMN", suffixMarker: "RF" }),
+    Object.freeze({ officialPrintId: "OMN011-RF", baseCollectorId: "OMN011", sourceSet: "OMN", suffixMarker: "RF" }),
+    Object.freeze({ officialPrintId: "IAR000", baseCollectorId: "IAR000", sourceSet: "IAR", suffixMarker: null })
+  ]);
+  const rfRows = [
+    c("rf-a", [p("OMN010", "rf-a-c", "C"), p("OMN010", "rf-a-r1", "R"), p("OMN010", "rf-a-r2", "R")]),
+    c("rf-b", [p("OMN011", "rf-b-c", "C")]),
+    c("iar", [p("IAR000", "iar-c", "C")])
+  ];
+  const rfExpected = Object.freeze({ unspecifiedEntries: 1, unspecifiedCandidates: 1, rfEntries: 2, rfCandidates: 4, rfSelected: 2, cfEntries: 0, cfCandidates: 0, cfSelected: 0, mvEntries: 0, mvCandidates: 0, mvSelected: 0, mvOneRowEntries: 0, mvTwoRowEntries: 0, suffixEntries: 2, suffixCandidates: 4, selected: 2 });
+  assert.throws(() => classifyOfficialSuffixFoilingForTest(
+    reconcileOfficialUpstreamIdRecordsForTest(rfForms, rfRows, { entries: 3, omnEntries: 2, iarEntries: 1, omnPrintings: 4, iarPrintings: 1 }), rfExpected
+  ), OfficialSuffixFoilingClassificationError);
+});
+
+test("RF per-base guard mutation is caught by the named redistributed-row contract", () => {
+  const sourcePath = new URL("../src/official-suffix-foiling-classification.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace(
+    'if (rows.length !== 2 || selected.length !== 1 || rows.filter((row) => row.foiling === "C").length !== 1) fail();',
+    'if (false && (rows.length !== 2 || selected.length !== 1 || rows.filter((row) => row.foiling === "C").length !== 1)) fail();'
+  );
+  assert.notEqual(mutated, original, "RF per-base guard present");
+  const path = `${dirname(fileURLToPath(sourcePath))}/suffix-foiling-mutation-${process.pid}-rf-per-base.ts`;
+  writeFileSync(path, mutated);
+  try {
+    const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(new URL("../src/official-upstream-id-reconciliation.ts", import.meta.url).href)}; import { classifyOfficialSuffixFoilingForTest as c } from ${JSON.stringify(new URL(`file://${path}`).href)}; const p=(id,u,f)=>({unique_id:u,set_printing_unique_id:id.startsWith('IAR')?'si':'so',id,set_id:id.slice(0,3),edition:'e',foiling:f,rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a'}); const f=[{officialPrintId:'OMN010-RF',baseCollectorId:'OMN010',sourceSet:'OMN',suffixMarker:'RF'},{officialPrintId:'OMN011-RF',baseCollectorId:'OMN011',sourceSet:'OMN',suffixMarker:'RF'},{officialPrintId:'IAR000',baseCollectorId:'IAR000',sourceSet:'IAR',suffixMarker:null}]; const x=[{unique_id:'a',name:'n',printings:[p('OMN010','a-c','C'),p('OMN010','a-r1','R'),p('OMN010','a-r2','R')]},{unique_id:'b',name:'n',printings:[p('OMN011','b-c','C')]},{unique_id:'i',name:'n',printings:[p('IAR000','i-c','C')]}]; const q=r(f,x,{entries:3,omnEntries:2,iarEntries:1,omnPrintings:4,iarPrintings:1}); c(q,{unspecifiedEntries:1,unspecifiedCandidates:1,rfEntries:2,rfCandidates:4,rfSelected:2,cfEntries:0,cfCandidates:0,cfSelected:0,mvEntries:0,mvCandidates:0,mvSelected:0,mvOneRowEntries:0,mvTwoRowEntries:0,suffixEntries:2,suffixCandidates:4,selected:2}); console.log('MUTATION_ACCEPTED:rf-per-base');`;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", program], { encoding: "utf8" });
+    assert.equal(result.status, 0, `RF per-base mutation did not execute\n${result.stderr}`);
+    assert.equal(result.stdout.trim(), "MUTATION_ACCEPTED:rf-per-base");
+  } finally { rmSync(path, { force: true }); }
+});
+
 test("semantic mutations prove every named classification guard owns its focused contract", () => {
   const sourcePath = new URL("../src/official-suffix-foiling-classification.ts", import.meta.url);
   const original = readFileSync(sourcePath, "utf8");
