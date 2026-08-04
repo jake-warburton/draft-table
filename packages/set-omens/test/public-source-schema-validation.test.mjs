@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 import {
   FabCardSourceSchemaValidationError,
@@ -63,6 +67,39 @@ test("the internal Draft-04 seam requires the exact dialect URI", () => {
   for (const dialect of [undefined, "http://json-schema.org/draft-03/schema#", "https://json-schema.org/draft/2020-12/schema", 4,
     "http://json-schema.org/DRAFT-04/schema#", "http://json-schema.org/draft-04/schema"])
     expectSafeSchemaError(() => validateFabCardDataDocumentsForSchema(cards(cardData), schema({ $schema: dialect, type: "array", items: { type: "object" } })));
+});
+
+test("the remote-reference contract owns rejection even for a self-resolvable absolute ref", () => {
+  const selfRefSchema = {
+    $schema: "http://json-schema.org/draft-04/schema#",
+    id: "https://example.invalid/card-schema.json",
+    type: "array",
+    items: { $ref: "https://example.invalid/card-schema.json#/definitions/card" },
+    definitions: { card: { type: "object", properties: { value: { type: "string" } }, required: ["value"], additionalProperties: false } }
+  };
+  expectSafeSchemaError(() => validateFabCardDataDocumentsForSchema(cards([{ value: "allowed" }]), schema(selfRefSchema)));
+
+  const sourcePath = new URL("../src/public-source-schema-validation.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutation = original.replace(
+    "const hasRemoteReference = (value: unknown): boolean => {",
+    "const hasRemoteReference = (value: unknown): boolean => { return false;"
+  );
+  assert.notEqual(mutation, original);
+  const directory = mkdtempSync(join(tmpdir(), "draft-table-remote-ref-"));
+  const mutatedPath = join(dirname(fileURLToPath(sourcePath)), `public-source-schema-validation-mutation-${process.pid}.ts`);
+  writeFileSync(mutatedPath, mutation);
+  try {
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `
+      import { validateFabCardSchemaDocumentFromTrustedBytes, validateFabEnglishCardDocumentFromTrustedBytes } from ${JSON.stringify(new URL("../src/public-source-document.ts", import.meta.url).href)};
+      import { validateFabCardDataDocumentsForSchema } from ${JSON.stringify(mutatedPath)};
+      const bytes = value => new TextEncoder().encode(JSON.stringify(value));
+      const schema = validateFabCardSchemaDocumentFromTrustedBytes(bytes(${JSON.stringify(selfRefSchema)}));
+      const cards = validateFabEnglishCardDocumentFromTrustedBytes(bytes([{ value: "allowed" }]));
+      validateFabCardDataDocumentsForSchema(cards, schema);
+    `], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+  } finally { rmSync(directory, { recursive: true, force: true }); rmSync(mutatedPath, { force: true }); }
 });
 
 test("local Draft-04 fragment refs work, while every nested non-local or non-string ref is blocked", () => {
