@@ -5,6 +5,9 @@ import test from "node:test";
 import {
   FAB_CARD_SOURCE,
   FabCardSourceChecksumError,
+  validateVerifiedFabCardSchemaDocument,
+  validateVerifiedFabCardSourceDocuments,
+  validateVerifiedFabEnglishCardDocument,
   verifyFabCardSchemaBytes,
   verifyFabEnglishCardBytes
 } from "../src/index.ts";
@@ -63,6 +66,13 @@ test("exact evidence creates separated opaque immutable capabilities that copy r
   const schema = readFileSync(schemaPath);
   const verifiedCard = verifyFabEnglishCardBytes(card);
   const verifiedSchema = verifyFabCardSchemaBytes(schema);
+  const documents = validateVerifiedFabCardSourceDocuments(verifiedCard, verifiedSchema);
+  assert.ok(Object.isFrozen(documents));
+  assert.ok(Object.isFrozen(documents.card));
+  assert.ok(Object.isFrozen(documents.schema));
+  assert.notStrictEqual(documents.card, documents.schema);
+  assert.throws(() => validateVerifiedFabEnglishCardDocument(verifiedSchema), TypeError);
+  assert.throws(() => validateVerifiedFabCardSchemaDocument(verifiedCard), TypeError);
 
   assert.deepEqual(Object.keys(verifiedCard), ["descriptor", "verification"]);
   assert.deepEqual(Object.keys(verifiedSchema), ["descriptor", "verification"]);
