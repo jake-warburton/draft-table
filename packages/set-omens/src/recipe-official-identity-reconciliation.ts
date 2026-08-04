@@ -39,6 +39,7 @@ export type OmensRecipeOfficialIdentityReconciliation = Readonly<{
 type ExpectedAggregate = Readonly<{
   recipeEntries: number;
   officialEntries: number;
+  candidateEntries: number;
   mappedEntries: number;
   unmappedEntries: number;
   unmappedOmn: number;
@@ -52,6 +53,7 @@ type ExpectedAggregate = Readonly<{
 const acceptedAggregate: ExpectedAggregate = Object.freeze({
   recipeEntries: 209,
   officialEntries: 260,
+  candidateEntries: 242,
   mappedEntries: 209,
   unmappedEntries: 51,
   unmappedOmn: 42,
@@ -84,6 +86,10 @@ const reconcile = (
 ): OmensRecipeOfficialIdentityReconciliation => {
   const references = readCompletedOmensRecipeCustomCardsForIdentityReconciliation(recipeCapability);
   const official = readOfficialUpstreamIdReconciliationForSuffixFoiling(officialCapability);
+  const candidates = official.filter((entry) => entry.suffixMarker === null && entry.sourceSetMarker === "OMN");
+  const candidateDerivedNames = new Set(candidates.map(derivedRecipeName));
+  if (candidates.length !== expected.candidateEntries || candidateDerivedNames.size !== candidates.length) fail();
+
   const ownedOfficialIndexes = new Set<number>();
   const ownedDerivedNames = new Set<string>();
   const mapped: Array<OmensRecipeOfficialIdentityReconciliation["mapped"][number]> = [];

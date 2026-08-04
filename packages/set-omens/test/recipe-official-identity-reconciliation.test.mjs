@@ -69,6 +69,7 @@ const official = (inputForms = forms, source = officialSource(inputForms), aggre
 const expected = Object.freeze({
   recipeEntries: 3,
   officialEntries: 6,
+  candidateEntries: 4,
   mappedEntries: 3,
   unmappedEntries: 3,
   unmappedOmn: 2,
@@ -168,6 +169,16 @@ test("exact matching rejects name-only, collector-only, swapped-name, case, comp
   safe(() => reconcile(recipe(), official(rewrittenPrintForms, officialSource(rewrittenPrintForms)), expected));
 });
 
+test("candidate derived-name collisions reject before mapping while noncandidate collisions do not false-alarm", () => {
+  const candidateNames = new Map(names); candidateNames.set("OMN104", "Fictional A");
+  const candidatePitches = new Map(pitches); candidatePitches.set("OMN104", "1");
+  safe(() => reconcile(recipe(), official(forms, officialSource(forms, candidateNames, candidatePitches))));
+
+  const noncandidateNames = new Map(names); noncandidateNames.set("OMN102", "Fictional A"); noncandidateNames.set("IAR200", "Fictional A");
+  const noncandidatePitches = new Map(pitches); noncandidatePitches.set("OMN102", "1"); noncandidatePitches.set("IAR200", "1");
+  assert.equal(reconcile(recipe(), official(forms, officialSource(forms, noncandidateNames, noncandidatePitches))).mapped.length, 3);
+});
+
 test("trimmed and duplicate recipe facts and ambiguous or duplicate official ownership fail before joining", () => {
   assert.throws(() => parseOmensCustomCardsFromTrustedBytes(recipeBytes([card(" Fictional A", "OMN100")])), /custom cards are invalid/i);
   assert.throws(() => parseOmensCustomCardsFromTrustedBytes(recipeBytes([card("Fictional A", "OMN100"), card("Fictional A", "OMN101")])), /custom cards are invalid/i);
@@ -198,7 +209,7 @@ test("mapped and unmapped still total 260 when one identity crosses the accepted
   const largeOfficial = official(largeForms, largeSource, { entries: 260, omnEntries: 251, iarEntries: 9, omnPrintings: 251, iarPrintings: 9 });
   const largeCards = largeForms.slice(0, 209).map((form, index) => card(index === 208 ? "Partition Crossing" : largeNames.get(form.baseCollectorId), index === 208 ? "OMN999" : form.baseCollectorId));
   const largeRecipe = recipe(largeCards, { common: 209, rare: 0, mythic: 0 });
-  const accepted = { recipeEntries: 209, officialEntries: 260, mappedEntries: 209, unmappedEntries: 51, unmappedOmn: 42, unmappedIar: 9, unmappedUnsuffixed: 33, unmappedRf: 6, unmappedCf: 3, unmappedMv: 9 };
+  const accepted = { recipeEntries: 209, officialEntries: 260, candidateEntries: 242, mappedEntries: 209, unmappedEntries: 51, unmappedOmn: 42, unmappedIar: 9, unmappedUnsuffixed: 33, unmappedRf: 6, unmappedCf: 3, unmappedMv: 9 };
   const drift = reconcileOmensRecipeOfficialIdentityRecordsForTest(largeRecipe, largeOfficial, { ...accepted, mappedEntries: 208, unmappedEntries: 52, unmappedOmn: 43, unmappedUnsuffixed: 34 });
   assert.equal(drift.mapped.length + drift.unmapped.length, 260);
   safe(() => reconcileOmensRecipeOfficialIdentityRecordsForTest(largeRecipe, largeOfficial, accepted));
