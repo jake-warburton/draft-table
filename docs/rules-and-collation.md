@@ -167,7 +167,7 @@ Completed build-time slices pin the exact upstream tag and file checksums, valid
 - reconcile all 209 private-recipe names and collector IDs to classified snapshot identities and treatments;
 - output a small reviewed Omens-only snapshot; never ship the upstream ~12 MB all-card package to browsers.
 
-Full suffix/treatment semantics, art/face, slot, and exclusion classification, private-recipe reconciliation, and snapshot generation remain future data-import slices; all runtime behavior remains unimplemented. No generated snapshot belongs in the repository before its separate review.
+Full suffix/treatment and art-variation semantics, face, slot, and exclusion classification, private-recipe reconciliation, and snapshot generation remain future data-import slices; all runtime behavior remains unimplemented. No generated snapshot belongs in the repository before its separate review.
 
 ## Collation invariants for TDD
 

@@ -65,7 +65,7 @@ export const projectSchemaValidatedFabEnglishCardDataForOmn = (
   }
 };
 
-/** Build-time-only exact identity/base reconciliation from both validated capabilities. */
+/** Build-time-only identity/base reconciliation retaining uninterpreted art-variation metadata. */
 export const reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData = (
   membership: OfficialCardVaultMembership,
   data: SchemaValidatedFabEnglishCardData
