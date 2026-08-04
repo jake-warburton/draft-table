@@ -60,14 +60,14 @@ test("OMN projection exactly filters mixed-set printings, maps source fields, an
 test("OMN projection preserves legitimate same collector and foiling collisions", () => {
   const input = [sourceCard({ printings: [
     sourcePrinting({ unique_id: "printing-first", id: "shared-collector", foiling: "Rainbow Foil", rarity: "Common" }),
-    sourcePrinting({ unique_id: "printing-second", id: "shared-collector", foiling: "Rainbow Foil", rarity: "Rare" })
+    sourcePrinting({ unique_id: "printing-second", id: "shared-collector", foiling: "Rainbow Foil", rarity: "Common" })
   ] })];
   const result = projected(input);
   const printings = result[0].printings;
   assert.equal(printings.length, 2);
   assert.deepEqual(printings.map(({ unique_id, id, foiling, rarity }) => ({ unique_id, id, foiling, rarity })), [
     { unique_id: "printing-first", id: "shared-collector", foiling: "Rainbow Foil", rarity: "Common" },
-    { unique_id: "printing-second", id: "shared-collector", foiling: "Rainbow Foil", rarity: "Rare" }
+    { unique_id: "printing-second", id: "shared-collector", foiling: "Rainbow Foil", rarity: "Common" }
   ]);
   assert.equal(new Set(printings.map(({ unique_id }) => unique_id)).size, 2);
   assert.equal(new Set(printings.map(({ set_printing_unique_id }) => set_printing_unique_id)).size, 1);
@@ -84,7 +84,7 @@ test("OMN collision contract fails under semantic (id, foiling) deduplication", 
   const path = `${dirname(fileURLToPath(sourcePath))}/omn-source-projection-mutation-${process.pid}-collision.ts`;
   writeFileSync(path, mutated);
   try {
-    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `import { projectOmnSourceRecordsForTest } from ${JSON.stringify(new URL(`file://${path}`).href)}; const p = (o={}) => ({unique_id:'p',set_printing_unique_id:'sp',id:'shared',set_id:'OMN',edition:'e',foiling:'Rainbow Foil',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',...o}); const output=projectOmnSourceRecordsForTest([{unique_id:'c',name:'n',printings:[p({unique_id:'first',rarity:'common'}),p({unique_id:'second',rarity:'rare'})]}]); const actual=output[0].printings.map(({unique_id,id,foiling,rarity})=>({unique_id,id,foiling,rarity})); const expected=[{unique_id:'first',id:'shared',foiling:'Rainbow Foil',rarity:'common'},{unique_id:'second',id:'shared',foiling:'Rainbow Foil',rarity:'rare'}]; if (JSON.stringify(actual) !== JSON.stringify(expected)) process.exit(42);`], { encoding: "utf8" });
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `import { projectOmnSourceRecordsForTest } from ${JSON.stringify(new URL(`file://${path}`).href)}; const p = (o={}) => ({unique_id:'p',set_printing_unique_id:'sp',id:'shared',set_id:'OMN',edition:'e',foiling:'Rainbow Foil',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',...o}); const output=projectOmnSourceRecordsForTest([{unique_id:'c',name:'n',printings:[p({unique_id:'first'}),p({unique_id:'second'})]}]); const actual=output[0].printings.map(({unique_id,id,foiling,rarity})=>({unique_id,id,foiling,rarity})); const expected=[{unique_id:'first',id:'shared',foiling:'Rainbow Foil',rarity:'r'},{unique_id:'second',id:'shared',foiling:'Rainbow Foil',rarity:'r'}]; if (JSON.stringify(actual) !== JSON.stringify(expected)) process.exit(42);`], { encoding: "utf8" });
     assert.equal(result.status, 42, result.stderr);
   } finally { rmSync(path, { force: true }); }
 });
