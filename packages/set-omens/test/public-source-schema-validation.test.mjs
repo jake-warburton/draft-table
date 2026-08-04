@@ -87,10 +87,13 @@ test("the public schema-validation entry point rejects unverified, forged, and s
 
   const source = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
   const composed = source.slice(source.indexOf("export const validateFabEnglishCardDataAgainstSchema"));
-  const cardGate = composed.indexOf("requireVerifiedValidatedFabEnglishCardDocument(card)");
-  const schemaGate = composed.indexOf("requireVerifiedValidatedFabCardSchemaDocument(schema)");
+  const cardGate = composed.indexOf("assertVerifiedValidatedFabEnglishCardDocument(card)");
+  const schemaGate = composed.indexOf("assertVerifiedValidatedFabCardSchemaDocument(schema)");
   const validate = composed.indexOf("validateFabCardDataDocumentsForSchema");
   assert.ok(cardGate >= 0 && schemaGate >= 0 && validate > cardGate && validate > schemaGate);
+  const documentImplementation = readFileSync(new URL("../src/public-source-document.ts", import.meta.url), "utf8");
+  const assertions = documentImplementation.slice(documentImplementation.indexOf("export const assertVerifiedValidatedFabEnglishCardDocument"));
+  assert.doesNotMatch(assertions, /new Uint8Array/);
   const implementation = readFileSync(new URL("../src/public-source-schema-validation.ts", import.meta.url), "utf8");
   assert.match(implementation, /allErrors: false/);
   assert.doesNotMatch(implementation, /compileAsync|loadSchema/);

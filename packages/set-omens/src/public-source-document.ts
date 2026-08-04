@@ -200,13 +200,20 @@ export const validateFabEnglishCardDocumentFromTrustedBytes = (bytes: Uint8Array
 export const validateFabCardSchemaDocumentFromTrustedBytes = (bytes: Uint8Array): ValidatedFabCardSchemaDocument =>
   validated<ValidatedFabCardSchemaDocument>(bytes, "FAB_CARD_SCHEMA_JSON");
 
-const readValidated = (document: ValidatedDocument, artifact: FabCardSourceDocumentArtifact, requireVerification = false): Uint8Array => {
+const requireValidated = (
+  document: ValidatedDocument,
+  artifact: FabCardSourceDocumentArtifact,
+  requireVerification = false
+): Readonly<{ artifact: FabCardSourceDocumentArtifact; bytes: Uint8Array; verified: boolean }> => {
   const retained = bytesByDocument.get(document);
   if (retained === undefined || retained.artifact !== artifact || (requireVerification && !retained.verified)) {
     throw new TypeError("Invalid public card source document.");
   }
-  return new Uint8Array(retained.bytes);
+  return retained;
 };
+
+const readValidated = (document: ValidatedDocument, artifact: FabCardSourceDocumentArtifact): Uint8Array =>
+  new Uint8Array(requireValidated(document, artifact).bytes);
 
 /** Package-internal future parser seam; the root package export deliberately does not expose it. */
 export const readValidatedFabEnglishCardBytesForParser = (document: ValidatedFabEnglishCardDocument): Uint8Array =>
@@ -217,9 +224,11 @@ export const readValidatedFabCardSchemaBytesForParser = (document: ValidatedFabC
   readValidated(document, "FAB_CARD_SCHEMA_JSON");
 
 /** Package-internal schema-validation seam; only checksum-origin document capabilities qualify. */
-export const readVerifiedValidatedFabEnglishCardBytesForSchemaValidation = (document: ValidatedFabEnglishCardDocument): Uint8Array =>
-  readValidated(document, "FAB_CARD_JSON", true);
+export const assertVerifiedValidatedFabEnglishCardDocument = (document: ValidatedFabEnglishCardDocument): void => {
+  requireValidated(document, "FAB_CARD_JSON", true);
+};
 
 /** Package-internal schema-validation seam; only checksum-origin document capabilities qualify. */
-export const readVerifiedValidatedFabCardSchemaBytesForSchemaValidation = (document: ValidatedFabCardSchemaDocument): Uint8Array =>
-  readValidated(document, "FAB_CARD_SCHEMA_JSON", true);
+export const assertVerifiedValidatedFabCardSchemaDocument = (document: ValidatedFabCardSchemaDocument): void => {
+  requireValidated(document, "FAB_CARD_SCHEMA_JSON", true);
+};

@@ -50,8 +50,8 @@ import {
   type VerifiedFabEnglishCardBytes
 } from "./public-source-checksum.ts";
 import {
-  readVerifiedValidatedFabCardSchemaBytesForSchemaValidation,
-  readVerifiedValidatedFabEnglishCardBytesForSchemaValidation,
+  assertVerifiedValidatedFabCardSchemaDocument,
+  assertVerifiedValidatedFabEnglishCardDocument,
   validateFabCardSchemaDocumentFromVerifiedBytes,
   validateFabEnglishCardDocumentFromVerifiedBytes,
   type ValidatedFabCardSchemaDocument,
@@ -127,22 +127,14 @@ export const validateVerifiedFabCardSchemaDocument = (
   return validateFabCardSchemaDocumentFromVerifiedBytes(schema.verification);
 };
 
-const requireVerifiedValidatedFabEnglishCardDocument = (card: ValidatedFabEnglishCardDocument): void => {
-  readVerifiedValidatedFabEnglishCardBytesForSchemaValidation(card);
-};
-
-const requireVerifiedValidatedFabCardSchemaDocument = (schema: ValidatedFabCardSchemaDocument): void => {
-  readVerifiedValidatedFabCardSchemaBytesForSchemaValidation(schema);
-};
-
 /** Validates the complete pinned card document against the complete pinned Draft-04 schema. */
 export const validateFabEnglishCardDataAgainstSchema = (
   card: ValidatedFabEnglishCardDocument,
   schema: ValidatedFabCardSchemaDocument
 ): SchemaValidatedFabEnglishCardData => {
   try {
-    requireVerifiedValidatedFabEnglishCardDocument(card);
-    requireVerifiedValidatedFabCardSchemaDocument(schema);
+    assertVerifiedValidatedFabEnglishCardDocument(card);
+    assertVerifiedValidatedFabCardSchemaDocument(schema);
     return validateFabCardDataDocumentsForSchema(card, schema);
   } catch (error) {
     if (error instanceof FabCardSourceSchemaValidationError) throw error;
