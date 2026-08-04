@@ -22,7 +22,7 @@ const url = (id, position, rendition, authority = host) => `https://${authority}
 const response = (specs, options = {}) => JSON.stringify({ product_name: "Omens of the Third Age", release_date: "2026-06-05", cards: specs.map(({ id, positions = [10] }) => ({ print_id: id, faces: positions.map((layout_position) => ({ layout_position, image: { small: url(id, layout_position, "small", options.authority), normal: url(id, layout_position, "normal", options.authority), large: url(id, layout_position, "large", options.authority) } })) })) });
 const specs = [{ id: "OMN001" }, { id: "OMN002-RF" }, { id: "OMN003-CF" }, { id: "IAR001-MV", positions: [10, 20] }, { id: "IAR002-MV" }];
 const ids = specs.map((entry) => entry.id);
-const aggregate = Object.freeze({ entries: 5, faces: 6, oneFaceEntries: 4, twoFaceEntries: 1, position10Faces: 5, position20Faces: 1, smallUrls: 6, normalUrls: 6, largeUrls: 6, allUrls: 18, unsuffixedEntries: 1, unsuffixedFaces: 1, rfEntries: 1, rfFaces: 1, cfEntries: 1, cfFaces: 1, mvEntries: 2, mvFaces: 3, mvOneFaceEntries: 1, mvTwoFaceEntries: 1 });
+const aggregate = Object.freeze({ entries: 5, faces: 6, oneFaceEntries: 4, twoFaceEntries: 1, position10Faces: 5, position20Faces: 1, smallUrls: 6, normalUrls: 6, largeUrls: 6, allUrls: 18, unsuffixedEntries: 1, unsuffixedFaces: 1, unsuffixedOneFaceEntries: 1, unsuffixedTwoFaceEntries: 0, rfEntries: 1, rfFaces: 1, rfOneFaceEntries: 1, rfTwoFaceEntries: 0, cfEntries: 1, cfFaces: 1, cfOneFaceEntries: 1, cfTwoFaceEntries: 0, mvEntries: 2, mvFaces: 3, mvOneFaceEntries: 1, mvTwoFaceEntries: 1 });
 const membership = () => validateCardVaultOfficialMembershipBytesAgainstFact(encode(response(specs)), factFor(ids));
 const project = (input = response(specs), expected = aggregate, capability = membership()) => projectCardVaultOfficialFaceMetadataForTest(capability, encode(input), expected);
 const safe = (action) => assert.throws(action, (error) => {
@@ -97,7 +97,7 @@ test("face projection semantic mutation ownership catches the position guard thr
     assert.equal(result.status, 1, result.stdout + result.stderr);
     assert.equal(lines.filter((line) => line === `# ${positionMarker}`).length, 1);
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(positionContract)).length, 1);
-    assert.equal(lines.filter((line) => line.includes("Missing expected exception")).length, 1);
+    assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("POSITION_GUARD_REJECTED_REVERSED_ORDER")).length, 1);
   } finally { rmSync(path, { force: true }); }
 });
 

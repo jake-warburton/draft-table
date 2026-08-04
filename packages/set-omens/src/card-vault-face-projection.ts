@@ -40,10 +40,16 @@ type FaceProjectionAggregate = Readonly<{
   allUrls: number;
   unsuffixedEntries: number;
   unsuffixedFaces: number;
+  unsuffixedOneFaceEntries: number;
+  unsuffixedTwoFaceEntries: number;
   rfEntries: number;
   rfFaces: number;
+  rfOneFaceEntries: number;
+  rfTwoFaceEntries: number;
   cfEntries: number;
   cfFaces: number;
+  cfOneFaceEntries: number;
+  cfTwoFaceEntries: number;
   mvEntries: number;
   mvFaces: number;
   mvOneFaceEntries: number;
@@ -63,10 +69,16 @@ const OFFICIAL_AGGREGATE: FaceProjectionAggregate = Object.freeze({
   allUrls: 786,
   unsuffixedEntries: 242,
   unsuffixedFaces: 242,
+  unsuffixedOneFaceEntries: 242,
+  unsuffixedTwoFaceEntries: 0,
   rfEntries: 6,
   rfFaces: 6,
+  rfOneFaceEntries: 6,
+  rfTwoFaceEntries: 0,
   cfEntries: 3,
   cfFaces: 3,
+  cfOneFaceEntries: 3,
+  cfTwoFaceEntries: 0,
   mvEntries: 9,
   mvFaces: 11,
   mvOneFaceEntries: 7,
@@ -125,7 +137,7 @@ const project = (
 
   const urls = new Set<string>();
   const renditionUrls = { small: new Set<string>(), normal: new Set<string>(), large: new Set<string>() };
-  const totals = { faces: 0, oneFaceEntries: 0, twoFaceEntries: 0, position10Faces: 0, position20Faces: 0, unsuffixedEntries: 0, unsuffixedFaces: 0, rfEntries: 0, rfFaces: 0, cfEntries: 0, cfFaces: 0, mvEntries: 0, mvFaces: 0, mvOneFaceEntries: 0, mvTwoFaceEntries: 0 };
+  const totals = { faces: 0, oneFaceEntries: 0, twoFaceEntries: 0, position10Faces: 0, position20Faces: 0, unsuffixedEntries: 0, unsuffixedFaces: 0, unsuffixedOneFaceEntries: 0, unsuffixedTwoFaceEntries: 0, rfEntries: 0, rfFaces: 0, rfOneFaceEntries: 0, rfTwoFaceEntries: 0, cfEntries: 0, cfFaces: 0, cfOneFaceEntries: 0, cfTwoFaceEntries: 0, mvEntries: 0, mvFaces: 0, mvOneFaceEntries: 0, mvTwoFaceEntries: 0 };
 
   const entries = canonicalIds.map((printId) => {
     const card = cards.get(printId);
@@ -157,14 +169,14 @@ const project = (
     });
     if (faces.length === 1) totals.oneFaceEntries++; else totals.twoFaceEntries++;
     const group = suffix(printId);
-    if (group === "unsuffixed") { totals.unsuffixedEntries++; totals.unsuffixedFaces += faces.length; }
-    if (group === "rf") { totals.rfEntries++; totals.rfFaces += faces.length; }
-    if (group === "cf") { totals.cfEntries++; totals.cfFaces += faces.length; }
+    if (group === "unsuffixed") { totals.unsuffixedEntries++; totals.unsuffixedFaces += faces.length; if (faces.length === 1) totals.unsuffixedOneFaceEntries++; else totals.unsuffixedTwoFaceEntries++; }
+    if (group === "rf") { totals.rfEntries++; totals.rfFaces += faces.length; if (faces.length === 1) totals.rfOneFaceEntries++; else totals.rfTwoFaceEntries++; }
+    if (group === "cf") { totals.cfEntries++; totals.cfFaces += faces.length; if (faces.length === 1) totals.cfOneFaceEntries++; else totals.cfTwoFaceEntries++; }
     if (group === "mv") { totals.mvEntries++; totals.mvFaces += faces.length; if (faces.length === 1) totals.mvOneFaceEntries++; else totals.mvTwoFaceEntries++; }
     return Object.freeze({ print_id: printId, faces: Object.freeze(faces) });
   });
 
-  if (entries.length !== expected.entries || totals.faces !== expected.faces || totals.oneFaceEntries !== expected.oneFaceEntries || totals.twoFaceEntries !== expected.twoFaceEntries || totals.position10Faces !== expected.position10Faces || totals.position20Faces !== expected.position20Faces || renditionUrls.small.size !== expected.smallUrls || renditionUrls.normal.size !== expected.normalUrls || renditionUrls.large.size !== expected.largeUrls || urls.size !== expected.allUrls || totals.unsuffixedEntries !== expected.unsuffixedEntries || totals.unsuffixedFaces !== expected.unsuffixedFaces || totals.rfEntries !== expected.rfEntries || totals.rfFaces !== expected.rfFaces || totals.cfEntries !== expected.cfEntries || totals.cfFaces !== expected.cfFaces || totals.mvEntries !== expected.mvEntries || totals.mvFaces !== expected.mvFaces || totals.mvOneFaceEntries !== expected.mvOneFaceEntries || totals.mvTwoFaceEntries !== expected.mvTwoFaceEntries) fail();
+  if (entries.length !== expected.entries || totals.faces !== expected.faces || totals.oneFaceEntries !== expected.oneFaceEntries || totals.twoFaceEntries !== expected.twoFaceEntries || totals.position10Faces !== expected.position10Faces || totals.position20Faces !== expected.position20Faces || renditionUrls.small.size !== expected.smallUrls || renditionUrls.normal.size !== expected.normalUrls || renditionUrls.large.size !== expected.largeUrls || urls.size !== expected.allUrls || totals.unsuffixedEntries !== expected.unsuffixedEntries || totals.unsuffixedFaces !== expected.unsuffixedFaces || totals.unsuffixedOneFaceEntries !== expected.unsuffixedOneFaceEntries || totals.unsuffixedTwoFaceEntries !== expected.unsuffixedTwoFaceEntries || totals.rfEntries !== expected.rfEntries || totals.rfFaces !== expected.rfFaces || totals.rfOneFaceEntries !== expected.rfOneFaceEntries || totals.rfTwoFaceEntries !== expected.rfTwoFaceEntries || totals.cfEntries !== expected.cfEntries || totals.cfFaces !== expected.cfFaces || totals.cfOneFaceEntries !== expected.cfOneFaceEntries || totals.cfTwoFaceEntries !== expected.cfTwoFaceEntries || totals.mvEntries !== expected.mvEntries || totals.mvFaces !== expected.mvFaces || totals.mvOneFaceEntries !== expected.mvOneFaceEntries || totals.mvTwoFaceEntries !== expected.mvTwoFaceEntries) fail();
   return Object.freeze(entries);
 };
 
