@@ -12,13 +12,15 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   discoverEvidenceTests,
-  discoverPublicSourceEvidenceTests
+  discoverPublicSourceEvidenceTests,
+  discoverRecipeIdentityEvidenceTests
 } from "./evidence-discovery.mjs";
 
 const syntheticFiles = [
   "evidence-command-contract.test.mjs",
   "package-boundary.test.mjs",
   "public-source-checksum-gate.public-source-evidence.test.mjs",
+  "recipe-identity-reconciliation.recipe-identity-evidence.test.mjs",
   "topic-about-public-source.test.mjs",
   "synthetic-contract.test.mjs"
 ];
@@ -79,6 +81,12 @@ test("private evidence discovery excludes only explicitly gated tests", () => {
 test("public evidence discovery selects only explicitly gated tests", () => {
   assert.deepEqual(discoverPublicSourceEvidenceTests(syntheticFiles), [
     "public-source-checksum-gate.public-source-evidence.test.mjs"
+  ]);
+});
+
+test("recipe identity evidence discovery selects only its separate four-source gate", () => {
+  assert.deepEqual(discoverRecipeIdentityEvidenceTests(syntheticFiles), [
+    "recipe-identity-reconciliation.recipe-identity-evidence.test.mjs"
   ]);
 });
 

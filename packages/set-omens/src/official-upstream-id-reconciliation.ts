@@ -20,6 +20,8 @@ export class OfficialUpstreamIdReconciliationError extends Error {
   }
 }
 
+export type OfficialUpstreamPitch = "" | "1" | "2" | "3";
+
 export type OfficialUpstreamPrinting = Readonly<{
   unique_id: string;
   set_printing_unique_id: string;
@@ -42,20 +44,25 @@ export type OfficialUpstreamIdReconciliation = ReadonlyArray<Readonly<{
   suffixMarker: "RF" | "CF" | "MV" | null;
   unique_id: string;
   name: string;
+  /** Exact validated card-level upstream source fact; empty means no printed pitch. */
+  pitch: OfficialUpstreamPitch;
   printings: ReadonlyArray<OfficialUpstreamPrinting>;
 }>>;
 
 type ExpectedAggregate = Readonly<{ entries: number; omnEntries: number; iarEntries: number; omnPrintings: number; iarPrintings: number }>;
 type ArtVariationAggregate = Readonly<{ empty: number; ea: number; fa: number; aaFa: number; unsuffixedEmpty: number; unsuffixedEa: number; unsuffixedFa: number; unsuffixedAaFa: number; rfEmpty: number; rfEa: number; cfEmpty: number; mvFa: number }>;
-type SourceCard = Readonly<{ unique_id: string; name: string; printings: readonly OfficialUpstreamPrinting[] }>;
+type PitchAggregate = Readonly<{ pitchless: number; one: number; two: number; three: number }>;
+type SourceCard = Readonly<{ unique_id: string; name: string; pitch: OfficialUpstreamPitch; printings: readonly OfficialUpstreamPrinting[] }>;
 
 const publicAggregate: ExpectedAggregate = Object.freeze({ entries: 260, omnEntries: 251, iarEntries: 9, omnPrintings: 482, iarPrintings: 11 });
 const publicArtVariationAggregate: ArtVariationAggregate = Object.freeze({ empty: 442, ea: 22, fa: 25, aaFa: 4, unsuffixedEmpty: 429, unsuffixedEa: 20, unsuffixedFa: 14, unsuffixedAaFa: 4, rfEmpty: 10, rfEa: 2, cfEmpty: 3, mvFa: 11 });
+const publicPitchAggregate: PitchAggregate = Object.freeze({ pitchless: 39, one: 78, two: 74, three: 69 });
 const reconciliationCapabilities = new WeakSet<object>();
 const fail = (): never => { throw new OfficialUpstreamIdReconciliationError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
 const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : fail();
 const text = (value: unknown): string => typeof value === "string" && value.length > 0 && value === value.trim() && value === value.normalize("NFC") && !/\p{Cc}/u.test(value) ? value : fail();
+const pitch = (value: unknown): OfficialUpstreamPitch => value === "" || value === "1" || value === "2" || value === "3" ? value : fail();
 const url = (value: unknown): string => { const result = text(value); try { if (new URL(result).protocol !== "https:" || new URL(result).hostname.length === 0) fail(); return result; } catch { return fail(); } };
 const artVariations = (value: unknown): ReadonlyArray<string> => {
   if (!Array.isArray(value)) return fail();
@@ -96,7 +103,7 @@ const projectSource = (data: unknown, expectedSetByBase: ReadonlyMap<string, "OM
     const unique_id = text(card.unique_id);
     if (cardIds.has(unique_id)) fail();
     cardIds.add(unique_id);
-    cards.push(frozen({ unique_id, name: text(card.name), printings: frozen(printings) }));
+    cards.push(frozen({ unique_id, name: text(card.name), pitch: pitch(card.pitch), printings: frozen(printings) }));
   }
   return frozen(cards);
 };
@@ -115,6 +122,12 @@ const validateArtVariationAggregate = (records: OfficialUpstreamIdReconciliation
   if (empty !== expected.empty || ea !== expected.ea || fa !== expected.fa || aaFa !== expected.aaFa ||
     unsuffixedEmpty !== expected.unsuffixedEmpty || unsuffixedEa !== expected.unsuffixedEa || unsuffixedFa !== expected.unsuffixedFa || unsuffixedAaFa !== expected.unsuffixedAaFa ||
     rfEmpty !== expected.rfEmpty || rfEa !== expected.rfEa || cfEmpty !== expected.cfEmpty || mvFa !== expected.mvFa) fail();
+};
+
+const validatePitchAggregate = (records: OfficialUpstreamIdReconciliation, expected: PitchAggregate): void => {
+  const counts: Record<OfficialUpstreamPitch, number> = { "": 0, "1": 0, "2": 0, "3": 0 };
+  for (const record of records) counts[record.pitch] += 1;
+  if (counts[""] !== expected.pitchless || counts["1"] !== expected.one || counts["2"] !== expected.two || counts["3"] !== expected.three) fail();
 };
 
 const reconcile = (forms: readonly CardVaultPrintIdForm[], source: unknown, expected: ExpectedAggregate): OfficialUpstreamIdReconciliation => {
@@ -140,7 +153,7 @@ const reconcile = (forms: readonly CardVaultPrintIdForm[], source: unknown, expe
       else if (setPrinting !== printing.set_printing_unique_id) return fail();
     }
     return frozen({ officialPrintId: form.officialPrintId, baseCollectorId: form.baseCollectorId, sourceSetMarker: form.sourceSet,
-      suffixMarker: form.suffixMarker, unique_id: card.unique_id, name: card.name, printings: frozen(printings.map(copyOfficialUpstreamPrinting)) });
+      suffixMarker: form.suffixMarker, unique_id: card.unique_id, name: card.name, pitch: card.pitch, printings: frozen(printings.map(copyOfficialUpstreamPrinting)) });
   });
   const omn = result.filter((entry) => entry.sourceSetMarker === "OMN"); const iar = result.filter((entry) => entry.sourceSetMarker === "IAR");
   const omnRows = omn.flatMap((entry) => entry.printings); const iarRows = iar.flatMap((entry) => entry.printings);
@@ -167,6 +180,11 @@ export const validateOfficialUpstreamArtVariationAggregateForTest = (records: Of
   try { if (!reconciliationCapabilities.has(records)) fail(); validateArtVariationAggregate(records, expected); } catch (error) { if (error instanceof OfficialUpstreamIdReconciliationError) throw error; return fail(); }
 };
 
+/** Package-internal fictional seam for retained exact card-level pitch aggregate contracts. */
+export const validateOfficialUpstreamPitchAggregateForTest = (records: OfficialUpstreamIdReconciliation, expected: PitchAggregate): void => {
+  try { if (!reconciliationCapabilities.has(records)) fail(); validatePitchAggregate(records, expected); } catch (error) { if (error instanceof OfficialUpstreamIdReconciliationError) throw error; return fail(); }
+};
+
 /** Accepts only both opaque validated capabilities; this is build-time tooling, never a root/runtime API. */
 export const reconcileOfficialCardVaultMembershipWithSchemaValidatedFabSource = (
   membership: OfficialCardVaultMembership,
@@ -175,6 +193,7 @@ export const reconcileOfficialCardVaultMembershipWithSchemaValidatedFabSource = 
   try {
     const records = reconcile(readOfficialCardVaultPrintIdFormsForReconciliation(membership), readSchemaValidatedFabEnglishCardDataForParser(data), publicAggregate);
     validateArtVariationAggregate(records, publicArtVariationAggregate);
+    validatePitchAggregate(records, publicPitchAggregate);
     return records;
   } catch (error) { if (error instanceof OfficialUpstreamIdReconciliationError) throw error; return fail(); }
 };

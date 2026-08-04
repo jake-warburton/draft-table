@@ -8,7 +8,8 @@ import test from "node:test";
 import {
   OfficialUpstreamIdReconciliationError,
   reconcileOfficialUpstreamIdRecordsForTest,
-  validateOfficialUpstreamArtVariationAggregateForTest
+  validateOfficialUpstreamArtVariationAggregateForTest,
+  validateOfficialUpstreamPitchAggregateForTest
 } from "../src/official-upstream-id-reconciliation.ts";
 
 const forms = Object.freeze([
@@ -17,11 +18,11 @@ const forms = Object.freeze([
   Object.freeze({ officialPrintId: "OMN001", baseCollectorId: "OMN001", sourceSet: "OMN", suffixMarker: null })
 ]);
 const p = (overrides = {}) => ({ unique_id: "p-1", set_printing_unique_id: "sp-omn", id: "OMN000", set_id: "OMN", edition: "e", foiling: "f", rarity: "r", expansion_slot: false, image_url: "https://images.example.invalid/a", art_variations: [], ...overrides });
-const c = (overrides = {}) => ({ unique_id: "c-1", name: "Fictional", printings: [p()], ...overrides });
+const c = (overrides = {}) => ({ unique_id: "c-1", name: "Fictional", pitch: "", printings: [p()], ...overrides });
 const source = () => [
-  c({ unique_id: "iar-card", printings: [p({ unique_id: "iar-1", set_printing_unique_id: "sp-iar", id: "IAR000", set_id: "IAR" }), p({ unique_id: "iar-2", set_printing_unique_id: "sp-iar", id: "IAR000", set_id: "IAR", foiling: "other" })] }),
-  c({ unique_id: "zero-card", printings: [p({ unique_id: "zero-1" }), p({ unique_id: "zero-2", foiling: "other" })] }),
-  c({ unique_id: "one-card", printings: [p({ unique_id: "one-1", id: "OMN001" })] })
+  c({ unique_id: "iar-card", pitch: "", printings: [p({ unique_id: "iar-1", set_printing_unique_id: "sp-iar", id: "IAR000", set_id: "IAR" }), p({ unique_id: "iar-2", set_printing_unique_id: "sp-iar", id: "IAR000", set_id: "IAR", foiling: "other" })] }),
+  c({ unique_id: "zero-card", pitch: "1", printings: [p({ unique_id: "zero-1" }), p({ unique_id: "zero-2", foiling: "other" })] }),
+  c({ unique_id: "one-card", pitch: "2", printings: [p({ unique_id: "one-1", id: "OMN001" })] })
 ];
 const expected = Object.freeze({ entries: 3, omnEntries: 2, iarEntries: 1, omnPrintings: 3, iarPrintings: 2 });
 const reconcile = (input = source(), inputForms = forms, aggregate = expected) => reconcileOfficialUpstreamIdRecordsForTest(inputForms, input, aggregate);
@@ -39,6 +40,7 @@ test("capability-bound reconciliation uses exact set plus already-validated base
   const result = reconcile();
   assert.deepEqual(result.map((entry) => entry.officialPrintId), forms.map((form) => form.officialPrintId));
   assert.deepEqual(result.map((entry) => entry.unique_id), ["iar-card", "zero-card", "one-card"]);
+  assert.deepEqual(result.map((entry) => entry.pitch), ["", "1", "2"]);
   assert.deepEqual(result[1].printings.map((printing) => printing.unique_id), ["zero-1", "zero-2"]);
   assert.equal(result[1].officialPrintId, "OMN000-RF");
   assert.equal(result[1].baseCollectorId, "OMN000");
@@ -60,10 +62,26 @@ test("collector IDs are text: OMN000 proves no one-based conversion or membershi
 test("reconciliation output is deeply frozen, copied, and safe against capability-source mutation", () => {
   const input = source(); const result = reconcile(input);
   assert.ok(Object.isFrozen(result)); assert.ok(result.every(Object.isFrozen)); assert.ok(result.every((entry) => Object.isFrozen(entry.printings) && entry.printings.every(Object.isFrozen)));
-  input[1].printings[0].id = "changed";
-  assert.equal(result[1].printings[0].id, "OMN000");
+  input[1].printings[0].id = "changed"; input[1].pitch = "3";
+  assert.equal(result[1].printings[0].id, "OMN000"); assert.equal(result[1].pitch, "1");
   assert.throws(() => { result[1].printings[0].id = "changed"; }, TypeError);
+  assert.throws(() => { result[1].pitch = "3"; }, TypeError);
   assert.notEqual(reconcile(), result);
+});
+
+test("card-level pitch retains only exact validated source strings and rejects unsupported values or types", () => {
+  const blue = source(); blue[2].pitch = "3"; assert.equal(reconcile(blue)[2].pitch, "3");
+  for (const value of [undefined, null, 1, 2, 3, "4", " 1", "1 ", "red", {}, []]) {
+    const input = source(); input[1].pitch = value; safe(() => reconcile(input));
+  }
+});
+
+test("pitch aggregate is independently capability-bound and pins all exact source forms", () => {
+  const records = reconcile();
+  const pitchAggregate = Object.freeze({ pitchless: 1, one: 1, two: 1, three: 0 });
+  validateOfficialUpstreamPitchAggregateForTest(records, pitchAggregate);
+  for (const key of Object.keys(pitchAggregate)) safe(() => validateOfficialUpstreamPitchAggregateForTest(records, { ...pitchAggregate, [key]: pitchAggregate[key] + 1 }));
+  safe(() => validateOfficialUpstreamPitchAggregateForTest(Object.freeze([]), pitchAggregate));
 });
 
 test("exact matching, ownership, uniqueness, set consistency, and every aggregate guard fail closed", () => {
@@ -195,7 +213,7 @@ test("RF art-variation suffix mutation is caught by its named capability-bound c
 });
 
 const stableMutationSnapshotModules = Object.freeze([
-  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "custom-cards.ts", "descriptor.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
+  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "custom-cards.ts", "descriptor.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "recipe-official-identity-reconciliation.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
 ]);
 
 const withStableMutationSnapshot = (sourceDirectory, action, copyModule = copyFileSync) => {
@@ -325,7 +343,7 @@ test("semantic mutations demonstrate focused contracts detect disabled matching,
     const mutated = original.replace(before, after); assert.notEqual(mutated, original, `${name}: source guard present`);
     withStableMutationSnapshot(dirname(fileURLToPath(sourcePath)), (directory) => {
       const path = join(directory, "official-upstream-id-reconciliation.ts"); writeFileSync(path, mutated);
-      const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(pathToFileURL(path).href)}; const f=[{officialPrintId:'OMN000',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:null},{officialPrintId:'IAR000-MV',baseCollectorId:'IAR000',sourceSet:'IAR',suffixMarker:'MV'}]; const p=(o={})=>({unique_id:'p',set_printing_unique_id:'sp',id:'OMN000',set_id:'OMN',edition:'e',foiling:'f',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',art_variations:[],...o}); const c=(o={})=>({unique_id:'c',name:'n',printings:[p()],...o}); const e={entries:2,omnEntries:1,iarEntries:1,omnPrintings:${fixture === "crossSet" ? 2 : 1},iarPrintings:1}; const s=${fixture === "crossSet" ? "[c({printings:[p(),p({unique_id:'cross',set_id:'WTR'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : fixture === "duplicateOwner" ? "[c(),c({unique_id:'two',printings:[p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : "[c({printings:[p(),p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]"}; r(f,s,e); console.log('MUTATION_ACCEPTED:${name}');`;
+      const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(pathToFileURL(path).href)}; const f=[{officialPrintId:'OMN000',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:null},{officialPrintId:'IAR000-MV',baseCollectorId:'IAR000',sourceSet:'IAR',suffixMarker:'MV'}]; const p=(o={})=>({unique_id:'p',set_printing_unique_id:'sp',id:'OMN000',set_id:'OMN',edition:'e',foiling:'f',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',art_variations:[],...o}); const c=(o={})=>({unique_id:'c',name:'n',pitch:'',printings:[p()],...o}); const e={entries:2,omnEntries:1,iarEntries:1,omnPrintings:${fixture === "crossSet" ? 2 : 1},iarPrintings:1}; const s=${fixture === "crossSet" ? "[c({printings:[p(),p({unique_id:'cross',set_id:'WTR'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : fixture === "duplicateOwner" ? "[c(),c({unique_id:'two',printings:[p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : "[c({printings:[p(),p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]"}; r(f,s,e); console.log('MUTATION_ACCEPTED:${name}');`;
       const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", program], { encoding: "utf8" });
       assert.equal(result.status, 0, `${name}: intended mutation executed\n${result.stderr}`); assert.equal(result.stdout.trim(), `MUTATION_ACCEPTED:${name}`);
     });

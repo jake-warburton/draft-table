@@ -26,6 +26,10 @@ test("the exact pinned public card source fully conforms to its pinned Draft-04 
 }, () => {
   const cardBytes = readFileSync(cardPath);
   const schemaBytes = readFileSync(schemaPath);
+  const pinnedSchema = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(schemaBytes));
+  assert.equal(pinnedSchema.items.properties.pitch.type, "string");
+  assert.ok(pinnedSchema.items.required.includes("pitch"));
+  assert.equal(Object.hasOwn(pinnedSchema.items.properties.pitch, "enum"), false);
   const documents = validateVerifiedFabCardSourceDocuments(
     verifyFabEnglishCardBytes(cardBytes),
     verifyFabCardSchemaBytes(schemaBytes)

@@ -14,6 +14,8 @@ const EXPECTED_CARD_KEYS = new Set([
 const EXPECTED_IMAGE_URI_KEYS = new Set(["en"]);
 const ALLOWED_RARITIES = new Set(["common", "rare", "mythic"]);
 const OMENS_RECIPE_CUSTOM_CARD_TOTALS = Object.freeze({ common: 134, rare: 60, mythic: 15 });
+const parsedReferenceCapabilities = new WeakSet<object>();
+const completedReferenceCapabilities = new WeakSet<object>();
 
 export class OmensRecipeCustomCardsError extends Error {
   readonly code = "OMENS_RECIPE_CUSTOM_CARDS_INVALID";
@@ -178,18 +180,37 @@ const toReference = (value: unknown): OmensRecipeCardReference => {
   });
 };
 
+type RecipeRarityAggregate = Readonly<Record<OmensRecipeRarity, number>>;
+
+const completeAggregate = (
+  references: ReadonlyArray<OmensRecipeCardReference>,
+  expected: RecipeRarityAggregate
+): ReadonlyArray<OmensRecipeCardReference> => {
+  if (!parsedReferenceCapabilities.has(references)) return invalidCustomCards();
+  const expectedLength = expected.common + expected.rare + expected.mythic;
+  if (references.length !== expectedLength) return invalidCustomCards();
+  const counts: Record<OmensRecipeRarity, number> = { common: 0, rare: 0, mythic: 0 };
+  for (const reference of references) counts[reference.rarity] += 1;
+  if (counts.common !== expected.common || counts.rare !== expected.rare || counts.mythic !== expected.mythic) return invalidCustomCards();
+  completedReferenceCapabilities.add(references);
+  return references;
+};
+
 /** Internal seam validating pinned-recipe aggregates at the verified boundary; not publicly exported. */
 export const validateOmensRecipeCustomCardsAggregate = (
   references: ReadonlyArray<OmensRecipeCardReference>
-): ReadonlyArray<OmensRecipeCardReference> => {
-  if (references.length !== 209) return invalidCustomCards();
-  const counts: Record<OmensRecipeRarity, number> = { common: 0, rare: 0, mythic: 0 };
-  for (const reference of references) counts[reference.rarity] += 1;
-  if (counts.common !== OMENS_RECIPE_CUSTOM_CARD_TOTALS.common ||
-    counts.rare !== OMENS_RECIPE_CUSTOM_CARD_TOTALS.rare ||
-    counts.mythic !== OMENS_RECIPE_CUSTOM_CARD_TOTALS.mythic) return invalidCustomCards();
-  return references;
-};
+): ReadonlyArray<OmensRecipeCardReference> => completeAggregate(references, OMENS_RECIPE_CUSTOM_CARD_TOTALS);
+
+/** Package-internal fictional seam that can complete only an exact parser-created array. */
+export const completeOmensRecipeCustomCardsAggregateForTest = (
+  references: ReadonlyArray<OmensRecipeCardReference>,
+  expected: RecipeRarityAggregate
+): ReadonlyArray<OmensRecipeCardReference> => completeAggregate(references, expected);
+
+/** Reads only the exact completed parser result for the following build-time identity slice. */
+export const readCompletedOmensRecipeCustomCardsForIdentityReconciliation = (
+  references: ReadonlyArray<OmensRecipeCardReference>
+): ReadonlyArray<OmensRecipeCardReference> => completedReferenceCapabilities.has(references) ? references : invalidCustomCards();
 
 /** Test-only seam for synthetic malformed-input contracts; not publicly exported. */
 export const parseOmensCustomCardsFromTrustedBytes = (bytes: Uint8Array): ReadonlyArray<OmensRecipeCardReference> => {
@@ -207,7 +228,9 @@ export const parseOmensCustomCardsFromTrustedBytes = (bytes: Uint8Array): Readon
       names.add(reference.name);
       collectorNumbers.add(reference.collectorNumber);
     }
-    return Object.freeze(references);
+    const capability = Object.freeze(references);
+    parsedReferenceCapabilities.add(capability);
+    return capability;
   } catch (error) {
     if (error instanceof OmensRecipeCustomCardsError) throw error;
     return invalidCustomCards();
