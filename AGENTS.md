@@ -7,6 +7,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - The v8.2.0 public English card input/schema and the observed 2026-08-04 official Card Vault Omens product response are build-time evidence inputs; follow the evidence workflow in `README.md`, never commit upstream bytes, and never add runtime fetches. The Card Vault raw checksum is dated evidence only; canonical official membership is the durable authority.
 - Pinned public evidence must be obtained and checksum-verified when absent, never waived because a worker is isolated; only captain-held private recipe evidence is genuinely unavailable to workers.
 - The approved boundary is a platform-independent TypeScript engine plus browser, Cloudflare Worker/Durable Object adapter, shared contracts, and a reviewed versioned set snapshot; see `docs/architecture.md`.
+- Preserve the pinned recipe's MTG-tool source labels `common|rare|mythic` only at ingest, reject unknown labels through the generic parser error, and translate once at `recipe-rarity-domain.ts` to FaB-native common/rare/Majestic plus C/R/M. The pinned broad upstream domain is `C|R|M|P|V|T|L|S|B|F`; scoped public guards pin 482 OMN official-base rows (C251/R119/M68/V18/B14/L10/F2) and 493 all-official retained rows, differing only by 11 IAR V rows.
 
 ## Maintaining this file
 

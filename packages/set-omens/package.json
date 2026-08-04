@@ -14,7 +14,8 @@
     "test": "node --experimental-strip-types --test test/*.test.mjs",
     "test:evidence": "node test/evidence-command.mjs",
     "test:public-source-evidence": "node test/public-source-evidence-command.mjs",
-    "test:recipe-identity-evidence": "node test/recipe-identity-evidence-command.mjs"
+    "test:recipe-identity-evidence": "node test/recipe-identity-evidence-command.mjs",
+    "test:recipe-rarity-evidence": "node test/recipe-rarity-evidence-command.mjs"
   },
   "devDependencies": {
     "ajv": "8.20.0",
