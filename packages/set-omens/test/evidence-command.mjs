@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
+import { discoverEvidenceTests } from "./evidence-discovery.mjs";
 
 const evidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 
@@ -15,9 +16,7 @@ try {
   process.exit(1);
 }
 
-const testFiles = readdirSync("test")
-  .filter((file) => file.endsWith(".test.mjs"))
-  .filter((file) => !file.endsWith(".public-source.test.mjs"))
+const testFiles = discoverEvidenceTests(readdirSync("test"))
   // The contract spawns this runner; including it would recurse.
   .filter((file) => file !== "evidence-command-contract.test.mjs")
   .map((file) => `test/${file}`);
