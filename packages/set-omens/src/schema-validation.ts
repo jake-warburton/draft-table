@@ -7,11 +7,19 @@ import {
 import {
   FabCardSourceSchemaValidationError,
   validateFabCardDataDocumentsForSchema,
+  readSchemaValidatedFabEnglishCardDataForParser,
   type SchemaValidatedFabEnglishCardData
 } from "./public-source-schema-validation.ts";
+import {
+  OmnSourceProjectionError,
+  projectOmnSourceRecords,
+  type OmnSourceProjection
+} from "./omn-source-projection.ts";
 
 export {
   FabCardSourceSchemaValidationError,
+  OmnSourceProjectionError,
+  type OmnSourceProjection,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -27,5 +35,17 @@ export const validateFabEnglishCardDataAgainstSchema = (
   } catch (error) {
     if (error instanceof FabCardSourceSchemaValidationError) throw error;
     throw new FabCardSourceSchemaValidationError();
+  }
+};
+
+/** Build-time-only OMN source projection from the opaque schema-validated capability. */
+export const projectSchemaValidatedFabEnglishCardDataForOmn = (
+  data: SchemaValidatedFabEnglishCardData
+): OmnSourceProjection => {
+  try {
+    return projectOmnSourceRecords(readSchemaValidatedFabEnglishCardDataForParser(data));
+  } catch (error) {
+    if (error instanceof OmnSourceProjectionError) throw error;
+    throw new OmnSourceProjectionError();
   }
 };

@@ -8,6 +8,7 @@ import {
 } from "../src/index.ts";
 import {
   FabCardSourceSchemaValidationError,
+  projectSchemaValidatedFabEnglishCardDataForOmn,
   validateFabEnglishCardDataAgainstSchema
 } from "../src/schema-validation.ts";
 import {
@@ -31,6 +32,10 @@ test("the exact pinned public card source fully conforms to its pinned Draft-04 
   );
   const data = validateFabEnglishCardDataAgainstSchema(documents.card, documents.schema);
   assert.ok(Object.isFrozen(data));
+  const omn = projectSchemaValidatedFabEnglishCardDataForOmn(data);
+  assert.equal(omn.length, 251);
+  assert.equal(omn.flatMap((entry) => entry.printings).length, 482);
+  assert.equal(new Set(omn.flatMap((entry) => entry.printings.map((printing) => printing.id))).size, 251);
 
   const mutated = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(cardBytes));
   const required = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(schemaBytes)).items.required[0];
