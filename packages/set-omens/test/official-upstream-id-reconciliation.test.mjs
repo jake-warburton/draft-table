@@ -63,6 +63,7 @@ test("exact matching, ownership, uniqueness, set consistency, and every aggregat
   safe(() => reconcile(source(), Object.freeze([])));
   const wrongSet = source(); wrongSet[1].printings[0].set_id = "IAR"; safe(() => reconcile(wrongSet));
   const crossSet = source(); crossSet[1].printings[0].set_id = "IAR"; crossSet[1].printings[0].id = "OMN000"; safe(() => reconcile(crossSet));
+  const unrelatedCrossSet = source(); unrelatedCrossSet[1].printings.push(p({ unique_id: "cross", set_id: "WTR" })); safe(() => reconcile(unrelatedCrossSet));
   const duplicateOwner = source(); duplicateOwner.push(c({ unique_id: "other", printings: [p({ unique_id: "other-p" })] })); safe(() => reconcile(duplicateOwner));
   const duplicateCard = source(); duplicateCard[2].unique_id = "zero-card"; safe(() => reconcile(duplicateCard));
   const duplicatePrinting = source(); duplicatePrinting[2].printings[0].unique_id = "zero-1"; safe(() => reconcile(duplicatePrinting));
@@ -82,7 +83,7 @@ test("semantic mutations demonstrate focused contracts detect disabled matching,
   const sourcePath = new URL("../src/official-upstream-id-reconciliation.ts", import.meta.url);
   const original = readFileSync(sourcePath, "utf8");
   const mutations = [
-    ["cross-set", 'if (printing.set_id !== forms.find((form) => form.baseCollectorId === printing.id)?.sourceSet) fail();', "if (false) fail();", "crossSet"],
+    ["cross-set", "if (printing.set_id !== expectedSet) fail();", "if (false) fail();", "crossSet"],
     ["ownership", 'if (owners.has(printing.id) && owners.get(printing.id) !== card) fail();', "if (false) fail();", "duplicateOwner"],
     ["aggregate", "omnRows.length !== expected.omnPrintings", "false", "aggregate"]
   ];
@@ -90,7 +91,7 @@ test("semantic mutations demonstrate focused contracts detect disabled matching,
     const mutated = original.replace(before, after); assert.notEqual(mutated, original, `${name}: source guard present`);
     const path = `${dirname(fileURLToPath(sourcePath))}/reconciliation-mutation-${process.pid}-${name}.ts`; writeFileSync(path, mutated);
     try {
-      const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(new URL(`file://${path}`).href)}; const f=[{officialPrintId:'OMN000',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:null},{officialPrintId:'IAR000-MV',baseCollectorId:'IAR000',sourceSet:'IAR',suffixMarker:'MV'}]; const p=(o={})=>({unique_id:'p',set_printing_unique_id:'sp',id:'OMN000',set_id:'OMN',edition:'e',foiling:'f',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',...o}); const c=(o={})=>({unique_id:'c',name:'n',printings:[p()],...o}); const e={entries:2,omnEntries:1,iarEntries:1,omnPrintings:1,iarPrintings:1}; const s=${fixture === "crossSet" ? "[c({printings:[p(),p({unique_id:'cross',set_id:'IAR'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : fixture === "duplicateOwner" ? "[c(),c({unique_id:'two',printings:[p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : "[c({printings:[p(),p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]"}; r(f,s,e); console.log('MUTATION_ACCEPTED:${name}');`;
+      const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(new URL(`file://${path}`).href)}; const f=[{officialPrintId:'OMN000',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:null},{officialPrintId:'IAR000-MV',baseCollectorId:'IAR000',sourceSet:'IAR',suffixMarker:'MV'}]; const p=(o={})=>({unique_id:'p',set_printing_unique_id:'sp',id:'OMN000',set_id:'OMN',edition:'e',foiling:'f',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',...o}); const c=(o={})=>({unique_id:'c',name:'n',printings:[p()],...o}); const e={entries:2,omnEntries:1,iarEntries:1,omnPrintings:1,iarPrintings:1}; const s=${fixture === "crossSet" ? "[c({printings:[p(),p({unique_id:'cross',set_id:'WTR'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : fixture === "duplicateOwner" ? "[c(),c({unique_id:'two',printings:[p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : "[c({printings:[p(),p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]"}; r(f,s,e); console.log('MUTATION_ACCEPTED:${name}');`;
       const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", program], { encoding: "utf8" });
       assert.equal(result.status, 0, `${name}: intended mutation executed\n${result.stderr}`); assert.equal(result.stdout.trim(), `MUTATION_ACCEPTED:${name}`);
     } finally { rmSync(path, { force: true }); }

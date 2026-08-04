@@ -52,7 +52,7 @@ const record = (value: unknown): Record<string, unknown> => value !== null && ty
 const text = (value: unknown): string => typeof value === "string" && value.length > 0 && value === value.trim() && value === value.normalize("NFC") && !/\p{Cc}/u.test(value) ? value : fail();
 const url = (value: unknown): string => { const result = text(value); try { if (new URL(result).protocol !== "https:" || new URL(result).hostname.length === 0) fail(); return result; } catch { return fail(); } };
 
-const projectSource = (data: unknown, bases: ReadonlySet<string>): readonly SourceCard[] => {
+const projectSource = (data: unknown, expectedSetByBase: ReadonlyMap<string, "OMN" | "IAR">): readonly SourceCard[] => {
   if (!Array.isArray(data)) return fail();
   const cardIds = new Set<string>();
   const printingIds = new Set<string>();
@@ -63,14 +63,15 @@ const projectSource = (data: unknown, bases: ReadonlySet<string>): readonly Sour
     const printings: OfficialUpstreamPrinting[] = [];
     for (const sourcePrinting of card.printings) {
       const printing = record(sourcePrinting);
-      if (printing.set_id !== "OMN" && printing.set_id !== "IAR") continue;
+      const expectedSet = typeof printing.id === "string" ? expectedSetByBase.get(printing.id) : undefined;
+      if (expectedSet === undefined) continue;
+      if (printing.set_id !== expectedSet) fail();
       const id = text(printing.id);
-      if (!bases.has(id)) continue;
       const unique_id = text(printing.unique_id);
       if (printingIds.has(unique_id)) fail();
       printingIds.add(unique_id);
       if (typeof printing.expansion_slot !== "boolean") return fail();
-      printings.push(frozen({ unique_id, set_printing_unique_id: text(printing.set_printing_unique_id), id, set_id: printing.set_id,
+      printings.push(frozen({ unique_id, set_printing_unique_id: text(printing.set_printing_unique_id), id, set_id: expectedSet,
         edition: text(printing.edition), foiling: text(printing.foiling), rarity: text(printing.rarity), expansion_slot: printing.expansion_slot, image_url: url(printing.image_url) }));
     }
     if (printings.length === 0) continue;
@@ -83,12 +84,11 @@ const projectSource = (data: unknown, bases: ReadonlySet<string>): readonly Sour
 };
 
 const reconcile = (forms: readonly CardVaultPrintIdForm[], source: unknown, expected: ExpectedAggregate): OfficialUpstreamIdReconciliation => {
-  const bases = new Set<string>();
-  for (const form of forms) { if (bases.has(form.baseCollectorId)) fail(); bases.add(form.baseCollectorId); }
-  const cards = projectSource(source, bases);
+  const expectedSetByBase = new Map<string, "OMN" | "IAR">();
+  for (const form of forms) { if (expectedSetByBase.has(form.baseCollectorId)) fail(); expectedSetByBase.set(form.baseCollectorId, form.sourceSet); }
+  const cards = projectSource(source, expectedSetByBase);
   const owners = new Map<string, SourceCard>();
   for (const card of cards) for (const printing of card.printings) {
-    if (printing.set_id !== forms.find((form) => form.baseCollectorId === printing.id)?.sourceSet) fail();
     if (owners.has(printing.id) && owners.get(printing.id) !== card) fail();
     owners.set(printing.id, card);
   }
