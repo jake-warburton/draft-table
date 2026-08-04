@@ -17,6 +17,7 @@ try {
 
 const testFiles = readdirSync("test")
   .filter((file) => file.endsWith(".test.mjs"))
+  .filter((file) => !file.endsWith(".public-source.test.mjs"))
   // The contract spawns this runner; including it would recurse.
   .filter((file) => file !== "evidence-command-contract.test.mjs")
   .map((file) => `test/${file}`);
