@@ -71,21 +71,21 @@ test("OMN projection preserves legitimate same collector and foiling collisions"
   ]);
   assert.equal(new Set(printings.map(({ unique_id }) => unique_id)).size, 2);
   assert.equal(new Set(printings.map(({ set_printing_unique_id }) => set_printing_unique_id)).size, 1);
-  assert.ok(Object.isFrozen(printings[0]));
+  assert.ok(printings.every((printing) => Object.isFrozen(printing)));
 });
 
 test("OMN collision contract fails under semantic (id, foiling) deduplication", () => {
   const sourcePath = new URL("../src/omn-source-projection.ts", import.meta.url);
   const original = readFileSync(sourcePath, "utf8");
-  const before = "if (printingIds.has(unique_id)) fail();\n      printingIds.add(unique_id);";
-  const after = "const collisionKey = `${id}\\0${foiling}`;\n      if (printingIds.has(collisionKey)) fail();\n      printingIds.add(collisionKey);";
+  const before = "printings.push(frozen({";
+  const after = "if (!printings.some((candidate) => candidate.id === id && candidate.foiling === foiling)) printings.push(frozen({";
   const mutated = original.replace(before, after);
   assert.notEqual(mutated, original);
   const path = `${dirname(fileURLToPath(sourcePath))}/omn-source-projection-mutation-${process.pid}-collision.ts`;
   writeFileSync(path, mutated);
   try {
-    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `import { projectOmnSourceRecordsForTest } from ${JSON.stringify(new URL(`file://${path}`).href)}; const p = (o={}) => ({unique_id:'p',set_printing_unique_id:'sp',id:'shared',set_id:'OMN',edition:'e',foiling:'Rainbow Foil',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',...o}); const output=projectOmnSourceRecordsForTest([{unique_id:'c',name:'n',printings:[p({unique_id:'first',rarity:'common'}),p({unique_id:'second',rarity:'rare'})]}]); if (output[0].printings.length !== 2) process.exit(1);`], { encoding: "utf8" });
-    assert.notEqual(result.status, 0, result.stderr);
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `import { projectOmnSourceRecordsForTest } from ${JSON.stringify(new URL(`file://${path}`).href)}; const p = (o={}) => ({unique_id:'p',set_printing_unique_id:'sp',id:'shared',set_id:'OMN',edition:'e',foiling:'Rainbow Foil',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',...o}); const output=projectOmnSourceRecordsForTest([{unique_id:'c',name:'n',printings:[p({unique_id:'first',rarity:'common'}),p({unique_id:'second',rarity:'rare'})]}]); const actual=output[0].printings.map(({unique_id,id,foiling,rarity})=>({unique_id,id,foiling,rarity})); const expected=[{unique_id:'first',id:'shared',foiling:'Rainbow Foil',rarity:'common'},{unique_id:'second',id:'shared',foiling:'Rainbow Foil',rarity:'rare'}]; if (JSON.stringify(actual) !== JSON.stringify(expected)) process.exit(42);`], { encoding: "utf8" });
+    assert.equal(result.status, 42, result.stderr);
   } finally { rmSync(path, { force: true }); }
 });
 
