@@ -49,7 +49,8 @@ test("external consumers cannot import Omens internal source modules or the raw 
   expectPackageBoundary('import "@draft-table/set-omens/src/checksum.ts";');
   expectPackageBoundary('import "@draft-table/set-omens/src/pools.ts";');
   expectPackageBoundary('import "@draft-table/set-omens/src/public-source-checksum.ts";');
-  expectPackageBoundary('import { readVerifiedFabCardSourceBytesForParser } from "@draft-table/set-omens/src/public-source-checksum.ts";');
+  expectPackageBoundary('import { readVerifiedFabEnglishCardBytesForParser } from "@draft-table/set-omens/src/public-source-checksum.ts";');
+  expectPackageBoundary('import { readVerifiedFabCardSchemaBytesForParser } from "@draft-table/set-omens/src/public-source-checksum.ts";');
   expectPackageBoundary('import "@draft-table/set-omens/src/public-source-descriptor.ts";');
   expectPackageBoundary('import { parseOmensPoolsFromTrustedBytes } from "@draft-table/set-omens/src/pools.ts";');
 });

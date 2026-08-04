@@ -36,7 +36,8 @@ export {
 import {
   verifyPinnedFabCardSchemaBytes,
   verifyPinnedFabEnglishCardBytes,
-  type VerifiedFabCardSourceBytes
+  type VerifiedFabCardSchemaBytes,
+  type VerifiedFabEnglishCardBytes
 } from "./public-source-checksum.ts";
 export {
   OmensRecipeCustomCardsError,
@@ -56,18 +57,23 @@ export {
   type OmensPools
 } from "./pools.ts";
 
-export type VerifiedFabCardSource = Readonly<{
+export type VerifiedFabEnglishCardSource = Readonly<{
   descriptor: typeof FAB_CARD_SOURCE;
-  verification: VerifiedFabCardSourceBytes;
+  verification: VerifiedFabEnglishCardBytes;
 }>;
 
-export const verifyFabEnglishCardBytes = (bytes: Uint8Array): VerifiedFabCardSource =>
+export type VerifiedFabCardSchemaSource = Readonly<{
+  descriptor: typeof FAB_CARD_SOURCE;
+  verification: VerifiedFabCardSchemaBytes;
+}>;
+
+export const verifyFabEnglishCardBytes = (bytes: Uint8Array): VerifiedFabEnglishCardSource =>
   Object.freeze({
     descriptor: FAB_CARD_SOURCE,
     verification: verifyPinnedFabEnglishCardBytes(bytes)
   });
 
-export const verifyFabCardSchemaBytes = (bytes: Uint8Array): VerifiedFabCardSource =>
+export const verifyFabCardSchemaBytes = (bytes: Uint8Array): VerifiedFabCardSchemaSource =>
   Object.freeze({
     descriptor: FAB_CARD_SOURCE,
     verification: verifyPinnedFabCardSchemaBytes(bytes)

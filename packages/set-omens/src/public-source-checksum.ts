@@ -15,13 +15,25 @@ export class FabCardSourceChecksumError extends Error {
   }
 }
 
-declare const verifiedFabCardSourceBytesBrand: unique symbol;
+declare const verifiedFabEnglishCardBytesBrand: unique symbol;
+declare const verifiedFabCardSchemaBytesBrand: unique symbol;
 
-export type VerifiedFabCardSourceBytes = Readonly<{
-  [verifiedFabCardSourceBytesBrand]: true;
+export type VerifiedFabEnglishCardBytes = Readonly<{
+  [verifiedFabEnglishCardBytesBrand]: true;
 }>;
 
-const bytesByVerification = new WeakMap<VerifiedFabCardSourceBytes, Uint8Array>();
+export type VerifiedFabCardSchemaBytes = Readonly<{
+  [verifiedFabCardSchemaBytesBrand]: true;
+}>;
+
+type VerifiedFabCardSourceBytes = VerifiedFabEnglishCardBytes | VerifiedFabCardSchemaBytes;
+
+type RetainedArtifact = Readonly<{
+  artifact: FabCardSourceArtifact;
+  bytes: Uint8Array;
+}>;
+
+const artifactByVerification = new WeakMap<VerifiedFabCardSourceBytes, RetainedArtifact>();
 
 type PinnedArtifact = Readonly<{
   artifact: FabCardSourceArtifact;
@@ -39,10 +51,16 @@ const checkedBytes = (bytes: Uint8Array, pinned: PinnedArtifact): Uint8Array => 
   return copiedBytes;
 };
 
-const verifyPinnedBytes = (bytes: Uint8Array, pinned: PinnedArtifact): VerifiedFabCardSourceBytes => {
+const verifyPinnedBytes = <Verification extends VerifiedFabCardSourceBytes>(
+  bytes: Uint8Array,
+  pinned: PinnedArtifact
+): Verification => {
   const verifiedBytes = checkedBytes(bytes, pinned);
-  const verification = Object.freeze({}) as VerifiedFabCardSourceBytes;
-  bytesByVerification.set(verification, verifiedBytes);
+  const verification = Object.freeze({}) as Verification;
+  artifactByVerification.set(verification, Object.freeze({
+    artifact: pinned.artifact,
+    bytes: verifiedBytes
+  }));
   return verification;
 };
 
@@ -58,21 +76,31 @@ const CARD_SCHEMA_JSON: PinnedArtifact = Object.freeze({
   sha256: FAB_CARD_SOURCE.schemaSha256
 });
 
-export const verifyPinnedFabEnglishCardBytes = (bytes: Uint8Array): VerifiedFabCardSourceBytes =>
-  verifyPinnedBytes(bytes, CARD_JSON);
+export const verifyPinnedFabEnglishCardBytes = (bytes: Uint8Array): VerifiedFabEnglishCardBytes =>
+  verifyPinnedBytes<VerifiedFabEnglishCardBytes>(bytes, CARD_JSON);
 
-export const verifyPinnedFabCardSchemaBytes = (bytes: Uint8Array): VerifiedFabCardSourceBytes =>
-  verifyPinnedBytes(bytes, CARD_SCHEMA_JSON);
+export const verifyPinnedFabCardSchemaBytes = (bytes: Uint8Array): VerifiedFabCardSchemaBytes =>
+  verifyPinnedBytes<VerifiedFabCardSchemaBytes>(bytes, CARD_SCHEMA_JSON);
 
-/** Package-internal parser seam; the root package export deliberately does not expose it. */
-export const readVerifiedFabCardSourceBytesForParser = (
-  verification: VerifiedFabCardSourceBytes
+const readVerifiedBytes = (
+  verification: VerifiedFabCardSourceBytes,
+  expectedArtifact: FabCardSourceArtifact
 ): Uint8Array => {
-  const bytes = bytesByVerification.get(verification);
+  const retained = artifactByVerification.get(verification);
 
-  if (bytes === undefined) {
+  if (retained === undefined || retained.artifact !== expectedArtifact) {
     throw new TypeError("Invalid public card source verification.");
   }
 
-  return new Uint8Array(bytes);
+  return new Uint8Array(retained.bytes);
 };
+
+/** Package-internal parser seam; the root package export deliberately does not expose it. */
+export const readVerifiedFabEnglishCardBytesForParser = (
+  verification: VerifiedFabEnglishCardBytes
+): Uint8Array => readVerifiedBytes(verification, "FAB_CARD_JSON");
+
+/** Package-internal parser seam; the root package export deliberately does not expose it. */
+export const readVerifiedFabCardSchemaBytesForParser = (
+  verification: VerifiedFabCardSchemaBytes
+): Uint8Array => readVerifiedBytes(verification, "FAB_CARD_SCHEMA_JSON");

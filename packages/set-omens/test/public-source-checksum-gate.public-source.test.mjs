@@ -8,7 +8,10 @@ import {
   verifyFabCardSchemaBytes,
   verifyFabEnglishCardBytes
 } from "../src/index.ts";
-import { readVerifiedFabCardSourceBytesForParser } from "../src/public-source-checksum.ts";
+import {
+  readVerifiedFabCardSchemaBytesForParser,
+  readVerifiedFabEnglishCardBytesForParser
+} from "../src/public-source-checksum.ts";
 
 const cardPath = process.env.FAB_CARD_SOURCE_EVIDENCE_PATH;
 const schemaPath = process.env.FAB_CARD_SCHEMA_EVIDENCE_PATH;
@@ -68,20 +71,28 @@ test("exact evidence creates separated opaque immutable capabilities that copy r
   assert.notStrictEqual(verifiedCard.verification, verifiedSchema.verification);
   assert.throws(() => { verifiedCard.descriptor = FAB_CARD_SOURCE; }, TypeError);
 
-  const retainedCard = readVerifiedFabCardSourceBytesForParser(verifiedCard.verification);
-  const retainedSchema = readVerifiedFabCardSourceBytesForParser(verifiedSchema.verification);
+  const retainedCard = readVerifiedFabEnglishCardBytesForParser(verifiedCard.verification);
+  const retainedSchema = readVerifiedFabCardSchemaBytesForParser(verifiedSchema.verification);
   assert.equal(Buffer.compare(retainedCard, card), 0);
   assert.equal(Buffer.compare(retainedSchema, schema), 0);
+  assert.throws(
+    () => readVerifiedFabEnglishCardBytesForParser(verifiedSchema.verification),
+    TypeError
+  );
+  assert.throws(
+    () => readVerifiedFabCardSchemaBytesForParser(verifiedCard.verification),
+    TypeError
+  );
 
   card[0] ^= 1;
   schema[0] ^= 1;
-  assert.equal(Buffer.compare(readVerifiedFabCardSourceBytesForParser(verifiedCard.verification), readFileSync(cardPath)), 0);
-  assert.equal(Buffer.compare(readVerifiedFabCardSourceBytesForParser(verifiedSchema.verification), readFileSync(schemaPath)), 0);
+  assert.equal(Buffer.compare(readVerifiedFabEnglishCardBytesForParser(verifiedCard.verification), readFileSync(cardPath)), 0);
+  assert.equal(Buffer.compare(readVerifiedFabCardSchemaBytesForParser(verifiedSchema.verification), readFileSync(schemaPath)), 0);
 
   retainedCard[0] ^= 1;
   retainedSchema[0] ^= 1;
-  assert.equal(Buffer.compare(readVerifiedFabCardSourceBytesForParser(verifiedCard.verification), readFileSync(cardPath)), 0);
-  assert.equal(Buffer.compare(readVerifiedFabCardSourceBytesForParser(verifiedSchema.verification), readFileSync(schemaPath)), 0);
+  assert.equal(Buffer.compare(readVerifiedFabEnglishCardBytesForParser(verifiedCard.verification), readFileSync(cardPath)), 0);
+  assert.equal(Buffer.compare(readVerifiedFabCardSchemaBytesForParser(verifiedSchema.verification), readFileSync(schemaPath)), 0);
 
   assert.throws(() => verifyFabEnglishCardBytes(card), FabCardSourceChecksumError);
   assert.throws(() => verifyFabCardSchemaBytes(schema), FabCardSourceChecksumError);
