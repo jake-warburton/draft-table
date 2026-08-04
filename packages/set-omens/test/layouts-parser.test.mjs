@@ -157,7 +157,12 @@ test("enforces published Layout outcome coefficients, slot shapes, and exact int
   const wrongCoefficient = Object.freeze({ layouts: Object.freeze(fixture.layouts.map((layout, index) =>
     [0, 1, 3, 4].includes(index) ? Object.freeze({ ...layout, weight: layout.weight + ([1, -1, -1, 1][[0, 1, 3, 4].indexOf(index)]) }) : layout
   )) });
-  const duplicateOutcome = alteredSlots(1, (slots) => { slots.at(-1).pool = "Rfcommon"; });
+  const duplicateOutcome = Object.freeze({ layouts: Object.freeze(fixture.layouts.map((layout, index) => {
+    if (index !== 1 && index !== 6) return layout;
+    const slots = structuredClone(layout.slots);
+    slots.at(-1).pool = index === 1 ? "Rfcommon" : "RFRare";
+    return Object.freeze({ ...layout, weight: index === 1 ? 1411 : 255, slots: Object.freeze(slots.map(Object.freeze)) });
+  })) });
   const wrongRfClassification = alteredSlots(0, (slots) => { slots.at(-1).pool = "RFRare"; });
   const wrongRarityShape = alteredSlots(0, (slots) => { slots[6] = { count: 1, pool: "Rare" }; });
   const wrongCommonTotal = alteredSlots(0, (slots) => { slots[0].count = 2; });

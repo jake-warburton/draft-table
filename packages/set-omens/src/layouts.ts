@@ -23,6 +23,7 @@ const DERIVED_TOTALS = Object.freeze({
   rfrare: 69120,
   rfmajestic: 9216
 });
+const EXPECTED_OUTCOME_KEYS = new Set(Object.keys(RF_COEFFICIENTS));
 type DerivedTotals = Readonly<Record<keyof typeof DERIVED_TOTALS, number>>;
 
 export class OmensRecipeLayoutsError extends Error {
@@ -123,7 +124,7 @@ export const validateOmensRecipeLayoutsAggregate = (layouts: OmensLayouts): Omen
     for (const layout of group) {
       totalWeight = addSafely(totalWeight, layout.weight);
       const outcome = outcomeForLayout(layout);
-      if (outcomes.has(outcome.key) || layout.weight / divisor !== RF_COEFFICIENTS[outcome.key]) return invalidLayouts();
+      if (layout.weight / divisor !== RF_COEFFICIENTS[outcome.key]) return invalidLayouts();
       outcomes.add(outcome.key);
       if (commonStructure === undefined) commonStructure = outcome.commonStructure;
       else if (commonStructure !== outcome.commonStructure) return invalidLayouts();
@@ -133,7 +134,7 @@ export const validateOmensRecipeLayoutsAggregate = (layouts: OmensLayouts): Omen
       else if (outcome.rainbow === "RFRare") derived.rfrare = addSafely(derived.rfrare, layout.weight);
       else derived.rfmajestic = addSafely(derived.rfmajestic, layout.weight);
     }
-    if (outcomes.size !== Object.keys(RF_COEFFICIENTS).length) return invalidLayouts();
+    if (outcomes.size !== EXPECTED_OUTCOME_KEYS.size || [...outcomes].some((key) => !EXPECTED_OUTCOME_KEYS.has(key))) return invalidLayouts();
   }
   if (totalWeight !== 460800) return invalidLayouts();
   validateOmensRecipeDerivedTotals(derived);
