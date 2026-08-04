@@ -92,7 +92,7 @@ const fail = (): never => { throw new CardVaultFaceProjectionError(); };
 const isObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
-const hasExplicitPort = (text: string): boolean => /^https:\/\/[^/?#]+:\d+(?:[/?#]|$)/u.test(text);
+const hasExplicitPort = (text: string): boolean => /^https:\/\/[^/?#]+:\d+(?:[/?#]|$)/iu.test(text);
 
 const readUrl = (value: unknown): string => {
   if (typeof value !== "string") fail();

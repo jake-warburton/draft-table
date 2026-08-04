@@ -196,9 +196,18 @@ const artVariationCopyMutationModuleEnvironmentKey = "DRAFT_TABLE_TEST_ART_VARIA
 
 test(artVariationCopyContractName, async () => {
   console.log(artVariationCopyContractMarker);
-  const module = process.env[artVariationCopyMutationModuleEnvironmentKey]
-    ? await import(process.env[artVariationCopyMutationModuleEnvironmentKey])
-    : await import("../src/official-suffix-foiling-classification.ts");
+  const moduleUrl = process.env[artVariationCopyMutationModuleEnvironmentKey]
+    ?? new URL("../src/official-suffix-foiling-classification.ts", import.meta.url).href;
+  const module = await import(moduleUrl);
+  const loadedSourceDirectory = new URL("./", moduleUrl);
+  const reconciliationSource = readFileSync(new URL("official-upstream-id-reconciliation.ts", loadedSourceDirectory), "utf8");
+  const classificationSource = readFileSync(new URL("official-suffix-foiling-classification.ts", loadedSourceDirectory), "utf8");
+  const assertSingleCallSite = (sourceText, expression, boundary) => {
+    assert.equal(sourceText.split(expression).length - 1, 1, boundary);
+  };
+  assertSingleCallSite(reconciliationSource, "printings.map(copyOfficialUpstreamPrinting)", "reconciliation copy-owner call site");
+  assertSingleCallSite(classificationSource, "rows.map(copyOfficialUpstreamPrinting)", "classification candidate copy-owner call site");
+  assertSingleCallSite(classificationSource, "selected.map(copyOfficialUpstreamPrinting)", "classification selected copy-owner call site");
   const fixtureForms = Object.freeze([
     Object.freeze({ officialPrintId: "OMN100-RF", baseCollectorId: "OMN100", sourceSet: "OMN", suffixMarker: "RF" }),
     Object.freeze({ officialPrintId: "IAR101", baseCollectorId: "IAR101", sourceSet: "IAR", suffixMarker: null })

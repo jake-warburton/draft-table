@@ -18,8 +18,8 @@ const factFor = (ids) => {
   const canonical = `${[...ids].sort().join("\n")}\n`;
   return Object.freeze({ total: ids.length, omn: ids.filter((id) => id.startsWith("OMN")).length, iar: ids.filter((id) => id.startsWith("IAR")).length, byteLength: Buffer.byteLength(canonical), sha256: createHash("sha256").update(canonical).digest("hex") });
 };
-const url = (id, position, rendition, authority = host) => `https://${authority}/${id}-${position}-${rendition}.jpg`;
-const response = (specs, options = {}) => JSON.stringify({ product_name: "Omens of the Third Age", release_date: "2026-06-05", cards: specs.map(({ id, positions = [10] }) => ({ print_id: id, faces: positions.map((layout_position) => ({ layout_position, image: { small: url(id, layout_position, "small", options.authority), normal: url(id, layout_position, "normal", options.authority), large: url(id, layout_position, "large", options.authority) } })) })) });
+const url = (id, position, rendition, authority = host, scheme = "https") => `${scheme}://${authority}/${id}-${position}-${rendition}.jpg`;
+const response = (specs, options = {}) => JSON.stringify({ product_name: "Omens of the Third Age", release_date: "2026-06-05", cards: specs.map(({ id, positions = [10] }) => ({ print_id: id, faces: positions.map((layout_position) => ({ layout_position, image: { small: url(id, layout_position, "small", options.authority, options.scheme), normal: url(id, layout_position, "normal", options.authority, options.scheme), large: url(id, layout_position, "large", options.authority, options.scheme) } })) })) });
 const specs = [{ id: "OMN001" }, { id: "OMN002-RF" }, { id: "OMN003-CF" }, { id: "IAR001-MV", positions: [10, 20] }, { id: "IAR002-MV" }];
 const ids = specs.map((entry) => entry.id);
 const aggregate = Object.freeze({ entries: 5, faces: 6, oneFaceEntries: 4, twoFaceEntries: 1, position10Faces: 5, position20Faces: 1, smallUrls: 6, normalUrls: 6, largeUrls: 6, allUrls: 18, unsuffixedEntries: 1, unsuffixedFaces: 1, unsuffixedOneFaceEntries: 1, unsuffixedTwoFaceEntries: 0, rfEntries: 1, rfFaces: 1, rfOneFaceEntries: 1, rfTwoFaceEntries: 0, cfEntries: 1, cfFaces: 1, cfOneFaceEntries: 1, cfTwoFaceEntries: 0, mvEntries: 2, mvFaces: 3, mvOneFaceEntries: 1, mvTwoFaceEntries: 1 });
@@ -143,8 +143,12 @@ test(portContractName, async () => {
     ? await import(process.env[portMutationEnvironmentKey])
     : { CardVaultFaceProjectionError, projectCardVaultOfficialFaceMetadataForTest };
   assert.doesNotThrow(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(response(specs)), aggregate));
-  for (const authority of [`${host}:8443`, `${host}:443`]) {
-    const portResponse = response(specs, { authority });
+  for (const options of [
+    { authority: `${host}:8443` },
+    { authority: `${host}:443` },
+    { authority: `${host}:443`, scheme: "HTTPS" }
+  ]) {
+    const portResponse = response(specs, options);
     assert.throws(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(portResponse), aggregate), module.CardVaultFaceProjectionError, "PORT_GUARD_REJECTED_EXPLICIT_PORT_URL");
   }
 });
