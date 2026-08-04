@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   validateCardVaultOfficialMembershipBytesAgainstFact
@@ -37,6 +38,20 @@ const factFor = (ids) => {
 };
 const membershipFor = (ids) => validateCardVaultOfficialMembershipBytesAgainstFact(encode(response(ids)), factFor(ids));
 const classify = (ids = officialIds()) => readOfficialCardVaultPrintIdForms(membershipFor(ids));
+const snapshotMutation = (sourcePath, mutated, label) => {
+  let directory;
+  try {
+    directory = mkdtempSync(join(tmpdir(), `draft-table-${label}-`));
+    const sourceDirectory = new URL("./", sourcePath);
+    const isolated = mutated.replace(/from "(\.\/[^"\n]+)"/gu, (_match, specifier) => `from ${JSON.stringify(new URL(specifier, sourceDirectory).href)}`);
+    const path = join(directory, "module.ts");
+    writeFileSync(path, isolated);
+    return { directory, path };
+  } catch (error) {
+    if (directory !== undefined) rmSync(directory, { force: true, recursive: true });
+    throw error;
+  }
+};
 
 const expectSafeError = (action) => assert.throws(action, (error) => {
   assert.ok(error instanceof CardVaultPrintIdFormsError);
@@ -118,15 +133,14 @@ test("semantic mutation contracts own grammar, combination, count, and distinct-
       assert.notEqual(next, mutated, `${name}: mutation target missing`);
       mutated = next;
     }
-    const path = `${dirname(fileURLToPath(sourcePath))}/card-vault-forms-mutation-${process.pid}-${name}.ts`;
-    writeFileSync(path, mutated);
+    const snapshot = snapshotMutation(sourcePath, mutated, `card-vault-forms-${name}`);
     try {
-      const program = `import { createHash } from 'node:crypto'; import { validateCardVaultOfficialMembershipBytesAgainstFact } from ${JSON.stringify(new URL("../src/card-vault-official-membership.ts", import.meta.url).href)}; import { readOfficialCardVaultPrintIdForms } from ${JSON.stringify(new URL(`file://${path}`).href)}; const ids=${JSON.stringify(cases[name])}; const canonical=[...ids].sort().join('\\n')+'\\n'; const fact={total:ids.length,omn:ids.filter(x=>x.startsWith('OMN')).length,iar:ids.filter(x=>x.startsWith('IAR')).length,byteLength:Buffer.byteLength(canonical),sha256:createHash('sha256').update(canonical).digest('hex')}; const body=JSON.stringify({product_name:'Omens of the Third Age',release_date:'2026-06-05',cards:ids.map(print_id=>({print_id}))}); const membership=validateCardVaultOfficialMembershipBytesAgainstFact(new TextEncoder().encode(body),fact); readOfficialCardVaultPrintIdForms(membership); console.log(${JSON.stringify(`MUTATION_ACCEPTED:`)}+${JSON.stringify(name)});`;
+      const program = `import { createHash } from 'node:crypto'; import { validateCardVaultOfficialMembershipBytesAgainstFact } from ${JSON.stringify(new URL("../src/card-vault-official-membership.ts", import.meta.url).href)}; import { readOfficialCardVaultPrintIdForms } from ${JSON.stringify(pathToFileURL(snapshot.path).href)}; const ids=${JSON.stringify(cases[name])}; const canonical=[...ids].sort().join('\\n')+'\\n'; const fact={total:ids.length,omn:ids.filter(x=>x.startsWith('OMN')).length,iar:ids.filter(x=>x.startsWith('IAR')).length,byteLength:Buffer.byteLength(canonical),sha256:createHash('sha256').update(canonical).digest('hex')}; const body=JSON.stringify({product_name:'Omens of the Third Age',release_date:'2026-06-05',cards:ids.map(print_id=>({print_id}))}); const membership=validateCardVaultOfficialMembershipBytesAgainstFact(new TextEncoder().encode(body),fact); readOfficialCardVaultPrintIdForms(membership); console.log(${JSON.stringify(`MUTATION_ACCEPTED:`)}+${JSON.stringify(name)});`;
       const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", program], { encoding: "utf8" });
       assert.equal(result.status, 0, `${name}: named mutation did not execute successfully\n${result.stderr}`);
       assert.equal(result.stdout.trim(), `MUTATION_ACCEPTED:${name}`, `${name}: exact acceptance marker missing`);
     } finally {
-      rmSync(path, { force: true });
+      rmSync(snapshot.directory, { force: true, recursive: true });
     }
   }
 });

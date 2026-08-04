@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { pathToFileURL } from "node:url";
 import {
   OmnSourceProjectionError,
   projectSchemaValidatedFabEnglishCardDataForOmn
@@ -32,6 +33,20 @@ const fixtureSchema = {
   items: { type: "object", properties: { unique_id: { type: "string" }, name: { type: "string" }, printings: { type: "array" } }, required: ["unique_id", "name", "printings"] }
 };
 const projected = (cards) => projectOmnSourceRecordsForTest(cards);
+const snapshotMutation = (sourcePath, mutated, label) => {
+  let directory;
+  try {
+    directory = mkdtempSync(join(tmpdir(), `draft-table-${label}-`));
+    const sourceDirectory = new URL("./", sourcePath);
+    const isolated = mutated.replace(/from "(\.\/[^"\n]+)"/gu, (_match, specifier) => `from ${JSON.stringify(new URL(specifier, sourceDirectory).href)}`);
+    const path = join(directory, "module.ts");
+    writeFileSync(path, isolated);
+    return { directory, path };
+  } catch (error) {
+    if (directory !== undefined) rmSync(directory, { force: true, recursive: true });
+    throw error;
+  }
+};
 const expectError = (action) => assert.throws(action, (error) => {
   assert.ok(error instanceof OmnSourceProjectionError);
   assert.equal(error.code, "OMN_SOURCE_PROJECTION_FAILED");
@@ -81,12 +96,11 @@ test("OMN collision contract fails under semantic (id, foiling) deduplication", 
   const after = "if (!printings.some((candidate) => candidate.id === id && candidate.foiling === foiling)) printings.push(frozen({";
   const mutated = original.replace(before, after);
   assert.notEqual(mutated, original);
-  const path = `${dirname(fileURLToPath(sourcePath))}/omn-source-projection-mutation-${process.pid}-collision.ts`;
-  writeFileSync(path, mutated);
+  const snapshot = snapshotMutation(sourcePath, mutated, "omn-source-projection-collision");
   try {
-    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `import { projectOmnSourceRecordsForTest } from ${JSON.stringify(new URL(`file://${path}`).href)}; const p = (o={}) => ({unique_id:'p',set_printing_unique_id:'sp',id:'shared',set_id:'OMN',edition:'e',foiling:'Rainbow Foil',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',...o}); const output=projectOmnSourceRecordsForTest([{unique_id:'c',name:'n',printings:[p({unique_id:'first'}),p({unique_id:'second'})]}]); const actual=output[0].printings.map(({unique_id,id,foiling,rarity})=>({unique_id,id,foiling,rarity})); const expected=[{unique_id:'first',id:'shared',foiling:'Rainbow Foil',rarity:'r'},{unique_id:'second',id:'shared',foiling:'Rainbow Foil',rarity:'r'}]; if (JSON.stringify(actual) !== JSON.stringify(expected)) process.exit(42);`], { encoding: "utf8" });
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `import { projectOmnSourceRecordsForTest } from ${JSON.stringify(pathToFileURL(snapshot.path).href)}; const p = (o={}) => ({unique_id:'p',set_printing_unique_id:'sp',id:'shared',set_id:'OMN',edition:'e',foiling:'Rainbow Foil',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',...o}); const output=projectOmnSourceRecordsForTest([{unique_id:'c',name:'n',printings:[p({unique_id:'first'}),p({unique_id:'second'})]}]); const actual=output[0].printings.map(({unique_id,id,foiling,rarity})=>({unique_id,id,foiling,rarity})); const expected=[{unique_id:'first',id:'shared',foiling:'Rainbow Foil',rarity:'r'},{unique_id:'second',id:'shared',foiling:'Rainbow Foil',rarity:'r'}]; if (JSON.stringify(actual) !== JSON.stringify(expected)) process.exit(42);`], { encoding: "utf8" });
     assert.equal(result.status, 42, result.stderr);
-  } finally { rmSync(path, { force: true }); }
+  } finally { rmSync(snapshot.directory, { force: true, recursive: true }); }
 });
 
 test("OMN projection deep-freezes copied output independently from the source tree", () => {
@@ -146,11 +160,10 @@ test("semantic mutation contracts prove exact set filtering and each aggregate g
   ];
   for (const [name, before, after, contract, expectedStatus] of mutations) {
     const mutated = original.replace(before, after); assert.notEqual(mutated, original, name);
-    const path = `${dirname(fileURLToPath(sourcePath))}/omn-source-projection-mutation-${process.pid}-${name.replaceAll(" ", "-")}.ts`;
-    writeFileSync(path, mutated);
+    const snapshot = snapshotMutation(sourcePath, mutated, `omn-source-projection-${name.replaceAll(" ", "-")}`);
     try {
-      const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `import { projectOmnSourceRecordsForTest, validateOmnSourceProjectionAggregateForTest } from ${JSON.stringify(new URL(`file://${path}`).href)}; const p = (o={}) => ({unique_id:'p',set_printing_unique_id:'sp',id:'1',set_id:'OMN',edition:'e',foiling:'f',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',...o}); const c = (o={}) => ({unique_id:'c',name:'n',printings:[p()],...o}); ${name === "set filter" ? "const output=projectOmnSourceRecordsForTest([c({printings:[p(),p({unique_id:'iar',set_printing_unique_id:'sp',set_id:'IAR'})]})]); if (output.length !== 1 || output[0].printings.length !== 1 || output[0].printings[0].unique_id !== 'p') process.exit(1);" : `const output=projectOmnSourceRecordsForTest([c()]); validateOmnSourceProjectionAggregateForTest(output, ${name === "card aggregate" ? "{cardRecords:2,printingRows:1,collectorIds:1}" : name === "printing aggregate" ? "{cardRecords:1,printingRows:2,collectorIds:1}" : "{cardRecords:1,printingRows:1,collectorIds:2}"});`}`], { encoding: "utf8" });
+      const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `import { projectOmnSourceRecordsForTest, validateOmnSourceProjectionAggregateForTest } from ${JSON.stringify(pathToFileURL(snapshot.path).href)}; const p = (o={}) => ({unique_id:'p',set_printing_unique_id:'sp',id:'1',set_id:'OMN',edition:'e',foiling:'f',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',...o}); const c = (o={}) => ({unique_id:'c',name:'n',printings:[p()],...o}); ${name === "set filter" ? "const output=projectOmnSourceRecordsForTest([c({printings:[p(),p({unique_id:'iar',set_printing_unique_id:'sp',set_id:'IAR'})]})]); if (output.length !== 1 || output[0].printings.length !== 1 || output[0].printings[0].unique_id !== 'p') process.exit(1);" : `const output=projectOmnSourceRecordsForTest([c()]); validateOmnSourceProjectionAggregateForTest(output, ${name === "card aggregate" ? "{cardRecords:2,printingRows:1,collectorIds:1}" : name === "printing aggregate" ? "{cardRecords:1,printingRows:2,collectorIds:1}" : "{cardRecords:1,printingRows:1,collectorIds:2}"});`}`], { encoding: "utf8" });
       assert.equal(result.status, expectedStatus, `${contract}: ${result.stderr}`);
-    } finally { rmSync(path, { force: true }); }
+    } finally { rmSync(snapshot.directory, { force: true, recursive: true }); }
   }
 });
