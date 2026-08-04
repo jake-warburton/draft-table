@@ -18,8 +18,8 @@ const factFor = (ids) => {
   const canonical = `${[...ids].sort().join("\n")}\n`;
   return Object.freeze({ total: ids.length, omn: ids.filter((id) => id.startsWith("OMN")).length, iar: ids.filter((id) => id.startsWith("IAR")).length, byteLength: Buffer.byteLength(canonical), sha256: createHash("sha256").update(canonical).digest("hex") });
 };
-const url = (id, position, rendition, authority = host) => `https://${authority}/${id}-${position}-${rendition}.jpg`;
-const response = (specs, options = {}) => JSON.stringify({ product_name: "Omens of the Third Age", release_date: "2026-06-05", cards: specs.map(({ id, positions = [10] }) => ({ print_id: id, faces: positions.map((layout_position) => ({ layout_position, image: { small: url(id, layout_position, "small", options.authority), normal: url(id, layout_position, "normal", options.authority), large: url(id, layout_position, "large", options.authority) } })) })) });
+const url = (id, position, rendition, authority = host, scheme = "https", authorityDelimiter = "//") => `${scheme}:${authorityDelimiter}${authority}/${id}-${position}-${rendition}.jpg`;
+const response = (specs, options = {}) => JSON.stringify({ product_name: "Omens of the Third Age", release_date: "2026-06-05", cards: specs.map(({ id, positions = [10] }) => ({ print_id: id, faces: positions.map((layout_position) => ({ layout_position, image: { small: url(id, layout_position, "small", options.authority, options.scheme, options.authorityDelimiter), normal: url(id, layout_position, "normal", options.authority, options.scheme, options.authorityDelimiter), large: url(id, layout_position, "large", options.authority, options.scheme, options.authorityDelimiter) } })) })) });
 const specs = [{ id: "OMN001" }, { id: "OMN002-RF" }, { id: "OMN003-CF" }, { id: "IAR001-MV", positions: [10, 20] }, { id: "IAR002-MV" }];
 const ids = specs.map((entry) => entry.id);
 const aggregate = Object.freeze({ entries: 5, faces: 6, oneFaceEntries: 4, twoFaceEntries: 1, position10Faces: 5, position20Faces: 1, smallUrls: 6, normalUrls: 6, largeUrls: 6, allUrls: 18, unsuffixedEntries: 1, unsuffixedFaces: 1, unsuffixedOneFaceEntries: 1, unsuffixedTwoFaceEntries: 0, rfEntries: 1, rfFaces: 1, rfOneFaceEntries: 1, rfTwoFaceEntries: 0, cfEntries: 1, cfFaces: 1, cfOneFaceEntries: 1, cfTwoFaceEntries: 0, mvEntries: 2, mvFaces: 3, mvOneFaceEntries: 1, mvTwoFaceEntries: 1 });
@@ -98,6 +98,80 @@ test("face projection semantic mutation ownership catches the position guard thr
     assert.equal(lines.filter((line) => line === `# ${positionMarker}`).length, 1);
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(positionContract)).length, 1);
     assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("POSITION_GUARD_REJECTED_REVERSED_ORDER")).length, 1);
+  } finally { rmSync(path, { force: true }); }
+});
+
+const credentialContractName = "face projection rejects credential-bearing rendition URLs while exact authority passes";
+const credentialContractMarker = "FACE_CREDENTIAL_CONTRACT_EXECUTED";
+const credentialMutationEnvironmentKey = "DRAFT_TABLE_TEST_FACE_CREDENTIAL_MODULE";
+
+test(credentialContractName, async () => {
+  console.log(credentialContractMarker);
+  const module = process.env[credentialMutationEnvironmentKey]
+    ? await import(process.env[credentialMutationEnvironmentKey])
+    : { CardVaultFaceProjectionError, projectCardVaultOfficialFaceMetadataForTest };
+  assert.doesNotThrow(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(response(specs)), aggregate));
+  const credentialResponse = response(specs, { authority: `user:pw@${host}` });
+  assert.throws(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(credentialResponse), aggregate), module.CardVaultFaceProjectionError, "CREDENTIAL_GUARD_REJECTED_USERINFO_URL");
+});
+
+test("face projection credential mutation is caught by its named authority contract", () => {
+  const sourcePath = new URL("../src/card-vault-face-projection.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace("url.username !== \"\" || url.password !== \"\"", "(url.username !== \"\" || url.password !== \"\") && false");
+  assert.notEqual(mutated, original, "credential guard present");
+  const path = `${dirname(fileURLToPath(sourcePath))}/face-projection-mutation-${process.pid}-credentials.ts`;
+  writeFileSync(path, mutated);
+  try {
+    const env = { ...process.env, [credentialMutationEnvironmentKey]: pathToFileURL(path).href }; delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${credentialContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env });
+    const lines = result.stdout.split(/\r?\n/);
+    assert.equal(result.status, 1, `credential mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === `# ${credentialContractMarker}`).length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(credentialContractName)).length, 1);
+    assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("CREDENTIAL_GUARD_REJECTED_USERINFO_URL")).length, 1);
+  } finally { rmSync(path, { force: true }); }
+});
+
+const portContractName = "face projection rejects explicit-port rendition URLs while exact authority passes";
+const portContractMarker = "FACE_PORT_CONTRACT_EXECUTED";
+const portMutationEnvironmentKey = "DRAFT_TABLE_TEST_FACE_PORT_MODULE";
+
+test(portContractName, async () => {
+  console.log(portContractMarker);
+  const module = process.env[portMutationEnvironmentKey]
+    ? await import(process.env[portMutationEnvironmentKey])
+    : { CardVaultFaceProjectionError, projectCardVaultOfficialFaceMetadataForTest };
+  assert.doesNotThrow(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(response(specs)), aggregate));
+  for (const options of [
+    { authority: `${host}:8443` },
+    { authority: `${host}:443` },
+    { authority: `${host}:443`, scheme: "HTTPS" },
+    { authority: `${host}:443`, authorityDelimiter: "////" },
+    { authority: `${host}:443`, authorityDelimiter: "\\\\" },
+    { authority: `${host}:443`, authorityDelimiter: "/" },
+    { authority: `${host}:443`, authorityDelimiter: "" }
+  ]) {
+    const portResponse = response(specs, options);
+    assert.throws(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(portResponse), aggregate), module.CardVaultFaceProjectionError, "PORT_GUARD_REJECTED_EXPLICIT_PORT_URL");
+  }
+});
+
+test("face projection port mutation is caught by its named authority contract", () => {
+  const sourcePath = new URL("../src/card-vault-face-projection.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace("(url.port !== \"\" || hasExplicitPort(text))", "(url.port !== \"\" || hasExplicitPort(text)) && false");
+  assert.notEqual(mutated, original, "port guard present");
+  const path = `${dirname(fileURLToPath(sourcePath))}/face-projection-mutation-${process.pid}-port.ts`;
+  writeFileSync(path, mutated);
+  try {
+    const env = { ...process.env, [portMutationEnvironmentKey]: pathToFileURL(path).href }; delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${portContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env });
+    const lines = result.stdout.split(/\r?\n/);
+    assert.equal(result.status, 1, `port mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === `# ${portContractMarker}`).length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(portContractName)).length, 1);
+    assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("PORT_GUARD_REJECTED_EXPLICIT_PORT_URL")).length, 1);
   } finally { rmSync(path, { force: true }); }
 });
 

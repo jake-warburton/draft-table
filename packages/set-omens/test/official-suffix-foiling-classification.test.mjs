@@ -56,7 +56,18 @@ test("capability-bound fictional marker correspondences preserve official order 
 });
 
 test("classification is deeply immutable, fresh, and copy-safe", () => {
-  const input = source(); const result = classify(input); const again = classify();
+  const input = source(); input[1].printings[1].art_variations = ["EA"];
+  const reconciled = reconciliation(input); const result = classifyOfficialSuffixFoilingForTest(reconciled, aggregate); const again = classify();
+  const sourceArray = input[1].printings[1].art_variations;
+  const reconciliationArray = reconciled[1].printings[1].art_variations;
+  const candidateArray = result[1].candidatePrintings[1].art_variations;
+  const selectedArray = result[1].selectedCorrespondencePrintings[0].art_variations;
+  assert.notEqual(reconciliationArray, sourceArray, "source-to-reconciliation art-variation arrays are independent");
+  assert.notEqual(candidateArray, reconciliationArray, "reconciliation-to-candidate art-variation arrays are independent");
+  assert.notEqual(selectedArray, reconciliationArray, "reconciliation-to-selected art-variation arrays are independent");
+  assert.notEqual(candidateArray, selectedArray, "candidate and selected correspondence arrays are independent");
+  sourceArray[0] = "FA";
+  assert.deepEqual(candidateArray, ["EA"]); assert.deepEqual(selectedArray, ["EA"]);
   assert.ok(Object.isFrozen(result)); assert.ok(result.every(Object.isFrozen));
   assert.ok(result.every((entry) => Object.isFrozen(entry.candidatePrintings) && Object.isFrozen(entry.selectedCorrespondencePrintings)));
   assert.ok(result.every((entry) => entry.candidatePrintings.every(Object.isFrozen) && entry.selectedCorrespondencePrintings.every(Object.isFrozen)));
