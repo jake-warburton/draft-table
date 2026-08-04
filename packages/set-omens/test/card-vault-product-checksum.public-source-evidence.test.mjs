@@ -68,7 +68,6 @@ test("the observed official response derives only the published canonical member
   assert.equal(ids.length, 260);
   assert.equal(ids.filter((id) => id.startsWith("OMN")).length, 251);
   assert.equal(ids.filter((id) => id.startsWith("IAR")).length, 9);
-  assert.equal(Buffer.byteLength(`${ids.join("\n")}\n`), 1874);
   assert.equal(createHash("sha256").update(`${ids.join("\n")}\n`).digest("hex"), "9b16117e4f558c91421a50d814baa3a8a16043bff645cec24291a32df6e079de");
 
   const cosmetic = JSON.parse(response);
