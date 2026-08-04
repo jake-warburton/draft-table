@@ -15,6 +15,8 @@ const run = (env, contract = passingContract, withEvidence = false) => {
   const evidencePath = join(fixtureDirectory, "evidence");
   mkdirSync(testDirectory);
   writeFileSync(join(testDirectory, "probe.test.mjs"), contract);
+  writeFileSync(join(testDirectory, "gate.public-source-evidence.test.mjs"),
+    'import test from "node:test"; test("gate probe", { skip: !process.env.FAB_CARD_SOURCE_EVIDENCE_PATH ? "missing evidence" : false }, () => {});');
   writeFileSync(evidencePath, "synthetic evidence");
 
   try {

@@ -36,11 +36,14 @@ const runSyntheticCommand = (runner, environment) => {
   writeFileSync(evidencePath, "synthetic evidence");
 
   for (const file of syntheticFiles) {
+    const gate = file.endsWith(".public-source-evidence.test.mjs")
+      ? `test("discovery probe", { skip: !process.env.FAB_CARD_SOURCE_EVIDENCE_PATH ? "missing evidence" : false }, () => writeFileSync(join(process.env.EVIDENCE_DISCOVERY_PROBE_DIRECTORY, ${JSON.stringify(file)}), ""));`
+      : `test("discovery probe", () => writeFileSync(join(process.env.EVIDENCE_DISCOVERY_PROBE_DIRECTORY, ${JSON.stringify(file)}), ""));`;
     writeFileSync(join(testDirectory, file), `
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-test("discovery probe", () => writeFileSync(join(process.env.EVIDENCE_DISCOVERY_PROBE_DIRECTORY, ${JSON.stringify(file)}), ""));
+${gate}
 `);
   }
 

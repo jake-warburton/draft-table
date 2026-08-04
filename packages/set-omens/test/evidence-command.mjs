@@ -1,6 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { discoverEvidenceTests } from "./evidence-discovery.mjs";
+import { classifyPublicSourceEvidenceTests } from "./public-source-gate-classification.mjs";
+
+const classification = classifyPublicSourceEvidenceTests("test");
+if (!classification.ok) {
+  console.error(`private evidence acceptance gate classification failed: ${classification.diagnostic}.`);
+  process.exit(1);
+}
 
 const evidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 
