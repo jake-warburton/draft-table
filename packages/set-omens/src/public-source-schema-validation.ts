@@ -49,7 +49,7 @@ const validate = (cardBytes: Uint8Array, schemaBytes: Uint8Array): SchemaValidat
     const cards = parse(cardBytes);
     if (!Array.isArray(cards) || !validator(cards)) throw new Error();
     const capability = Object.freeze({}) as SchemaValidatedFabEnglishCardData;
-    dataByCapability.set(capability, structuredClone(cards) as JsonValue[]);
+    dataByCapability.set(capability, cards as JsonValue[]);
     return capability;
   } catch {
     throw new FabCardSourceSchemaValidationError();
