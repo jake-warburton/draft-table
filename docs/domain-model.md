@@ -19,7 +19,7 @@ This is a planning-level logical model. Names may become TypeScript types later,
 - `setId` (`OMN`)
 - display name/release date
 - upstream source tag, commit, file URLs, and checksums
-- official membership endpoint/checksum and research date
+- official membership endpoint, canonical membership digest, dated raw-response checksum, and research date
 - visible-recipe ID/version/SHA-256 and evidence status;
 - generated timestamp/tool version (future import phase).
 
