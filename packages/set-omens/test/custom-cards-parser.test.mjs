@@ -70,11 +70,11 @@ test("parses minimal immutable recipe references from synthetic CustomCards reco
 });
 
 test("rejects incorrect Omens aggregate totals and rarity distributions", () => {
-  const references = (common, rare, mythic) => [
-    ...Array.from({ length: common }, (_, index) => ({ name: `Common ${index}`, collectorNumber: `C-${index}`, rarity: "common" })),
-    ...Array.from({ length: rare }, (_, index) => ({ name: `Rare ${index}`, collectorNumber: `R-${index}`, rarity: "rare" })),
-    ...Array.from({ length: mythic }, (_, index) => ({ name: `Mythic ${index}`, collectorNumber: `M-${index}`, rarity: "mythic" }))
-  ];
+  const references = (common, rare, mythic) => parseOmensCustomCardsFromTrustedBytes(source([
+    ...Array.from({ length: common }, (_, index) => card({ name: `Common ${index}`, collector_number: `C-${index}` })),
+    ...Array.from({ length: rare }, (_, index) => card({ name: `Rare ${index}`, collector_number: `R-${index}`, rarity: "rare" })),
+    ...Array.from({ length: mythic }, (_, index) => card({ name: `Mythic ${index}`, collector_number: `M-${index}`, rarity: "mythic" }))
+  ]));
 
   for (const invalidReferences of [
     references(133, 60, 15),
