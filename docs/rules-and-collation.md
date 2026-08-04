@@ -159,16 +159,15 @@ Do not derive alternative weights from set card counts, silently normalize malfo
 
 The preferred release dataset, `the-fab-cube/flesh-and-blood-cards` v8.2.0, has 251 OMN collector IDs and 482 OMN printing/treatment rows, all with image URLs in the inspected release. Research inspection of the official Card Vault product endpoint observed 260 product entries: 251 `OMN` plus nine `IAR` Marvel entries [DATA-1][FAB-7]. The product page itself says `251 cards in set` [FAB-3], so these counts are different scopes, not safely interchangeable.
 
-Completed build-time slices pin the exact upstream tag and file checksums, validate the full card source against its pinned schema, project exact source-order `set_id === "OMN"` rows with 251-card/482-printing/251-distinct-collector-ID guards, retain the raw checksum of one caller-held observed Card Vault response as dated evidence, and strictly derive its canonical 260-entry membership (251 `OMN`, 9 `IAR`). The raw checksum is not a retrievable version pin and must not gate an otherwise identical canonically derived membership after cosmetic live-response changes. The remaining import validation must:
+Completed build-time slices pin the exact upstream tag and file checksums, validate the full card source against its pinned schema, project exact source-order `set_id === "OMN"` rows with 251-card/482-printing/251-distinct-collector-ID guards, retain the raw checksum of one caller-held observed Card Vault response as dated evidence, and strictly derive its canonical 260-entry membership (251 `OMN`, 9 `IAR`). All 260 validated exact official bases are joined to one pinned upstream identity and every matching printing row across `set_id === "OMN"` and `set_id === "IAR"`. This identity join is not treatment classification. The raw checksum is not a retrievable version pin and must not gate an otherwise identical canonically derived membership after cosmetic live-response changes. The remaining import validation must:
 
-- start from the already validated official Card Vault membership capability;
-- join all matching upstream identities/printings, including the nine `IAR` entries;
-- report missing, duplicate, treatment, image-host, and slot-classification differences;
+- classify name and suffix/treatment/image/slot/exclusion semantics without reinterpreting the completed identity join;
 - require an explicit classification for all 260 official product entries and every relevant physical treatment;
 - fail closed on unknown rarity/foiling/slot metadata;
+- reconcile all 209 private-recipe names and collector IDs to classified snapshot identities and treatments;
 - output a small reviewed Omens-only snapshot; never ship the upstream ~12 MB all-card package to browsers.
 
-Identity/base reconciliation is complete; name and suffix/treatment/image/slot/exclusion semantics, semantic treatment/slot classification, and snapshot generation remain future data-import slices. No generated snapshot belongs in the repository before its separate review.
+Suffix/treatment semantics, slot and exclusion classification, private-recipe reconciliation, and snapshot generation remain future data-import slices; all runtime behavior remains unimplemented. No generated snapshot belongs in the repository before its separate review.
 
 ## Collation invariants for TDD
 
