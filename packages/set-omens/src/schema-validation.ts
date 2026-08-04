@@ -15,11 +15,19 @@ import {
   projectOmnSourceRecords,
   type OmnSourceProjection
 } from "./omn-source-projection.ts";
+import {
+  OfficialUpstreamIdReconciliationError,
+  reconcileOfficialCardVaultMembershipWithSchemaValidatedFabSource,
+  type OfficialUpstreamIdReconciliation
+} from "./official-upstream-id-reconciliation.ts";
+import type { OfficialCardVaultMembership } from "./card-vault-official-membership.ts";
 
 export {
   FabCardSourceSchemaValidationError,
   OmnSourceProjectionError,
+  OfficialUpstreamIdReconciliationError,
   type OmnSourceProjection,
+  type OfficialUpstreamIdReconciliation,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -49,3 +57,10 @@ export const projectSchemaValidatedFabEnglishCardDataForOmn = (
     throw new OmnSourceProjectionError();
   }
 };
+
+/** Build-time-only exact identity/base reconciliation from both validated capabilities. */
+export const reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData = (
+  membership: OfficialCardVaultMembership,
+  data: SchemaValidatedFabEnglishCardData
+): OfficialUpstreamIdReconciliation =>
+  reconcileOfficialCardVaultMembershipWithSchemaValidatedFabSource(membership, data);
