@@ -237,11 +237,18 @@ const pinnedPoolNames = [
 
 const pinnedReferenceFixture = () => {
   const normalPoolNames = pinnedPoolNames.slice(0, 8);
-  const cards = normalPoolNames.map((name, index) => ({
+  const cards = pinnedPoolNames.map((name, index) => ({
     name: `Fictional ${name}`,
     collectorNumber: `OMN-${index + 1}`,
-    rarity: index === 6 ? "rare" : index === 7 ? "mythic" : "common"
+    rarity: index === 6 || index === 9 ? "rare" : index === 7 || index === 10 ? "mythic" : "common"
   }));
+  const normalPools = normalPoolNames.map((name, index) => ({
+    name,
+    entries: [{ weight: 1, reference: cards[index].name }]
+  }));
+  normalPools[0].entries.push({ weight: 1, reference: cards[8].name });
+  normalPools[6].entries.push({ weight: 1, reference: cards[9].name });
+  normalPools[7].entries.push({ weight: 1, reference: cards[10].name });
   return {
     layouts: {
       layouts: [{
@@ -252,10 +259,10 @@ const pinnedReferenceFixture = () => {
     },
     pools: {
       pools: [
-        ...normalPoolNames.map((name, index) => ({ name, entries: [{ weight: 1, reference: cards[index].name }] })),
-        { name: "Rfcommon", entries: [{ weight: 1, reference: cards[0].name }] },
-        { name: "RFRare", entries: [{ weight: 1, reference: cards[6].name }] },
-        { name: "RFMajestic", entries: [{ weight: 1, reference: cards[7].name }] }
+        ...normalPools,
+        { name: "Rfcommon", entries: [{ weight: 1, reference: cards[8].name }] },
+        { name: "RFRare", entries: [{ weight: 1, reference: cards[9].name }] },
+        { name: "RFMajestic", entries: [{ weight: 1, reference: cards[10].name }] }
       ]
     },
     cards
@@ -267,14 +274,28 @@ test("accepts the pinned normal partition and overlapping Rainbow Foil subsets",
   assert.equal(validateOmensRecipeReferences(fixture.layouts, fixture.pools, fixture.cards), undefined);
 });
 
-test("enforces each pinned pool's recipe rarity by name", () => {
+test("enforces each pinned pool's recipe rarity independently by name", () => {
+  const expectedRarities = {
+    Wizard: "common", Illusionist: "common", Runeblade: "common", Lightning: "common",
+    Generic: "common", Equipment: "common", Rare: "rare", Majestic: "mythic",
+    Rfcommon: "common", RFRare: "rare", RFMajestic: "mythic"
+  };
   const cases = [
-    ["Wizard", 0, "rare"], ["Rare", 6, "common"], ["Majestic", 7, "rare"],
-    ["Rfcommon", 0, "rare"], ["RFRare", 6, "common"], ["RFMajestic", 7, "rare"]
+    ["Wizard", (fixture) => { fixture.cards[0].rarity = "rare"; }],
+    ["Rare", (fixture) => { fixture.cards[6].rarity = "common"; }],
+    ["Majestic", (fixture) => { fixture.cards[7].rarity = "rare"; }],
+    ["Rfcommon", (fixture) => { fixture.pools.pools[8].entries[0].reference = fixture.cards[6].name; }],
+    ["RFRare", (fixture) => { fixture.pools.pools[9].entries[0].reference = fixture.cards[0].name; }],
+    ["RFMajestic", (fixture) => { fixture.pools.pools[10].entries[0].reference = fixture.cards[6].name; }]
   ];
-  for (const [pool, cardIndex, wrongRarity] of cases) {
+  for (const [pool, mutate] of cases) {
     const fixture = pinnedReferenceFixture();
-    fixture.cards[cardIndex].rarity = wrongRarity;
+    mutate(fixture);
+    const cardsByName = new Map(fixture.cards.map((card) => [card.name, card]));
+    const mismatchedPools = fixture.pools.pools
+      .filter((candidate) => candidate.entries.some((entry) => cardsByName.get(entry.reference).rarity !== expectedRarities[candidate.name]))
+      .map(({ name }) => name);
+    assert.deepEqual(mismatchedPools, [pool]);
     expectReferenceError(() => validateOmensRecipeReferences(fixture.layouts, fixture.pools, fixture.cards));
   }
 });
