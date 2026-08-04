@@ -53,6 +53,22 @@ const aggregateFixture = () => Object.freeze({ layouts: Object.freeze(
   }))).flat()
 ) });
 
+const assertExactFraction = (part, whole, numerator, denominator) => {
+  const gcd = (left, right) => {
+    let a = BigInt(left);
+    let b = BigInt(right);
+    while (b !== 0n) [a, b] = [b, a % b];
+    return a;
+  };
+  const actualDivisor = gcd(part, whole);
+  const expectedDivisor = gcd(numerator, denominator);
+  assert.equal(BigInt(part) * BigInt(denominator), BigInt(whole) * BigInt(numerator));
+  assert.deepEqual(
+    [BigInt(part) / actualDivisor, BigInt(whole) / actualDivisor],
+    [BigInt(numerator) / expectedDivisor, BigInt(denominator) / expectedDivisor]
+  );
+};
+
 const expectLayoutsError = (bytes) => {
   assert.throws(() => parseOmensLayoutsFromTrustedBytes(bytes), (error) => {
     assert.ok(error instanceof OmensRecipeLayoutsError);
@@ -142,6 +158,11 @@ test("enforces published Layout outcome coefficients, slot shapes, and exact int
   assert.equal(validateOmensRecipeLayoutsAggregate(fixture), fixture);
   const derived = { secondRare: 326400, secondMajestic: 134400, rfcommon: 382464, rfrare: 69120, rfmajestic: 9216 };
   assert.equal(validateOmensRecipeDerivedTotals(derived), undefined);
+  assertExactFraction(derived.secondRare, 460800, 17, 24);
+  assertExactFraction(derived.secondMajestic, 460800, 7, 24);
+  assertExactFraction(derived.rfcommon, 460800, 83, 100);
+  assertExactFraction(derived.rfrare, 460800, 15, 100);
+  assertExactFraction(derived.rfmajestic, 460800, 2, 100);
   for (const key of Object.keys(derived)) assert.throws(
     () => validateOmensRecipeDerivedTotals({ ...derived, [key]: derived[key] + 1 }),
     OmensRecipeLayoutsError
