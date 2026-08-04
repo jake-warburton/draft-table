@@ -73,6 +73,13 @@ test("OMN projection independently rejects malformed values, zero OMN rows, and 
     sourceCard({ printings: [sourcePrinting({ expansion_slot: "false" })] })
   ];
   for (const entry of malformed) expectError(() => projected([entry]));
+  const unsafeText = [" padded ", "e\u0301", "line\nfeed"];
+  const cardFields = ["unique_id", "name"];
+  const printingFields = ["unique_id", "set_printing_unique_id", "id", "edition", "foiling", "rarity", "image_url"];
+  for (const value of unsafeText) {
+    for (const field of cardFields) expectError(() => projected([sourceCard({ [field]: value })]));
+    for (const field of printingFields) expectError(() => projected([sourceCard({ printings: [sourcePrinting({ [field]: value })] })]));
+  }
   expectError(() => projected([sourceCard({ printings: [sourcePrinting({ set_id: "IAR" })] })]));
   expectError(() => projected([sourceCard(), sourceCard({ name: "Duplicate card", printings: [sourcePrinting({ unique_id: "p-2" })] })]));
   expectError(() => projected([sourceCard(), sourceCard({ unique_id: "card-2", printings: [sourcePrinting({ unique_id: "p-2", set_printing_unique_id: "other-set-printing" })] })]));

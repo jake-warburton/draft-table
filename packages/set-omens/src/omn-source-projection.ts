@@ -39,9 +39,12 @@ const publicAggregate: ExpectedAggregate = Object.freeze({ cardRecords: 251, pri
 const fail = (): never => { throw new OmnSourceProjectionError(); };
 const record = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : fail();
-const nonEmptyString = (value: unknown): string => typeof value === "string" && value.length > 0 ? value : fail();
+const normalizedText = (value: unknown): string =>
+  typeof value === "string" && value.length > 0 && value === value.trim() && value === value.normalize("NFC") && !/\p{Cc}/u.test(value)
+    ? value
+    : fail();
 const httpsUrl = (value: unknown): string => {
-  const url = nonEmptyString(value);
+  const url = normalizedText(value);
   try {
     if (new URL(url).protocol !== "https:" || new URL(url).hostname.length === 0) fail();
     return url;
@@ -66,14 +69,14 @@ const project = (data: unknown): OmnSourceProjection => {
     for (const sourcePrinting of printingValues) {
       const printing = record(sourcePrinting);
       if (printing.set_id !== "OMN") continue;
-      const unique_id = nonEmptyString(printing.unique_id);
-      const set_printing_unique_id = nonEmptyString(printing.set_printing_unique_id);
+      const unique_id = normalizedText(printing.unique_id);
+      const set_printing_unique_id = normalizedText(printing.set_printing_unique_id);
       if (omnSetPrintingUniqueId === undefined) omnSetPrintingUniqueId = set_printing_unique_id;
       else if (set_printing_unique_id !== omnSetPrintingUniqueId) fail();
-      const id = nonEmptyString(printing.id);
-      const edition = nonEmptyString(printing.edition);
-      const foiling = nonEmptyString(printing.foiling);
-      const rarity = nonEmptyString(printing.rarity);
+      const id = normalizedText(printing.id);
+      const edition = normalizedText(printing.edition);
+      const foiling = normalizedText(printing.foiling);
+      const rarity = normalizedText(printing.rarity);
       if (typeof printing.expansion_slot !== "boolean") return fail();
       const expansion_slot: boolean = printing.expansion_slot;
       if (printingIds.has(unique_id)) fail();
@@ -84,10 +87,10 @@ const project = (data: unknown): OmnSourceProjection => {
       }));
     }
     if (printings.length === 0) continue;
-    const unique_id = nonEmptyString(card.unique_id);
+    const unique_id = normalizedText(card.unique_id);
     if (cardIds.has(unique_id)) fail();
     cardIds.add(unique_id);
-    cards.push(frozen({ unique_id, name: nonEmptyString(card.name), printings: frozen(printings) }));
+    cards.push(frozen({ unique_id, name: normalizedText(card.name), printings: frozen(printings) }));
   }
   if (cards.length === 0) fail();
   return frozen(cards);
