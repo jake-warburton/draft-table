@@ -92,15 +92,17 @@ const fail = (): never => { throw new CardVaultFaceProjectionError(); };
 const isObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
-const hasExplicitPort = (text: string): boolean => /^https:[\\/]*[^/?#\\]+:\d+(?:[/?#\\]|$)/iu.test(text);
-
+/**
+ * Exact URL text is retained. Percent-encoded path dots and empty query or fragment markers
+ * intentionally remain accepted where WHATWG URL serialization preserves their text.
+ */
 const readUrl = (value: unknown): string => {
   if (typeof value !== "string") fail();
   const text = value as string;
   if (text.length === 0 || text !== text.trim() || text !== text.normalize("NFC") || /[\u0000-\u001f\u007f-\u009f]/u.test(text)) fail();
   try {
     const url = new URL(text);
-    if (url.protocol !== "https:" || url.hostname !== IMAGE_HOST || (url.port !== "" || hasExplicitPort(text)) || url.username !== "" || url.password !== "") fail();
+    if (url.protocol !== "https:" || url.hostname !== IMAGE_HOST || url.port !== "" || url.username !== "" || url.password !== "" || url.href !== text) fail();
   } catch {
     fail();
   }
