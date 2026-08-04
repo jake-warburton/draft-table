@@ -23,9 +23,9 @@ const settings = JSON.stringify({ showSlots: true, withReplacement: false, cardB
 const card = (name, collector_number, rarity = "common") => ({ name, collector_number, mana_cost: "2", rarity, type: "action", image_uris: { en: "https://cards.invalid/a.png" } });
 const recipeBytes = (cards) => Buffer.from(`\ufeff[Settings]\r\n${settings}\r\n[CustomCards]\r\n${JSON.stringify(cards)}\r\n[Layouts]\r\nopaque`, "utf8");
 const recipeCards = Object.freeze([
-  card("Fictional C", "OMN103", "mythic"),
-  card("Fictional A", "OMN100", "common"),
-  card("Fictional B", "OMN101", "rare")
+  card("Fictional C (blue)", "OMN103", "mythic"),
+  card("Fictional A (red)", "OMN100", "common"),
+  card("Fictional B (yellow)", "OMN101", "rare")
 ]);
 const recipeAggregate = Object.freeze({ common: 1, rare: 1, mythic: 1 });
 const recipe = (cards = recipeCards, aggregate = recipeAggregate) => completeOmensRecipeCustomCardsAggregateForTest(parseOmensCustomCardsFromTrustedBytes(recipeBytes(cards)), aggregate);
@@ -42,6 +42,10 @@ const names = Object.freeze(new Map([
   ["OMN100", "Fictional A"], ["OMN101", "Fictional B"], ["OMN102", "Fictional Foil"],
   ["OMN103", "Fictional C"], ["OMN104", "Fictional Later"], ["IAR200", "Fictional Cross Set"]
 ]));
+const pitches = Object.freeze(new Map([
+  ["OMN100", "1"], ["OMN101", "2"], ["OMN102", "1"],
+  ["OMN103", "3"], ["OMN104", ""], ["IAR200", ""]
+]));
 const printing = (form, index) => ({
   unique_id: `printing-${index}`,
   set_printing_unique_id: form.sourceSet === "OMN" ? "set-printing-omn" : "set-printing-iar",
@@ -54,9 +58,10 @@ const printing = (form, index) => ({
   image_url: "https://images.invalid/a.png",
   art_variations: []
 });
-const officialSource = (inputForms = forms, nameByBase = names) => inputForms.map((form, index) => ({
+const officialSource = (inputForms = forms, nameByBase = names, pitchByBase = pitches) => inputForms.map((form, index) => ({
   unique_id: `card-${index}`,
   name: nameByBase.get(form.baseCollectorId),
+  pitch: pitchByBase.get(form.baseCollectorId) ?? "",
   printings: [printing(form, index)]
 }));
 const officialAggregate = Object.freeze({ entries: 6, omnEntries: 5, iarEntries: 1, omnPrintings: 5, iarPrintings: 1 });
@@ -87,9 +92,9 @@ const safe = (action) => assert.throws(action, (error) => {
 test("dual capabilities join exact name and collector identity in recipe order and preserve canonical unmapped order", () => {
   const result = reconcile();
   assert.deepEqual(result.mapped, [
-    { recipeName: "Fictional C", recipeCollectorNumber: "OMN103", recipeRarityLabel: "mythic", officialPrintId: "OMN103", officialBaseCollectorId: "OMN103", officialCardUniqueId: "card-5" },
-    { recipeName: "Fictional A", recipeCollectorNumber: "OMN100", recipeRarityLabel: "common", officialPrintId: "OMN100", officialBaseCollectorId: "OMN100", officialCardUniqueId: "card-1" },
-    { recipeName: "Fictional B", recipeCollectorNumber: "OMN101", recipeRarityLabel: "rare", officialPrintId: "OMN101", officialBaseCollectorId: "OMN101", officialCardUniqueId: "card-4" }
+    { recipeName: "Fictional C (blue)", recipeCollectorNumber: "OMN103", recipeRarityLabel: "mythic", officialPrintId: "OMN103", officialBaseCollectorId: "OMN103", officialCardUniqueId: "card-5" },
+    { recipeName: "Fictional A (red)", recipeCollectorNumber: "OMN100", recipeRarityLabel: "common", officialPrintId: "OMN100", officialBaseCollectorId: "OMN100", officialCardUniqueId: "card-1" },
+    { recipeName: "Fictional B (yellow)", recipeCollectorNumber: "OMN101", recipeRarityLabel: "rare", officialPrintId: "OMN101", officialBaseCollectorId: "OMN101", officialCardUniqueId: "card-4" }
   ]);
   assert.deepEqual(result.unmapped, [
     { officialPrintId: "OMN102-RF", baseCollectorId: "OMN102", sourceSetMarker: "OMN", suffixMarker: "RF" },
@@ -98,6 +103,14 @@ test("dual capabilities join exact name and collector identity in recipe order a
   ]);
   assert.equal("excluded" in result, false);
   assert.equal(result.mapped.every((entry) => !Object.hasOwn(entry, "printings") && !Object.hasOwn(entry, "sourceSetMarker") && !Object.hasOwn(entry, "suffixMarker")), true);
+});
+
+test("red, yellow, blue, and pitchless source facts derive exact recipe-name correspondence without rewriting recipe strings", () => {
+  const result = reconcile();
+  assert.deepEqual(result.mapped.map((entry) => entry.recipeName), ["Fictional C (blue)", "Fictional A (red)", "Fictional B (yellow)"]);
+  const pitchlessRecipe = recipe([card("Fictional Later", "OMN104")], { common: 1, rare: 0, mythic: 0 });
+  const pitchless = reconcileOmensRecipeOfficialIdentityRecordsForTest(pitchlessRecipe, official(), { ...expected, recipeEntries: 1, mappedEntries: 1, unmappedEntries: 5, unmappedOmn: 4, unmappedUnsuffixed: 3 });
+  assert.equal(pitchless.mapped[0].recipeName, "Fictional Later");
 });
 
 test("mapped and unmapped facts are deeply immutable, fresh, and copy-independent", () => {
@@ -121,21 +134,26 @@ test("only exact completed parser and official reconciliation capabilities are a
 
 test("exact matching rejects name-only, collector-only, swapped-name, case, compatibility, numeric, missing, suffix-stripped, and cross-set candidates", () => {
   const mismatchCases = [
-    [card("Fictional A", "OMN999"), "name only"],
+    [card("Fictional A (red)", "OMN999"), "name only"],
     [card("Wrong Name", "OMN100"), "collector only"],
-    [card("fictional a", "OMN100"), "case folded"],
-    [card("Ｆictional A", "OMN100"), "compatibility normalized"],
-    [card("Fictional A", "omn100"), "collector case folded"],
-    [card("Fictional A", "OMN0100"), "numeric derived"],
+    [card("fictional a (red)", "OMN100"), "case folded"],
+    [card("Ｆictional A (red)", "OMN100"), "compatibility normalized"],
+    [card("Fictional A (red)", "omn100"), "collector case folded"],
+    [card("Fictional A (red)", "OMN0100"), "numeric derived"],
     [card("Absent", "OMN999"), "missing"],
-    [card("Fictional Foil", "OMN102"), "suffix stripped"]
+    [card("Fictional A", "OMN100"), "missing colour"],
+    [card("Fictional A (yellow)", "OMN100"), "wrong colour"],
+    [card("Fictional A(red)", "OMN100"), "spacing rewritten"],
+    [card("Fictional Foil (red)", "OMN102"), "suffix stripped"]
   ];
   for (const [changed, label] of mismatchCases) {
     const cards = [{ ...recipeCards[0] }, changed, { ...recipeCards[2] }];
     safe(() => reconcile(recipe(cards), official(), expected), label);
   }
-  const swapped = [card("Fictional B", "OMN100", "common"), card("Fictional A", "OMN101", "rare"), recipeCards[0]];
+  const swapped = [card("Fictional B (red)", "OMN100", "common"), card("Fictional A (yellow)", "OMN101", "rare"), recipeCards[0]];
   safe(() => reconcile(recipe(swapped), official(), expected));
+  const pitchedPitchless = [recipeCards[0], card("Fictional Later (red)", "OMN104"), recipeCards[2]];
+  safe(() => reconcile(recipe(pitchedPitchless), official(), expected));
 
   const crossSetForms = Object.freeze(forms.map((form) => form.baseCollectorId === "IAR200"
     ? Object.freeze({ ...form, officialPrintId: "IAR200", suffixMarker: null })
@@ -176,7 +194,7 @@ test("mapped and unmapped still total 260 when one identity crosses the accepted
     ...Array.from({ length: 9 }, (_, index) => Object.freeze({ officialPrintId: `${base("IAR", index)}-MV`, baseCollectorId: base("IAR", index), sourceSet: "IAR", suffixMarker: "MV" }))
   ];
   const largeNames = new Map(largeForms.map((form, index) => [form.baseCollectorId, `Generated Card ${index}`]));
-  const largeSource = officialSource(largeForms, largeNames);
+  const largeSource = officialSource(largeForms, largeNames, new Map());
   const largeOfficial = official(largeForms, largeSource, { entries: 260, omnEntries: 251, iarEntries: 9, omnPrintings: 251, iarPrintings: 9 });
   const largeCards = largeForms.slice(0, 209).map((form, index) => card(index === 208 ? "Partition Crossing" : largeNames.get(form.baseCollectorId), index === 208 ? "OMN999" : form.baseCollectorId));
   const largeRecipe = recipe(largeCards, { common: 209, rare: 0, mythic: 0 });
@@ -212,14 +230,14 @@ test(exactContractName, async () => {
   const sourceDirectory = new URL("./", moduleUrl);
   const custom = await import(new URL("custom-cards.ts", sourceDirectory));
   const upstream = await import(new URL("official-upstream-id-reconciliation.ts", sourceDirectory));
-  const references = custom.completeOmensRecipeCustomCardsAggregateForTest(custom.parseOmensCustomCardsFromTrustedBytes(recipeBytes([card("Fictional A", "OMN999")])), { common: 1, rare: 0, mythic: 0 });
+  const references = custom.completeOmensRecipeCustomCardsAggregateForTest(custom.parseOmensCustomCardsFromTrustedBytes(recipeBytes([card("Fictional A (red)", "OMN999")])), { common: 1, rare: 0, mythic: 0 });
   assert.throws(() => loaded.reconcileOmensRecipeOfficialIdentityRecordsForTest(references, upstream.reconcileOfficialUpstreamIdRecordsForTest(forms, officialSource(), officialAggregate), { ...expected, recipeEntries: 1, mappedEntries: 1, unmappedEntries: 5, unmappedOmn: 4, unmappedUnsuffixed: 3 }), loaded.OmensRecipeOfficialIdentityReconciliationError, "EXACT_COLLECTOR_GUARD_REJECTED_NAME_ONLY_MATCH");
 });
 
 test("exact collector mutation is caught by its named capability-bound contract", () => {
   const sourcePath = new URL("../src/recipe-official-identity-reconciliation.ts", import.meta.url);
   const original = readFileSync(sourcePath, "utf8");
-  const mutated = original.replace("entry.baseCollectorId === reference.collectorNumber &&", "true &&");
+  const mutated = original.replace("if (entry.baseCollectorId === reference.collectorNumber) collectorMatches.push(index);", "if (derivedRecipeName(entry) === reference.name) collectorMatches.push(index);");
   assert.notEqual(mutated, original, "exact collector guard present");
   withCanonicalSnapshot((directory) => {
     const path = join(directory, "recipe-official-identity-reconciliation.ts"); writeFileSync(path, mutated);
@@ -249,7 +267,7 @@ test(nameContractName, async () => {
 test("exact name mutation is caught by its named capability-bound contract", () => {
   const sourcePath = new URL("../src/recipe-official-identity-reconciliation.ts", import.meta.url);
   const original = readFileSync(sourcePath, "utf8");
-  const mutated = original.replace("entry.name === reference.name &&", "true &&");
+  const mutated = original.replace("derivedRecipeName(candidate) !== reference.name", "false");
   assert.notEqual(mutated, original, "exact name guard present");
   withCanonicalSnapshot((directory) => {
     const path = join(directory, "recipe-official-identity-reconciliation.ts"); writeFileSync(path, mutated);
@@ -260,6 +278,66 @@ test("exact name mutation is caught by its named capability-bound contract", () 
     assert.equal(lines.filter((line) => line === `# ${nameMarker}`).length, 1, "exact name execution marker");
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(nameContractName)).length, 1, "one exact name not ok");
     assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("EXACT_NAME_GUARD_REJECTED_COLLECTOR_ONLY_MATCH")).length, 1, "one exact name failure line");
+  });
+});
+
+const colourContractName = "pitch colour mapping derives exact red recipe correspondence";
+const colourMarker = "RECIPE_IDENTITY_PITCH_COLOUR_CONTRACT_EXECUTED";
+test(colourContractName, async () => {
+  console.log(colourMarker);
+  const moduleUrl = process.env[moduleEnvironmentKey] ?? new URL("../src/recipe-official-identity-reconciliation.ts", import.meta.url).href;
+  const loaded = await import(moduleUrl);
+  const sourceDirectory = new URL("./", moduleUrl);
+  const custom = await import(new URL("custom-cards.ts", sourceDirectory));
+  const upstream = await import(new URL("official-upstream-id-reconciliation.ts", sourceDirectory));
+  const references = custom.completeOmensRecipeCustomCardsAggregateForTest(custom.parseOmensCustomCardsFromTrustedBytes(recipeBytes([card("Fictional A (red)", "OMN100")])), { common: 1, rare: 0, mythic: 0 });
+  assert.doesNotThrow(() => loaded.reconcileOmensRecipeOfficialIdentityRecordsForTest(references, upstream.reconcileOfficialUpstreamIdRecordsForTest(forms, officialSource(), officialAggregate), { ...expected, recipeEntries: 1, mappedEntries: 1, unmappedEntries: 5, unmappedOmn: 4, unmappedUnsuffixed: 3 }), "PITCH_ONE_MUST_DERIVE_EXACT_RED_CORRESPONDENCE");
+});
+
+test("pitch colour mapping mutation is caught by its exact named derived-correspondence contract", () => {
+  const sourcePath = new URL("../src/recipe-official-identity-reconciliation.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace('if (pitch === "1") return "red";', 'if (pitch === "1") return "yellow";');
+  assert.notEqual(mutated, original, "pitch-one colour mapping present");
+  withCanonicalSnapshot((directory) => {
+    const path = join(directory, "recipe-official-identity-reconciliation.ts"); writeFileSync(path, mutated);
+    const environment = { ...process.env, [moduleEnvironmentKey]: pathToFileURL(path).href }; delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${colourContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/);
+    assert.equal(result.status, 1, `pitch colour mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === `# ${colourMarker}`).length, 1, "exact pitch colour marker");
+    assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(colourContractName)).length, 1, "one pitch colour not ok");
+    assert.equal(lines.filter((line) => line.includes("Got unwanted exception") && line.includes("PITCH_ONE_MUST_DERIVE_EXACT_RED_CORRESPONDENCE")).length, 1, "one pitch colour failure line");
+  });
+});
+
+const pitchlessContractName = "pitchless fallback derives exact bare recipe correspondence";
+const pitchlessMarker = "RECIPE_IDENTITY_PITCHLESS_FALLBACK_CONTRACT_EXECUTED";
+test(pitchlessContractName, async () => {
+  console.log(pitchlessMarker);
+  const moduleUrl = process.env[moduleEnvironmentKey] ?? new URL("../src/recipe-official-identity-reconciliation.ts", import.meta.url).href;
+  const loaded = await import(moduleUrl);
+  const sourceDirectory = new URL("./", moduleUrl);
+  const custom = await import(new URL("custom-cards.ts", sourceDirectory));
+  const upstream = await import(new URL("official-upstream-id-reconciliation.ts", sourceDirectory));
+  const references = custom.completeOmensRecipeCustomCardsAggregateForTest(custom.parseOmensCustomCardsFromTrustedBytes(recipeBytes([card("Fictional Later", "OMN104")])), { common: 1, rare: 0, mythic: 0 });
+  assert.doesNotThrow(() => loaded.reconcileOmensRecipeOfficialIdentityRecordsForTest(references, upstream.reconcileOfficialUpstreamIdRecordsForTest(forms, officialSource(), officialAggregate), { ...expected, recipeEntries: 1, mappedEntries: 1, unmappedEntries: 5, unmappedOmn: 4, unmappedUnsuffixed: 3 }), "PITCHLESS_MUST_DERIVE_EXACT_BARE_CORRESPONDENCE");
+});
+
+test("pitchless fallback mutation is caught by its exact named bare-correspondence contract", () => {
+  const sourcePath = new URL("../src/recipe-official-identity-reconciliation.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace("return colour === null ? entry.name :", "return colour === null ? `${entry.name} (red)` :");
+  assert.notEqual(mutated, original, "pitchless bare-name fallback present");
+  withCanonicalSnapshot((directory) => {
+    const path = join(directory, "recipe-official-identity-reconciliation.ts"); writeFileSync(path, mutated);
+    const environment = { ...process.env, [moduleEnvironmentKey]: pathToFileURL(path).href }; delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${pitchlessContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/);
+    assert.equal(result.status, 1, `pitchless fallback mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === `# ${pitchlessMarker}`).length, 1, "exact pitchless marker");
+    assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(pitchlessContractName)).length, 1, "one pitchless not ok");
+    assert.equal(lines.filter((line) => line.includes("Got unwanted exception") && line.includes("PITCHLESS_MUST_DERIVE_EXACT_BARE_CORRESPONDENCE")).length, 1, "one pitchless failure line");
   });
 });
 

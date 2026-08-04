@@ -21,6 +21,7 @@ Recommended inputs are the tagged English `json/english/card.json`, `set.json`, 
 
 Observed Omens coverage at v8.2.0:
 
+- the pinned card schema requires `pitch` as a string without an enum; across the 260 official identity owners, checksum-verified source values are exactly empty/`1`/`2`/`3` with aggregate counts 39/78/74/69;
 - 251 `OMN` collector IDs;
 - 482 OMN printing/treatment records;
 - zero missing image URLs among those records;
@@ -135,6 +136,7 @@ All sources were accessed **2026-08-03** unless noted. Claims above are limited 
 
 ### Official Flesh and Blood
 
+- **[FAB-8]** [Comprehensive Rules §2.1.2a and §2.8](https://rules.fabtcg.com/en/cr/02-object-properties/) — pitch is part of identity with name; printed pitch 1/2/3 is typically associated with red/yellow/blue respectively, but pitch and color are explicitly independent and a card without printed pitch has no pitch property.
 - **[FAB-1]** [TRP §8, Limited Formats](https://rules.fabtcg.com/en/trp/08-limited-formats/) — current official draft pool, three-pack procedure, left/right/left passing, review restrictions, and official/non-called draft distinctions.
 - **[FAB-2]** [TRP Appendix A.3 and A.7](https://rules.fabtcg.com/en/trp/appendix/) — called-pick schedule, one-minute review, Omens' 14 limited cards, extra-card categories, and Omens of Arcana limited rule.
 - **[FAB-3]** [Omens product page](https://fabtcg.com/products/booster-set/omen/) — June 5 product information; 251 cards, 16 cards/pack, 24 packs/display, slot distribution, Cold Foil approximate frequency, and production-average disclaimer. WordPress product record modified 2026-05-29.

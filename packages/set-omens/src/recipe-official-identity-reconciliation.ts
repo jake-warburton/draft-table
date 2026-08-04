@@ -64,6 +64,19 @@ const acceptedAggregate: ExpectedAggregate = Object.freeze({
 const fail = (): never => { throw new OmensRecipeOfficialIdentityReconciliationError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
 
+const pitchColour = (pitch: OfficialUpstreamIdReconciliation[number]["pitch"]): "red" | "yellow" | "blue" | null => {
+  if (pitch === "") return null;
+  if (pitch === "1") return "red";
+  if (pitch === "2") return "yellow";
+  if (pitch === "3") return "blue";
+  return fail();
+};
+
+const derivedRecipeName = (entry: OfficialUpstreamIdReconciliation[number]): string => {
+  const colour = pitchColour(entry.pitch);
+  return colour === null ? entry.name : `${entry.name} (${colour})`;
+};
+
 const reconcile = (
   recipeCapability: ReadonlyArray<OmensRecipeCardReference>,
   officialCapability: OfficialUpstreamIdReconciliation,
@@ -72,24 +85,27 @@ const reconcile = (
   const references = readCompletedOmensRecipeCustomCardsForIdentityReconciliation(recipeCapability);
   const official = readOfficialUpstreamIdReconciliationForSuffixFoiling(officialCapability);
   const ownedOfficialIndexes = new Set<number>();
+  const ownedDerivedNames = new Set<string>();
   const mapped: Array<OmensRecipeOfficialIdentityReconciliation["mapped"][number]> = [];
 
   for (const reference of references) {
-    const matches: number[] = [];
+    const collectorMatches: number[] = [];
     for (let index = 0; index < official.length; index++) {
       const entry = official[index];
-      if (entry.baseCollectorId === reference.collectorNumber &&
-        entry.name === reference.name &&
-        entry.suffixMarker === null &&
-        entry.officialPrintId === entry.baseCollectorId &&
-        entry.sourceSetMarker === "OMN") matches.push(index);
+      if (entry.baseCollectorId === reference.collectorNumber) collectorMatches.push(index);
     }
-    if (matches.length > 1) fail();
-    if (matches.length === 0) continue;
-    const index = matches[0];
+    if (collectorMatches.length > 1) fail();
+    if (collectorMatches.length === 0) continue;
+    const index = collectorMatches[0];
+    const candidate = official[index];
+    if (candidate.suffixMarker !== null || candidate.officialPrintId !== candidate.baseCollectorId || candidate.sourceSetMarker !== "OMN" ||
+      derivedRecipeName(candidate) !== reference.name) continue;
     if (ownedOfficialIndexes.has(index)) fail();
     ownedOfficialIndexes.add(index);
     const entry = official[index];
+    const exactDerivedName = derivedRecipeName(entry);
+    if (ownedDerivedNames.has(exactDerivedName)) fail();
+    ownedDerivedNames.add(exactDerivedName);
     mapped.push(frozen({
       recipeName: reference.name,
       recipeCollectorNumber: reference.collectorNumber,
@@ -120,7 +136,7 @@ const reconcile = (
     unmappedUnsuffixed !== expected.unmappedUnsuffixed || unmappedRf !== expected.unmappedRf ||
     unmappedCf !== expected.unmappedCf || unmappedMv !== expected.unmappedMv ||
     mapped.length + unmapped.length !== official.length || partitionIds.length !== official.length ||
-    new Set(partitionIds).size !== official.length) fail();
+    new Set(partitionIds).size !== official.length || ownedDerivedNames.size !== mapped.length) fail();
 
   return frozen({ mapped: frozen(mapped), unmapped: frozen(unmapped) });
 };

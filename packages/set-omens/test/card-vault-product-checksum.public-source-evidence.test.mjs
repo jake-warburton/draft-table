@@ -107,6 +107,15 @@ test("the three checksum-verified public sources reconcile all official bases wi
   assert.notEqual(omn[0].printings[0].set_printing_unique_id, iar[0].printings[0].set_printing_unique_id);
   assert.equal(records.filter((record) => record.suffixMarker === null).length, 242);
   assert.equal(records.filter((record) => record.suffixMarker !== null).length, 18);
+  assert.equal(records.filter((record) => record.pitch === "").length, 39);
+  assert.equal(records.filter((record) => record.pitch === "1").length, 78);
+  assert.equal(records.filter((record) => record.pitch === "2").length, 74);
+  assert.equal(records.filter((record) => record.pitch === "3").length, 69);
+  assert.equal(new Set(records.map((record) => `${record.name}\u0000${record.pitch}`)).size, 260);
+  const colour = Object.freeze({ "1": "red", "2": "yellow", "3": "blue" });
+  assert.equal(new Set(records.map((record) => record.pitch === "" ? record.name : `${record.name} (${colour[record.pitch]})`)).size, 260);
+  assert.ok(records.every((record) => Object.isFrozen(record)));
+  assert.ok(records.every((record) => record.pitch === "" || record.pitch === "1" || record.pitch === "2" || record.pitch === "3"));
 });
 
 test("the nine canonical IAR IDs are absent from the exact OMN source projection", {

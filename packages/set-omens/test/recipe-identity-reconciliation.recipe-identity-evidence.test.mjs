@@ -50,6 +50,9 @@ test(recipeIdentityAcceptanceContractName, {
   const result = reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities(recipe, official);
 
   assert.equal(result.mapped.length, 209);
+  assert.equal(new Set(result.mapped.map((entry) => entry.recipeName)).size, 209);
+  assert.equal(new Set(result.mapped.map((entry) => entry.recipeCollectorNumber)).size, 209);
+  assert.equal(new Set(result.mapped.map((entry) => entry.officialPrintId)).size, 209);
   assert.equal(result.unmapped.length, 51);
   assert.equal(result.unmapped.filter((entry) => entry.sourceSetMarker === "OMN").length, 42);
   assert.equal(result.unmapped.filter((entry) => entry.sourceSetMarker === "IAR").length, 9);

@@ -33,7 +33,7 @@ Stable gameplay/deckbuilding identity. Fields needed by MVP:
 - Fabrary canonical card identifier plus accepted six-character printing identifiers;
 - legal normal-slot categories.
 
-The upstream source models unique identity as name + pitch [DATA-2]. Normal and Rainbow Foil instances point to the same identity; physical treatment never changes deckbuilding quantity.
+The upstream source models unique identity as name + pitch [DATA-2]. The build-time recipe join's exact parenthetical red/yellow/blue name derivation is only a source-to-source identity correspondence; Comprehensive Rules explicitly keep printed pitch and color independent [FAB-8]. Normal and Rainbow Foil instances point to the same identity; physical treatment never changes deckbuilding quantity.
 
 ### `PhysicalTreatment`
 
