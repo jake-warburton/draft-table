@@ -93,6 +93,7 @@ test("semantic mutations prove every named classification guard owns its focused
     ["multiplicity", [['if (rows.length !== 1 && rows.length !== 2) fail();', 'if (false) fail();']], "x[3].printings.push(p('IAR000','u3c','C'))", { mvCandidates: 4, mvSelected: 4, suffixCandidates: 7, selected: 6 }],
     ["uniqueness", [
       ['selected = rows.filter((row) => row.foiling === "C");', 'selected = record.suffixMarker === "CF" ? [rows[0], rows[0]] : rows.filter((row) => row.foiling === "C");'],
+      ['if (rows.length !== 1 || selected.length !== 1) fail();', 'if (rows.length !== 1 || false) fail();'],
       ['if (selectedIds.has(row.unique_id)) fail();', 'if (false) fail();']
     ], "", { cfSelected: 2 }],
     ["aggregate", [['selectedIds.size !== expected.selected', 'false']], "", { selected: 6 }]
