@@ -23,6 +23,16 @@ Before shipping any `set-omens` slice that depends on the captain-held recipe, r
 OMENS_RECIPE_EVIDENCE_PATH=<path-to-private-recipe> npm --silent --workspace @draft-table/set-omens run test:evidence
 ```
 
+To verify caller-provided copies of the pinned public card and schema inputs without a network fetch, run:
+
+```sh
+FAB_CARD_SOURCE_EVIDENCE_PATH=<path-to-card.json> \
+FAB_CARD_SCHEMA_EVIDENCE_PATH=<path-to-card-schema.json> \
+npm --silent --workspace @draft-table/set-omens run test:public-source-evidence
+```
+
+Neither evidence command commits or configures its input files.
+
 Pull requests and pushes to `main` install with `npm ci` and run every quality command listed above. `npm run size` enforces a 2,048-byte total emitted-client ceiling; the server boundary is not emitted yet and reports as zero bytes.
 
 Open `apps/web/dist/index.html` in a browser after `npm run build`. The page is an accessible, plain-HTML Draft Table scaffold; no playable draft behavior exists yet.
