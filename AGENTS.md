@@ -4,6 +4,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 - Walking-skeleton implementation has begun; the authoritative setup, commands, and current scope are in `README.md` and root `package.json`. Accepted product contracts, external unknowns, and launch risks live under `docs/`.
 - The captain approved the checksum-pinned community Omens 3.8 recipe and recorded policy decisions in `docs/risks-and-decisions.md`; its Phase 2 import must be test-first and separately reviewed. Do not commit the source recipe or generate a snapshot before that review.
+- The v8.2.0 public English card input and schema are separately checksum-pinned build-time inputs; follow the evidence workflow in `README.md`, never commit upstream bytes, and never add runtime fetches.
 - The approved boundary is a platform-independent TypeScript engine plus browser, Cloudflare Worker/Durable Object adapter, shared contracts, and a reviewed versioned set snapshot; see `docs/architecture.md`.
 
 ## Maintaining this file

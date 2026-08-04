@@ -4,6 +4,7 @@ import {
   verifyPinnedOmensBytes
 } from "./checksum.ts";
 import { OMENS_RECIPE } from "./descriptor.ts";
+import { FAB_CARD_SOURCE } from "./public-source-descriptor.ts";
 import {
   parseOmensCustomCardsFromTrustedBytes,
   validateOmensRecipeCustomCardsAggregate,
@@ -27,6 +28,17 @@ import {
 
 export { OmensRecipeChecksumError } from "./checksum.ts";
 export { OMENS_RECIPE } from "./descriptor.ts";
+export { FAB_CARD_SOURCE } from "./public-source-descriptor.ts";
+export {
+  FabCardSourceChecksumError,
+  type FabCardSourceArtifact
+} from "./public-source-checksum.ts";
+import {
+  verifyPinnedFabCardSchemaBytes,
+  verifyPinnedFabEnglishCardBytes,
+  type VerifiedFabCardSchemaBytes,
+  type VerifiedFabEnglishCardBytes
+} from "./public-source-checksum.ts";
 export {
   OmensRecipeCustomCardsError,
   type OmensRecipeCardReference
@@ -44,6 +56,28 @@ export {
   type OmensPoolEntry,
   type OmensPools
 } from "./pools.ts";
+
+export type VerifiedFabEnglishCardSource = Readonly<{
+  descriptor: typeof FAB_CARD_SOURCE;
+  verification: VerifiedFabEnglishCardBytes;
+}>;
+
+export type VerifiedFabCardSchemaSource = Readonly<{
+  descriptor: typeof FAB_CARD_SOURCE;
+  verification: VerifiedFabCardSchemaBytes;
+}>;
+
+export const verifyFabEnglishCardBytes = (bytes: Uint8Array): VerifiedFabEnglishCardSource =>
+  Object.freeze({
+    descriptor: FAB_CARD_SOURCE,
+    verification: verifyPinnedFabEnglishCardBytes(bytes)
+  });
+
+export const verifyFabCardSchemaBytes = (bytes: Uint8Array): VerifiedFabCardSchemaSource =>
+  Object.freeze({
+    descriptor: FAB_CARD_SOURCE,
+    verification: verifyPinnedFabCardSchemaBytes(bytes)
+  });
 
 export type VerifiedOmensRecipe = Readonly<{
   descriptor: typeof OMENS_RECIPE;
