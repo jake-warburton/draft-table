@@ -46,6 +46,7 @@ type ExpectedAggregate = Readonly<{ entries: number; omnEntries: number; iarEntr
 type SourceCard = Readonly<{ unique_id: string; name: string; printings: readonly OfficialUpstreamPrinting[] }>;
 
 const publicAggregate: ExpectedAggregate = Object.freeze({ entries: 260, omnEntries: 251, iarEntries: 9, omnPrintings: 482, iarPrintings: 11 });
+const reconciliationCapabilities = new WeakSet<object>();
 const fail = (): never => { throw new OfficialUpstreamIdReconciliationError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
 const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : fail();
@@ -113,8 +114,15 @@ const reconcile = (forms: readonly CardVaultPrintIdForm[], source: unknown, expe
   if (result.length !== expected.entries || omn.length !== expected.omnEntries || iar.length !== expected.iarEntries ||
     omnRows.length !== expected.omnPrintings || iarRows.length !== expected.iarPrintings || cardIds.size !== expected.entries || collectorIds.size !== expected.entries ||
     printingIds.size !== omnRows.length + iarRows.length || setPrintingBySet.size !== 2 || setPrintingBySet.get("OMN") === setPrintingBySet.get("IAR")) fail();
-  return frozen(result);
+  const capability = frozen(result);
+  reconciliationCapabilities.add(capability);
+  return capability;
 };
+
+/** Reads only the opaque completed reconciliation capability for a following build-time slice. */
+export const readOfficialUpstreamIdReconciliationForSuffixFoiling = (
+  records: OfficialUpstreamIdReconciliation
+): OfficialUpstreamIdReconciliation => reconciliationCapabilities.has(records) ? records : fail();
 
 /** Package-internal fictional seam for focused reconciliation contracts. */
 export const reconcileOfficialUpstreamIdRecordsForTest = (forms: readonly CardVaultPrintIdForm[], source: unknown, expected: ExpectedAggregate): OfficialUpstreamIdReconciliation => {

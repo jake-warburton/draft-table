@@ -43,6 +43,11 @@ test("capability-bound reconciliation uses exact set plus already-validated base
   assert.equal(result[1].printings.every((printing) => printing.id === "OMN000" && printing.set_id === "OMN"), true);
 });
 
+test("expected-set-map duplicate-base guard rejects two capability-bound fictional forms before reconciliation", () => {
+  const duplicated = Object.freeze([forms[1], Object.freeze({ ...forms[1], officialPrintId: "OMN000-CF", suffixMarker: "CF" })]);
+  safe(() => reconcile(source(), duplicated, Object.freeze({ entries: 2, omnEntries: 2, iarEntries: 0, omnPrintings: 4, iarPrintings: 0 })));
+});
+
 test("collector IDs are text: OMN000 proves no one-based conversion or membership indexing", () => {
   const result = reconcile();
   assert.equal(result.find((entry) => entry.officialPrintId === "OMN000-RF")?.unique_id, "zero-card");
