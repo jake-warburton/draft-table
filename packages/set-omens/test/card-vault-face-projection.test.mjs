@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
@@ -36,6 +37,16 @@ const safe = (action) => assert.throws(action, (error) => {
 });
 
 const rewrite = (input, change) => JSON.stringify(change(JSON.parse(input)));
+const snapshotMutation = (sourcePath, mutated, label) => {
+  let directory;
+  try {
+    directory = mkdtempSync(join(tmpdir(), `draft-table-${label}-`));
+    const sourceDirectory = new URL("./", sourcePath);
+    const isolated = mutated.replace(/from "(\.\/[^"\n]+)"/gu, (_match, specifier) => `from ${JSON.stringify(new URL(specifier, sourceDirectory).href)}`);
+    const path = join(directory, "module.ts"); writeFileSync(path, isolated);
+    return { directory, path };
+  } catch (error) { if (directory !== undefined) rmSync(directory, { force: true, recursive: true }); throw error; }
+};
 
 test("capability-bound face projection preserves canonical membership order across cosmetic response order changes", () => {
   const reordered = response([...specs].reverse());
@@ -88,17 +99,16 @@ test("face projection semantic mutation ownership catches the position guard thr
   const original = readFileSync(sourcePath, "utf8");
   const mutated = original.replace("retainedFace.layout_position !== (index === 0 ? 10 : 20)", "false");
   assert.notEqual(mutated, original, "position guard present");
-  const path = `${dirname(fileURLToPath(sourcePath))}/face-projection-mutation-${process.pid}-positions.ts`;
-  writeFileSync(path, mutated);
+  const snapshot = snapshotMutation(sourcePath, mutated, "face-projection-position");
   try {
-    const env = { ...process.env, [mutationEnvironmentKey]: pathToFileURL(path).href }; delete env.NODE_TEST_CONTEXT;
+    const env = { ...process.env, [mutationEnvironmentKey]: pathToFileURL(snapshot.path).href }; delete env.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${positionContract}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env });
     const lines = result.stdout.split(/\r?\n/);
     assert.equal(result.status, 1, result.stdout + result.stderr);
     assert.equal(lines.filter((line) => line === `# ${positionMarker}`).length, 1);
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(positionContract)).length, 1);
     assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("POSITION_GUARD_REJECTED_REVERSED_ORDER")).length, 1);
-  } finally { rmSync(path, { force: true }); }
+  } finally { rmSync(snapshot.directory, { force: true, recursive: true }); }
 });
 
 const credentialContractName = "face projection rejects credential-bearing rendition URLs while exact authority passes";
@@ -120,17 +130,16 @@ test("face projection credential mutation is caught by its named authority contr
   const original = readFileSync(sourcePath, "utf8");
   const mutated = original.replace("url.username !== \"\" || url.password !== \"\"", "(url.username !== \"\" || url.password !== \"\") && false");
   assert.notEqual(mutated, original, "credential guard present");
-  const path = `${dirname(fileURLToPath(sourcePath))}/face-projection-mutation-${process.pid}-credentials.ts`;
-  writeFileSync(path, mutated);
+  const snapshot = snapshotMutation(sourcePath, mutated, "face-projection-credentials");
   try {
-    const env = { ...process.env, [credentialMutationEnvironmentKey]: pathToFileURL(path).href }; delete env.NODE_TEST_CONTEXT;
+    const env = { ...process.env, [credentialMutationEnvironmentKey]: pathToFileURL(snapshot.path).href }; delete env.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${credentialContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env });
     const lines = result.stdout.split(/\r?\n/);
     assert.equal(result.status, 1, `credential mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
     assert.equal(lines.filter((line) => line === `# ${credentialContractMarker}`).length, 1);
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(credentialContractName)).length, 1);
     assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("CREDENTIAL_GUARD_REJECTED_USERINFO_URL")).length, 1);
-  } finally { rmSync(path, { force: true }); }
+  } finally { rmSync(snapshot.directory, { force: true, recursive: true }); }
 });
 
 const portContractName = "face projection rejects explicit-port rendition URLs while exact authority passes";
@@ -162,17 +171,16 @@ test("face projection port mutation is caught by its named authority contract", 
   const original = readFileSync(sourcePath, "utf8");
   const mutated = original.replace("(url.port !== \"\" || hasExplicitPort(text))", "(url.port !== \"\" || hasExplicitPort(text)) && false");
   assert.notEqual(mutated, original, "port guard present");
-  const path = `${dirname(fileURLToPath(sourcePath))}/face-projection-mutation-${process.pid}-port.ts`;
-  writeFileSync(path, mutated);
+  const snapshot = snapshotMutation(sourcePath, mutated, "face-projection-port");
   try {
-    const env = { ...process.env, [portMutationEnvironmentKey]: pathToFileURL(path).href }; delete env.NODE_TEST_CONTEXT;
+    const env = { ...process.env, [portMutationEnvironmentKey]: pathToFileURL(snapshot.path).href }; delete env.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${portContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env });
     const lines = result.stdout.split(/\r?\n/);
     assert.equal(result.status, 1, `port mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
     assert.equal(lines.filter((line) => line === `# ${portContractMarker}`).length, 1);
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(portContractName)).length, 1);
     assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("PORT_GUARD_REJECTED_EXPLICIT_PORT_URL")).length, 1);
-  } finally { rmSync(path, { force: true }); }
+  } finally { rmSync(snapshot.directory, { force: true, recursive: true }); }
 });
 
 test("aggregate and suffix split guards reject every independently pinned aggregate drift", () => {

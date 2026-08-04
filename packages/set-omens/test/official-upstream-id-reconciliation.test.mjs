@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { cpSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { copyFileSync, existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
@@ -134,18 +135,16 @@ test("art-variation uniqueness mutation is caught by its named duplicate contrac
   const original = readFileSync(sourcePath, "utf8");
   const mutated = original.replace("if (seen.has(entry)) return fail();", "if (false) return fail();");
   assert.notEqual(mutated, original, "art-variation uniqueness guard present");
-  const path = `${dirname(fileURLToPath(sourcePath))}/reconciliation-mutation-${process.pid}-art-variation-uniqueness.ts`;
-  writeFileSync(path, mutated);
-  try {
-    const environment = { ...process.env, [artVariationMutationModuleEnvironmentKey]: pathToFileURL(path).href };
-    delete environment.NODE_TEST_CONTEXT;
+  withStableMutationSnapshot(dirname(fileURLToPath(sourcePath)), (directory) => {
+    const path = join(directory, "official-upstream-id-reconciliation.ts"); writeFileSync(path, mutated);
+    const environment = { ...process.env, [artVariationMutationModuleEnvironmentKey]: pathToFileURL(path).href }; delete environment.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${artVariationUniquenessContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
     const lines = result.stdout.split(/\r?\n/);
     assert.equal(result.status, 1, `art-variation uniqueness mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
     assert.equal(lines.filter((line) => line === `# ${artVariationUniquenessMarker}`).length, 1, "exact uniqueness execution marker");
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(artVariationUniquenessContractName)).length, 1, "exact named uniqueness failure");
     assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("ART_VARIATION_UNIQUENESS_GUARD_REJECTED_DUPLICATE")).length, 1, "exact uniqueness failure output");
-  } finally { rmSync(path, { force: true }); }
+  });
 });
 
 const rfArtVariationContractName = "RF art-variation suffix restriction rejects FA while global sequences remain constant";
@@ -183,9 +182,8 @@ test("RF art-variation suffix mutation is caught by its named capability-bound c
   const rfRestriction = 'else if (record.suffixMarker === "RF") { if (sequence === "") rfEmpty++; else if (sequence === "EA") rfEa++; else fail(); }';
   const mutated = original.replace(rfRestriction, `else if (record.suffixMarker === "RF" && sequence === "FA") rfEa++;\n    ${rfRestriction}`);
   assert.notEqual(mutated, original, "RF suffix restriction present");
-  const path = `${dirname(fileURLToPath(sourcePath))}/reconciliation-mutation-${process.pid}-rf-art-variation.ts`;
-  writeFileSync(path, mutated);
-  try {
+  withStableMutationSnapshot(dirname(fileURLToPath(sourcePath)), (directory) => {
+    const path = join(directory, "official-upstream-id-reconciliation.ts"); writeFileSync(path, mutated);
     const environment = { ...process.env, [rfArtVariationMutationModuleEnvironmentKey]: pathToFileURL(path).href }; delete environment.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${rfArtVariationContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
     const lines = result.stdout.split(/\r?\n/);
@@ -193,8 +191,24 @@ test("RF art-variation suffix mutation is caught by its named capability-bound c
     assert.equal(lines.filter((line) => line === `# ${rfArtVariationContractMarker}`).length, 1, "exact RF art-variation marker");
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(rfArtVariationContractName)).length, 1, "exact named RF art-variation failure");
     assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("RF_SUFFIX_GUARD_REJECTED_FA_WITH_GLOBAL_SEQUENCE_TOTALS_HELD")).length, 1, "exact RF suffix failure line");
-  } finally { rmSync(path, { force: true }); }
+  });
 });
+
+const stableMutationSnapshotModules = Object.freeze([
+  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "custom-cards.ts", "descriptor.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
+]);
+
+const withStableMutationSnapshot = (sourceDirectory, action, copyModule = copyFileSync) => {
+  let directory;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-upstream-printing-copy-mutation-"));
+    for (const file of stableMutationSnapshotModules) copyModule(`${sourceDirectory}/${file}`, `${directory}/${file}`);
+    symlinkSync(join(sourceDirectory, "../../../node_modules"), join(directory, "node_modules"), "dir");
+    return action(directory);
+  } finally {
+    if (directory !== undefined) rmSync(directory, { force: true, recursive: true });
+  }
+};
 
 const artVariationCopyContractName = "art-variation defensive-copy owner prevents aliasing across reconciliation and classification boundaries";
 const artVariationCopyContractMarker = "ART_VARIATION_COPY_INDEPENDENCE_CONTRACT_EXECUTED";
@@ -249,11 +263,11 @@ test("art-variation copy-owner mutation is caught by the named independence cont
   const original = readFileSync(sourcePath, "utf8");
   const mutated = original.replace("art_variations: Object.freeze([...printing.art_variations])", "art_variations: (Object.freeze([...printing.art_variations]), Object.freeze(printing.art_variations))");
   assert.notEqual(mutated, original, "actual common copy owner present");
-  const mutationDirectory = `${dirname(fileURLToPath(import.meta.url))}/upstream-printing-copy-mutation-${process.pid}`;
-  cpSync(fileURLToPath(sourceDirectory), mutationDirectory, { recursive: true });
-  writeFileSync(`${mutationDirectory}/official-upstream-printing-copy.ts`, mutated);
-  try {
-    const modulePath = pathToFileURL(`${mutationDirectory}/official-suffix-foiling-classification.ts`).href;
+  let mutationDirectory;
+  withStableMutationSnapshot(fileURLToPath(sourceDirectory), (directory) => {
+    mutationDirectory = directory;
+    writeFileSync(join(directory, "official-upstream-printing-copy.ts"), mutated);
+    const modulePath = pathToFileURL(`${directory}/official-suffix-foiling-classification.ts`).href;
     const environment = { ...process.env, [artVariationCopyMutationModuleEnvironmentKey]: modulePath }; delete environment.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${artVariationCopyContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
     const lines = result.stdout.split(/\r?\n/);
@@ -261,7 +275,37 @@ test("art-variation copy-owner mutation is caught by the named independence cont
     assert.equal(lines.filter((line) => line === `# ${artVariationCopyContractMarker}`).length, 1, "exact copy marker");
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(artVariationCopyContractName)).length, 1, "exact named copy failure");
     assert.equal(lines.filter((line) => line.includes("reconciliation-to-candidate array copy")).length, 1, "exact copy independence failure line");
-  } finally { rmSync(mutationDirectory, { force: true, recursive: true }); }
+  });
+  assert.equal(existsSync(mutationDirectory), false, "mutation snapshot cleanup");
+});
+
+test("copy-owner mutation snapshot uses only stable modules and always cleans its OS-temporary workspace", () => {
+  const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+  let snapshot;
+  withStableMutationSnapshot(sourceDirectory, (directory) => {
+    snapshot = directory;
+    assert.deepEqual(readdirSync(directory).filter((entry) => entry !== "node_modules").sort(), [...stableMutationSnapshotModules].sort(), "exact stable source allowlist");
+    assert.ok(lstatSync(join(directory, "node_modules")).isSymbolicLink(), "dependency resolution is not source snapshotting");
+    assert.ok(directory.startsWith(tmpdir()), "OS-temporary snapshot");
+    assert.equal(directory.startsWith(`${resolve(sourceDirectory, "../../..")}${sep}`), false, "snapshot lies outside the repository");
+  });
+  assert.equal(existsSync(snapshot), false, "snapshot cleanup");
+
+  const bodyFailure = new Error("deterministic snapshot body failure");
+  let bodyFailureSnapshot;
+  assert.throws(() => withStableMutationSnapshot(sourceDirectory, (directory) => {
+    bodyFailureSnapshot = directory;
+    throw bodyFailure;
+  }), bodyFailure);
+  assert.equal(existsSync(bodyFailureSnapshot), false, "failed snapshot body cleanup");
+
+  const setupFailure = new Error("deterministic snapshot setup failure");
+  let failedSnapshot;
+  assert.throws(() => withStableMutationSnapshot(sourceDirectory, () => assert.fail("setup failure reached action"), (_source, destination) => {
+    failedSnapshot = dirname(destination);
+    throw setupFailure;
+  }), setupFailure);
+  assert.equal(existsSync(failedSnapshot), false, "failed snapshot setup cleanup");
 });
 
 test("forged capabilities cannot enter the public schema-validation boundary", async () => {
@@ -279,12 +323,12 @@ test("semantic mutations demonstrate focused contracts detect disabled matching,
   ];
   for (const [name, before, after, fixture] of mutations) {
     const mutated = original.replace(before, after); assert.notEqual(mutated, original, `${name}: source guard present`);
-    const path = `${dirname(fileURLToPath(sourcePath))}/reconciliation-mutation-${process.pid}-${name}.ts`; writeFileSync(path, mutated);
-    try {
-      const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(new URL(`file://${path}`).href)}; const f=[{officialPrintId:'OMN000',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:null},{officialPrintId:'IAR000-MV',baseCollectorId:'IAR000',sourceSet:'IAR',suffixMarker:'MV'}]; const p=(o={})=>({unique_id:'p',set_printing_unique_id:'sp',id:'OMN000',set_id:'OMN',edition:'e',foiling:'f',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',art_variations:[],...o}); const c=(o={})=>({unique_id:'c',name:'n',printings:[p()],...o}); const e={entries:2,omnEntries:1,iarEntries:1,omnPrintings:${fixture === "crossSet" ? 2 : 1},iarPrintings:1}; const s=${fixture === "crossSet" ? "[c({printings:[p(),p({unique_id:'cross',set_id:'WTR'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : fixture === "duplicateOwner" ? "[c(),c({unique_id:'two',printings:[p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : "[c({printings:[p(),p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]"}; r(f,s,e); console.log('MUTATION_ACCEPTED:${name}');`;
+    withStableMutationSnapshot(dirname(fileURLToPath(sourcePath)), (directory) => {
+      const path = join(directory, "official-upstream-id-reconciliation.ts"); writeFileSync(path, mutated);
+      const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(pathToFileURL(path).href)}; const f=[{officialPrintId:'OMN000',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:null},{officialPrintId:'IAR000-MV',baseCollectorId:'IAR000',sourceSet:'IAR',suffixMarker:'MV'}]; const p=(o={})=>({unique_id:'p',set_printing_unique_id:'sp',id:'OMN000',set_id:'OMN',edition:'e',foiling:'f',rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',art_variations:[],...o}); const c=(o={})=>({unique_id:'c',name:'n',printings:[p()],...o}); const e={entries:2,omnEntries:1,iarEntries:1,omnPrintings:${fixture === "crossSet" ? 2 : 1},iarPrintings:1}; const s=${fixture === "crossSet" ? "[c({printings:[p(),p({unique_id:'cross',set_id:'WTR'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : fixture === "duplicateOwner" ? "[c(),c({unique_id:'two',printings:[p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]" : "[c({printings:[p(),p({unique_id:'two'})]}),c({unique_id:'i',printings:[p({unique_id:'i',id:'IAR000',set_id:'IAR',set_printing_unique_id:'si'})]})]"}; r(f,s,e); console.log('MUTATION_ACCEPTED:${name}');`;
       const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", program], { encoding: "utf8" });
       assert.equal(result.status, 0, `${name}: intended mutation executed\n${result.stderr}`); assert.equal(result.stdout.trim(), `MUTATION_ACCEPTED:${name}`);
-    } finally { rmSync(path, { force: true }); }
+    });
   }
 
   const duplicateBaseMutation = original.replace(
@@ -292,12 +336,12 @@ test("semantic mutations demonstrate focused contracts detect disabled matching,
     "if (false) fail();"
   );
   assert.notEqual(duplicateBaseMutation, original, "duplicate-base: source guard present");
-  const duplicateBasePath = `${dirname(fileURLToPath(sourcePath))}/reconciliation-mutation-${process.pid}-duplicate-base.ts`;
-  writeFileSync(duplicateBasePath, duplicateBaseMutation);
-  try {
-    const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(new URL(`file://${duplicateBasePath}`).href)}; const f=[{officialPrintId:'OMN000-RF',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:'RF'},{officialPrintId:'OMN000-CF',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:'CF'}]; const s=new Proxy([], {get(target,key,receiver){if(key===Symbol.iterator) console.log('MUTATION_ACCEPTED:duplicate-base'); return Reflect.get(target,key,receiver)}}); try { r(f,s,{entries:2,omnEntries:2,iarEntries:0,omnPrintings:0,iarPrintings:0}) } catch {}`;
+  withStableMutationSnapshot(dirname(fileURLToPath(sourcePath)), (directory) => {
+    const duplicateBasePath = join(directory, "official-upstream-id-reconciliation.ts");
+    writeFileSync(duplicateBasePath, duplicateBaseMutation);
+    const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(pathToFileURL(duplicateBasePath).href)}; const f=[{officialPrintId:'OMN000-RF',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:'RF'},{officialPrintId:'OMN000-CF',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:'CF'}]; const s=new Proxy([], {get(target,key,receiver){if(key===Symbol.iterator) console.log('MUTATION_ACCEPTED:duplicate-base'); return Reflect.get(target,key,receiver)}}); try { r(f,s,{entries:2,omnEntries:2,iarEntries:0,omnPrintings:0,iarPrintings:0}) } catch {}`;
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", program], { encoding: "utf8" });
     assert.equal(result.status, 0, `duplicate-base: intended mutation executed\n${result.stderr}`);
     assert.equal(result.stdout.trim(), "MUTATION_ACCEPTED:duplicate-base");
-  } finally { rmSync(duplicateBasePath, { force: true }); }
+  });
 });

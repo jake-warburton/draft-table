@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,6 +26,21 @@ const draft4 = (properties = {}) => ({
   type: "array",
   items: { type: "object", properties, required: Object.keys(properties), additionalProperties: false }
 });
+const snapshotMutation = (sourcePath, mutated, label) => {
+  let directory;
+  try {
+    directory = mkdtempSync(join(tmpdir(), `draft-table-${label}-`));
+    const sourceDirectory = new URL("./", sourcePath);
+    const isolated = mutated.replace(/from "(\.\/[^"\n]+)"/gu, (_match, specifier) => `from ${JSON.stringify(new URL(specifier, sourceDirectory).href)}`);
+    const path = join(directory, "module.ts");
+    writeFileSync(path, isolated);
+    symlinkSync(join(dirname(fileURLToPath(sourcePath)), "../../../node_modules"), join(directory, "node_modules"), "dir");
+    return { directory, path };
+  } catch (error) {
+    if (directory !== undefined) rmSync(directory, { force: true, recursive: true });
+    throw error;
+  }
+};
 
 const expectSafeSchemaError = (action) => {
   assert.throws(action, (error) => {
@@ -86,20 +101,18 @@ test("the remote-reference contract owns rejection even for a self-resolvable ab
     "const hasRemoteReference = (value: unknown): boolean => { return false;"
   );
   assert.notEqual(mutation, original);
-  const directory = mkdtempSync(join(tmpdir(), "draft-table-remote-ref-"));
-  const mutatedPath = join(dirname(fileURLToPath(sourcePath)), `public-source-schema-validation-mutation-${process.pid}.ts`);
-  writeFileSync(mutatedPath, mutation);
+  const snapshot = snapshotMutation(sourcePath, mutation, "remote-ref");
   try {
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `
       import { validateFabCardSchemaDocumentFromTrustedBytes, validateFabEnglishCardDocumentFromTrustedBytes } from ${JSON.stringify(new URL("../src/public-source-document.ts", import.meta.url).href)};
-      import { validateFabCardDataDocumentsForSchema } from ${JSON.stringify(mutatedPath)};
+      import { validateFabCardDataDocumentsForSchema } from ${JSON.stringify(snapshot.path)};
       const bytes = value => new TextEncoder().encode(JSON.stringify(value));
       const schema = validateFabCardSchemaDocumentFromTrustedBytes(bytes(${JSON.stringify(selfRefSchema)}));
       const cards = validateFabEnglishCardDocumentFromTrustedBytes(bytes([{ value: "allowed" }]));
       validateFabCardDataDocumentsForSchema(cards, schema);
     `], { encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
-  } finally { rmSync(directory, { recursive: true, force: true }); rmSync(mutatedPath, { force: true }); }
+  } finally { rmSync(snapshot.directory, { recursive: true, force: true }); }
 });
 
 test("local Draft-04 fragment refs work, while every nested non-local or non-string ref is blocked", () => {

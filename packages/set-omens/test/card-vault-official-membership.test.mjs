@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   CardVaultOfficialMembershipError,
@@ -22,6 +23,20 @@ const factFor = (ids) => {
 };
 const ids = ["OMN002", "IAR001", "OMN001"];
 const valid = (value = response(ids)) => validateCardVaultOfficialMembershipBytesAgainstFact(encode(value), factFor(ids));
+const snapshotMutation = (sourcePath, mutated, label) => {
+  let directory;
+  try {
+    directory = mkdtempSync(join(tmpdir(), `draft-table-${label}-`));
+    const sourceDirectory = new URL("./", sourcePath);
+    const isolated = mutated.replace(/from "(\.\/[^"\n]+)"/gu, (_match, specifier) => `from ${JSON.stringify(new URL(specifier, sourceDirectory).href)}`);
+    const path = join(directory, "module.ts");
+    writeFileSync(path, isolated);
+    return { directory, path };
+  } catch (error) {
+    if (directory !== undefined) rmSync(directory, { force: true, recursive: true });
+    throw error;
+  }
+};
 
 const expectSafeError = (action) => assert.throws(action, (error) => {
   assert.ok(error instanceof CardVaultOfficialMembershipError);
@@ -89,15 +104,14 @@ test("semantic mutation contracts prove canonical sort, newline, digest, and cou
   for (const [name, before, after] of mutations) {
     const mutated = original.replace(before, after);
     assert.notEqual(mutated, original, name);
-    const path = `${dirname(fileURLToPath(sourcePath))}/card-vault-membership-mutation-${process.pid}-${name}.ts`;
-    writeFileSync(path, mutated);
+    const snapshot = snapshotMutation(sourcePath, mutated, `card-vault-membership-${name}`);
     try {
       const total = name === "count" ? 4 : 3;
       const digest = name === "digest" ? "'0'.repeat(64)" : "createHash('sha256').update(canonical).digest('hex')";
       const expected = name === "sort" || name === "newline" ? 0 : 42;
-      const program = `import { validateCardVaultOfficialMembershipBytesAgainstFact } from ${JSON.stringify(new URL(`file://${path}`).href)}; import { createHash } from 'node:crypto'; const e=new TextEncoder(); const ids=['OMN002','IAR001','OMN001']; const canonical='IAR001\\nOMN001\\nOMN002\\n'; const fact={total:${total},omn:2,iar:1,byteLength:Buffer.byteLength(canonical),sha256:${digest}}; const body=JSON.stringify({product_name:'Omens of the Third Age',release_date:'2026-06-05',cards:ids.map(print_id=>({print_id}))}); try { validateCardVaultOfficialMembershipBytesAgainstFact(e.encode(body),fact); process.exit(42); } catch { process.exit(0); }`;
+      const program = `import { validateCardVaultOfficialMembershipBytesAgainstFact } from ${JSON.stringify(pathToFileURL(snapshot.path).href)}; import { createHash } from 'node:crypto'; const e=new TextEncoder(); const ids=['OMN002','IAR001','OMN001']; const canonical='IAR001\\nOMN001\\nOMN002\\n'; const fact={total:${total},omn:2,iar:1,byteLength:Buffer.byteLength(canonical),sha256:${digest}}; const body=JSON.stringify({product_name:'Omens of the Third Age',release_date:'2026-06-05',cards:ids.map(print_id=>({print_id}))}); try { validateCardVaultOfficialMembershipBytesAgainstFact(e.encode(body),fact); process.exit(42); } catch { process.exit(0); }`;
       const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", program], { encoding: "utf8" });
       assert.equal(result.status, expected, `${name}: named mutation did not produce its exact expected marker`);
-    } finally { rmSync(path, { force: true }); }
+    } finally { rmSync(snapshot.directory, { force: true, recursive: true }); }
   }
 });

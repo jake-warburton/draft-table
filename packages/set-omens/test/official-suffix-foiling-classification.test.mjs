@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
@@ -9,6 +10,21 @@ import {
   classifyOfficialSuffixFoilingForTest
 } from "../src/official-suffix-foiling-classification.ts";
 import { reconcileOfficialUpstreamIdRecordsForTest } from "../src/official-upstream-id-reconciliation.ts";
+
+const snapshotMutation = (sourcePath, mutated, label) => {
+  let directory;
+  try {
+    directory = mkdtempSync(join(tmpdir(), `draft-table-${label}-`));
+    const sourceDirectory = new URL("./", sourcePath);
+    const isolated = mutated.replace(/from "(\.\/[^"\n]+)"/gu, (_match, specifier) => `from ${JSON.stringify(new URL(specifier, sourceDirectory).href)}`);
+    const path = join(directory, "module.ts");
+    writeFileSync(path, isolated);
+    return { directory, path };
+  } catch (error) {
+    if (directory !== undefined) rmSync(directory, { force: true, recursive: true });
+    throw error;
+  }
+};
 
 const forms = Object.freeze([
   Object.freeze({ officialPrintId: "OMN000", baseCollectorId: "OMN000", sourceSet: "OMN", suffixMarker: null }),
@@ -128,10 +144,9 @@ test("RF per-base guard mutation is caught by the named redistributed-row contra
     'if (false && (rows.length !== 2 || selected.length !== 1 || rows.filter((row) => row.foiling === "C").length !== 1)) fail();'
   );
   assert.notEqual(mutated, original, "RF per-base guard present");
-  const path = `${dirname(fileURLToPath(sourcePath))}/suffix-foiling-mutation-${process.pid}-rf-per-base.ts`;
-  writeFileSync(path, mutated);
+  const snapshot = snapshotMutation(sourcePath, mutated, "suffix-foiling-rf-per-base");
   try {
-    const childEnvironment = { ...process.env, [rfMutationModuleEnvironmentKey]: pathToFileURL(path).href };
+    const childEnvironment = { ...process.env, [rfMutationModuleEnvironmentKey]: pathToFileURL(snapshot.path).href };
     delete childEnvironment.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, [
       "--experimental-strip-types",
@@ -148,7 +163,7 @@ test("RF per-base guard mutation is caught by the named redistributed-row contra
     assert.equal(outputLines.filter((line) => line === `# ${rfStructuralContractMarker}`).length, 1, "exact RF focused-contract execution marker");
     assert.equal(outputLines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(rfStructuralContractName)).length, 1, "exact named RF focused-contract failure");
     assert.equal(outputLines.filter((line) => line.includes("Missing expected exception") && line.includes("RF_PER_BASE_GUARD_REJECTED_REDISTRIBUTED_ROWS")).length, 1, "exact RF focused-contract failure output");
-  } finally { rmSync(path, { force: true }); }
+  } finally { rmSync(snapshot.directory, { force: true, recursive: true }); }
 });
 
 test("semantic mutations prove every named classification guard owns its focused contract", () => {
@@ -170,11 +185,11 @@ test("semantic mutations prove every named classification guard owns its focused
     for (const [before, after] of replacements) {
       const next = mutated.replace(before, after); assert.notEqual(next, mutated, `${name}: guard present`); mutated = next;
     }
-    const path = `${dirname(fileURLToPath(sourcePath))}/suffix-foiling-mutation-${process.pid}-${name}.ts`; writeFileSync(path, mutated);
+    const snapshot = snapshotMutation(sourcePath, mutated, `suffix-foiling-${name}`);
     try {
-      const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(new URL("../src/official-upstream-id-reconciliation.ts", import.meta.url).href)}; import { classifyOfficialSuffixFoilingForTest as c } from ${JSON.stringify(new URL(`file://${path}`).href)}; const p=(id,u,f)=>({unique_id:u,set_printing_unique_id:id.slice(0,3)==='IAR'?'si':'so',id,set_id:id.slice(0,3),edition:'e',foiling:f,rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',art_variations:[]}); const f=[{officialPrintId:'OMN000',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:null},{officialPrintId:'OMN001-RF',baseCollectorId:'OMN001',sourceSet:'OMN',suffixMarker:'RF'},{officialPrintId:'OMN002-CF',baseCollectorId:'OMN002',sourceSet:'OMN',suffixMarker:'CF'},{officialPrintId:'IAR000-MV',baseCollectorId:'IAR000',sourceSet:'IAR',suffixMarker:'MV'},{officialPrintId:'IAR001-MV',baseCollectorId:'IAR001',sourceSet:'IAR',suffixMarker:'MV'}]; const x=[['a',[p('OMN000','u0','C'),p('OMN000','u0r','R')]],['b',[p('OMN001','u1c','C'),p('OMN001','u1r','R')]],['c',[p('OMN002','u2','C')]],['d',[p('IAR000','p-3-c-a','C'),p('IAR000','u3b','C')]],['e',[p('IAR001','u4','C')]]].map(([unique_id,printings])=>({unique_id,name:'n',printings})); ${mutate}; const q=r(f,x,{entries:5,omnEntries:3,iarEntries:2,omnPrintings:x.slice(0,3).flatMap(a=>a.printings).length,iarPrintings:x.slice(3).flatMap(a=>a.printings).length}); const e={unspecifiedEntries:1,unspecifiedCandidates:2,rfEntries:1,rfCandidates:2,rfSelected:1,cfEntries:1,cfCandidates:1,cfSelected:1,mvEntries:2,mvCandidates:3,mvSelected:3,mvOneRowEntries:1,mvTwoRowEntries:1,suffixEntries:4,suffixCandidates:6,selected:5,...${JSON.stringify(expectedOverrides)}}; c(q,e); console.log('MUTATION_ACCEPTED:${name}');`;
+      const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(new URL("../src/official-upstream-id-reconciliation.ts", import.meta.url).href)}; import { classifyOfficialSuffixFoilingForTest as c } from ${JSON.stringify(pathToFileURL(snapshot.path).href)}; const p=(id,u,f)=>({unique_id:u,set_printing_unique_id:id.slice(0,3)==='IAR'?'si':'so',id,set_id:id.slice(0,3),edition:'e',foiling:f,rarity:'r',expansion_slot:false,image_url:'https://x.invalid/a',art_variations:[]}); const f=[{officialPrintId:'OMN000',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:null},{officialPrintId:'OMN001-RF',baseCollectorId:'OMN001',sourceSet:'OMN',suffixMarker:'RF'},{officialPrintId:'OMN002-CF',baseCollectorId:'OMN002',sourceSet:'OMN',suffixMarker:'CF'},{officialPrintId:'IAR000-MV',baseCollectorId:'IAR000',sourceSet:'IAR',suffixMarker:'MV'},{officialPrintId:'IAR001-MV',baseCollectorId:'IAR001',sourceSet:'IAR',suffixMarker:'MV'}]; const x=[['a',[p('OMN000','u0','C'),p('OMN000','u0r','R')]],['b',[p('OMN001','u1c','C'),p('OMN001','u1r','R')]],['c',[p('OMN002','u2','C')]],['d',[p('IAR000','p-3-c-a','C'),p('IAR000','u3b','C')]],['e',[p('IAR001','u4','C')]]].map(([unique_id,printings])=>({unique_id,name:'n',printings})); ${mutate}; const q=r(f,x,{entries:5,omnEntries:3,iarEntries:2,omnPrintings:x.slice(0,3).flatMap(a=>a.printings).length,iarPrintings:x.slice(3).flatMap(a=>a.printings).length}); const e={unspecifiedEntries:1,unspecifiedCandidates:2,rfEntries:1,rfCandidates:2,rfSelected:1,cfEntries:1,cfCandidates:1,cfSelected:1,mvEntries:2,mvCandidates:3,mvSelected:3,mvOneRowEntries:1,mvTwoRowEntries:1,suffixEntries:4,suffixCandidates:6,selected:5,...${JSON.stringify(expectedOverrides)}}; c(q,e); console.log('MUTATION_ACCEPTED:${name}');`;
       const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", program], { encoding: "utf8" });
       assert.equal(result.status, 0, `${name}: intended mutation executed\n${result.stderr}`); assert.equal(result.stdout.trim(), `MUTATION_ACCEPTED:${name}`);
-    } finally { rmSync(path, { force: true }); }
+    } finally { rmSync(snapshot.directory, { force: true, recursive: true }); }
   }
 });

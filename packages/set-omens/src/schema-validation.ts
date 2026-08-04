@@ -31,6 +31,11 @@ import {
   projectCardVaultOfficialFaceMetadata as projectFaces,
   type OfficialCardVaultFaceProjection
 } from "./card-vault-face-projection.ts";
+import {
+  OfficialFacePrintingMultiplicityReconciliationError,
+  reconcileOfficialCardVaultFacePrintingMultiplicity as reconcileFacePrintingMultiplicity,
+  type OfficialFacePrintingMultiplicityReconciliation
+} from "./official-face-printing-multiplicity-reconciliation.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -38,10 +43,12 @@ export {
   OfficialUpstreamIdReconciliationError,
   OfficialSuffixFoilingClassificationError,
   CardVaultFaceProjectionError,
+  OfficialFacePrintingMultiplicityReconciliationError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
   type OfficialCardVaultFaceProjection,
+  type OfficialFacePrintingMultiplicityReconciliation,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -94,5 +101,18 @@ export const projectOfficialCardVaultFaceMetadata = (
   } catch (error) {
     if (error instanceof CardVaultFaceProjectionError) throw error;
     throw new CardVaultFaceProjectionError();
+  }
+};
+
+/** Build-time-only MV face-to-upstream-row multiplicity fact; it has no face or printing semantics. */
+export const reconcileOfficialCardVaultFacePrintingMultiplicity = (
+  faces: OfficialCardVaultFaceProjection,
+  reconciliation: OfficialUpstreamIdReconciliation
+): OfficialFacePrintingMultiplicityReconciliation => {
+  try {
+    return reconcileFacePrintingMultiplicity(faces, reconciliation);
+  } catch (error) {
+    if (error instanceof OfficialFacePrintingMultiplicityReconciliationError) throw error;
+    throw new OfficialFacePrintingMultiplicityReconciliationError();
   }
 };
