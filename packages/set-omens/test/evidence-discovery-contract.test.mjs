@@ -16,6 +16,7 @@ import {
 } from "./evidence-discovery.mjs";
 
 const syntheticFiles = [
+  "evidence-command-contract.test.mjs",
   "package-boundary.test.mjs",
   "public-source-checksum-gate.public-source-evidence.test.mjs",
   "topic-about-public-source.test.mjs",
@@ -64,6 +65,7 @@ test("discovery probe", () => writeFileSync(join(process.env.EVIDENCE_DISCOVERY_
 
 test("private evidence discovery excludes only explicitly gated tests", () => {
   assert.deepEqual(discoverEvidenceTests(syntheticFiles), [
+    "evidence-command-contract.test.mjs",
     "package-boundary.test.mjs",
     "topic-about-public-source.test.mjs",
     "synthetic-contract.test.mjs"
@@ -81,6 +83,7 @@ test("private evidence command runs topic-named ordinary contracts and excludes 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "private evidence acceptance passed\n");
   assert.deepEqual(selectedFiles, [
+    "evidence-command-contract.test.mjs",
     "package-boundary.test.mjs",
     "synthetic-contract.test.mjs",
     "topic-about-public-source.test.mjs"
