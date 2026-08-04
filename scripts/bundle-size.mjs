@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 const clientCeiling = 2048;
@@ -19,8 +19,16 @@ const clientFiles = (await listFiles(clientDirectory)).sort();
 const sizes = await Promise.all(clientFiles.map(async (path) => (await stat(path)).size));
 const total = sizes.reduce((sum, size) => sum + size, 0);
 
+const emittedContents = await Promise.all(clientFiles.map((path) => readFile(path, "utf8")));
+const forbiddenBuildTimeModules = /\bajv(?:-draft-04)?\b/i;
+
 console.log(`Client bundle: ${total} bytes (${clientFiles.join(", ")})`);
 console.log("Server bundle: 0 bytes (not yet emitted; boundary typechecked only)");
+
+if (emittedContents.some((content) => forbiddenBuildTimeModules.test(content))) {
+  console.error("Emitted client/server artifacts must not contain Ajv module identifiers.");
+  process.exitCode = 1;
+}
 
 if (total > clientCeiling) {
   console.error(`Client bundle exceeds ${clientCeiling}-byte ceiling.`);

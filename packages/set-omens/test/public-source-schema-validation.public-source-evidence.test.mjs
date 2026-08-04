@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  FabCardSourceSchemaValidationError,
-  validateFabEnglishCardDataAgainstSchema,
   validateVerifiedFabCardSourceDocuments,
   verifyFabCardSchemaBytes,
   verifyFabEnglishCardBytes
 } from "../src/index.ts";
+import {
+  FabCardSourceSchemaValidationError,
+  validateFabEnglishCardDataAgainstSchema
+} from "../src/schema-validation.ts";
 import {
   validateFabCardSchemaDocumentFromTrustedBytes,
   validateFabEnglishCardDocumentFromTrustedBytes

@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   FabCardSourceSchemaValidationError,
   validateFabEnglishCardDataAgainstSchema
-} from "../src/index.ts";
+} from "../src/schema-validation.ts";
 import {
   validateFabCardSchemaDocumentFromTrustedBytes,
   validateFabEnglishCardDocumentFromTrustedBytes
@@ -85,7 +85,7 @@ test("the public schema-validation entry point rejects unverified, forged, and s
   expectSafeSchemaError(() => validateFabEnglishCardDataAgainstSchema(cardSchema, card));
   expectSafeSchemaError(() => validateFabEnglishCardDataAgainstSchema(Object.freeze({}), Object.freeze({})));
 
-  const source = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../src/schema-validation.ts", import.meta.url), "utf8");
   const composed = source.slice(source.indexOf("export const validateFabEnglishCardDataAgainstSchema"));
   const cardGate = composed.indexOf("assertVerifiedValidatedFabEnglishCardDocument(card)");
   const schemaGate = composed.indexOf("assertVerifiedValidatedFabCardSchemaDocument(schema)");
