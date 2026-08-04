@@ -165,7 +165,12 @@ test("enforces published Layout outcome coefficients, slot shapes, and exact int
   })) });
   const wrongRfClassification = alteredSlots(0, (slots) => { slots.at(-1).pool = "RFRare"; });
   const wrongRarityShape = alteredSlots(0, (slots) => { slots[6] = { count: 1, pool: "Rare" }; });
-  const wrongCommonTotal = alteredSlots(0, (slots) => { slots[0].count = 2; });
+  const wrongCommonTotal = Object.freeze({ layouts: Object.freeze(fixture.layouts.map((layout, index) => {
+    if (index > 5) return layout;
+    const slots = structuredClone(layout.slots);
+    slots[0].count = 2;
+    return Object.freeze({ ...layout, slots: Object.freeze(slots.map(Object.freeze)) });
+  })) });
   const wrongEquipmentCount = alteredSlots(0, (slots) => { slots[5].count = 2; slots[0].count = 2; });
   const changedCommonStructure = alteredSlots(6, (slots) => { slots[0].count = 2; slots[1].count = 3; });
   const wrongTotal = replace(227, { weight: fixture.layouts[227].weight + 1 });
