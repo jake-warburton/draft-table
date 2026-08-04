@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
+import { discoverPublicSourceEvidenceTests } from "./evidence-discovery.mjs";
 
 const cardPath = process.env.FAB_CARD_SOURCE_EVIDENCE_PATH;
 const schemaPath = process.env.FAB_CARD_SCHEMA_EVIDENCE_PATH;
@@ -17,8 +18,7 @@ try {
   process.exit(1);
 }
 
-const testFiles = readdirSync("test")
-  .filter((file) => file.endsWith(".public-source.test.mjs"))
+const testFiles = discoverPublicSourceEvidenceTests(readdirSync("test"))
   .map((file) => `test/${file}`);
 
 if (testFiles.length === 0) {
