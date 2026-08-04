@@ -122,6 +122,7 @@ test("the public schema-validation entry point rejects unverified, forged, and s
   const implementation = readFileSync(new URL("../src/public-source-schema-validation.ts", import.meta.url), "utf8");
   assert.match(implementation, /\$schema[^\n]*!== DRAFT_04/);
   assert.match(implementation, /key === "\$ref" && \(typeof child !== "string" \|\| !child\.startsWith\("#"\)\)/);
+  assert.match(implementation, /\|\| hasRemoteReference\(schema\)/);
   assert.match(implementation, /allErrors: false/);
   assert.doesNotMatch(implementation, /compileAsync|loadSchema/);
 });
