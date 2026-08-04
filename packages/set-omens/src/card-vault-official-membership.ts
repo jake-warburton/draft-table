@@ -212,8 +212,8 @@ export const validateCardVaultOmensOfficialMembershipBytes = (bytes: Uint8Array)
 /** Package-internal reconciliation seam; always returns an independent canonical-order copy. */
 export const readOfficialCardVaultMembershipPrintIdsForReconciliation = (
   membership: OfficialCardVaultMembership
-): string[] => {
+): readonly string[] => {
   const ids = idsByMembership.get(membership);
   if (ids === undefined) throw new CardVaultOfficialMembershipError();
-  return [...ids];
+  return Object.freeze([...ids]);
 };

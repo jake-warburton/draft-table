@@ -84,7 +84,7 @@ export const classifyOfficialCardVaultSuffixFoiling = (
   reconciliation: OfficialUpstreamIdReconciliation
 ): OfficialSuffixFoilingClassification => classifySuffixFoiling(reconciliation);
 
-/** Build-time-only exact source-order face-position and image-rendition projection. */
+/** Build-time-only canonical-membership-order projection retaining source-order face positions and exact image-rendition text. */
 export const projectOfficialCardVaultFaceMetadata = (
   membership: OfficialCardVaultMembership,
   responseBytes: Uint8Array
