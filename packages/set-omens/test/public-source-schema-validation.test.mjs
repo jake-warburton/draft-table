@@ -58,6 +58,31 @@ test("the internal Draft-04 seam validates complete fictional card arrays and re
   assert.equal(readSchemaValidatedFabEnglishCardDataForParser(data)[0].tags[0], "A");
 });
 
+test("the internal Draft-04 seam requires the exact dialect URI", () => {
+  const cardData = [{ value: "allowed" }];
+  for (const dialect of [undefined, "http://json-schema.org/draft-03/schema#", "https://json-schema.org/draft/2020-12/schema", 4,
+    "http://json-schema.org/DRAFT-04/schema#", "http://json-schema.org/draft-04/schema"])
+    expectSafeSchemaError(() => validateFabCardDataDocumentsForSchema(cards(cardData), schema({ $schema: dialect, type: "array", items: { type: "object" } })));
+});
+
+test("local Draft-04 fragment refs work, while every nested non-local or non-string ref is blocked", () => {
+  const local = {
+    $schema: "http://json-schema.org/draft-04/schema#", type: "array", items: { $ref: "#/definitions/card" },
+    definitions: { card: { type: "object", properties: { value: { type: "string" } }, required: ["value"], additionalProperties: false } }
+  };
+  const capability = validateFabCardDataDocumentsForSchema(cards([{ value: "allowed" }]), schema(local));
+  assert.deepEqual(readSchemaValidatedFabEnglishCardDataForParser(capability), [{ value: "allowed" }]);
+
+  const refValues = ["https://example.invalid/schema", "http://example.invalid/schema", "schemas/card.json", "//example.invalid/schema", 7];
+  for (const ref of refValues) {
+    const nested = {
+      $schema: "http://json-schema.org/draft-04/schema#", type: "array", items: { type: "object", properties: { nested: { type: "array", items: { $ref: "#/definitions/card" } } } },
+      definitions: { card: { type: "object", properties: { value: { type: "string" }, deeper: { type: "object", properties: { ref: { $ref: ref } } } } } }
+    };
+    expectSafeSchemaError(() => validateFabCardDataDocumentsForSchema(cards([{ nested: [] }]), schema(nested)));
+  }
+});
+
 test("the internal Draft-04 seam safely rejects complete-array and schema violations", () => {
   const valid = draft4({ value: { type: "string", enum: ["allowed"] } });
   for (const [cardData, schemaData] of [
@@ -95,6 +120,9 @@ test("the public schema-validation entry point rejects unverified, forged, and s
   const assertions = documentImplementation.slice(documentImplementation.indexOf("export const assertVerifiedValidatedFabEnglishCardDocument"));
   assert.doesNotMatch(assertions, /new Uint8Array/);
   const implementation = readFileSync(new URL("../src/public-source-schema-validation.ts", import.meta.url), "utf8");
+  assert.match(implementation, /\$schema[^\n]*!== DRAFT_04/);
+  assert.match(implementation, /key === "\$ref" && \(typeof child !== "string" \|\| !child\.startsWith\("#"\)\)/);
+  assert.match(implementation, /\|\| hasRemoteReference\(schema\)/);
   assert.match(implementation, /allErrors: false/);
   assert.doesNotMatch(implementation, /compileAsync|loadSchema/);
 });
