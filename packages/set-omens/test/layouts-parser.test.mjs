@@ -9,6 +9,7 @@ import {
 } from "../src/index.ts";
 import {
   parseOmensLayoutsFromTrustedBytes,
+  validateOmensRecipeDerivedTotals,
   validateOmensRecipeLayoutsAggregate
 } from "../src/layouts.ts";
 
@@ -31,17 +32,41 @@ const source = (layouts, pools = "uninterpreted pool body") => Buffer.from(
   "utf8"
 );
 const validLayouts = "\t- Fictional Layout (7)\r\n\t\t2 Fictional Alpha Pool\r\n\t\t12 Fictional Beta Pool";
-const aggregateFixture = () => {
-  const coefficients = [1, 2, 3, 4, 5, 9];
-  const layouts = Array.from({ length: 38 }, (_, group) => {
-    const multiplier = group === 37 ? 19163 : 1;
-    return coefficients.map((coefficient, outcome) => Object.freeze({
-      id: `Synthetic ${group}-${outcome}`,
-      weight: coefficient * multiplier,
-      slots: Object.freeze([])
-    }));
-  }).flat();
-  return Object.freeze({ layouts: Object.freeze(layouts) });
+const outcomes = [
+  ["Rare", "Rfcommon", 1411], ["Rare", "RFRare", 255], ["Rare", "RFMajestic", 34],
+  ["Majestic", "Rfcommon", 581], ["Majestic", "RFRare", 105], ["Majestic", "RFMajestic", 14]
+];
+const commonSlots = () => [
+  { count: 3, pool: "Wizard" }, { count: 2, pool: "Illusionist" }, { count: 2, pool: "Runeblade" },
+  { count: 1, pool: "Lightning" }, { count: 2, pool: "Generic" }, { count: 1, pool: "Equipment" }
+];
+const slotsFor = ([second, rainbow]) => Object.freeze([
+  ...commonSlots(),
+  ...(second === "Rare" ? [{ count: 2, pool: "Rare" }] : [{ count: 1, pool: "Rare" }, { count: 1, pool: "Majestic" }]),
+  { count: 1, pool: rainbow }
+].map(Object.freeze));
+const aggregateFixture = () => Object.freeze({ layouts: Object.freeze(
+  Array.from({ length: 38 }, (_, group) => outcomes.map(([second, rainbow, coefficient], outcome) => Object.freeze({
+    id: `Synthetic ${group}-${outcome}`,
+    weight: coefficient * (group === 37 ? 155 : 1),
+    slots: slotsFor([second, rainbow])
+  }))).flat()
+) });
+
+const assertExactFraction = (part, whole, numerator, denominator) => {
+  const gcd = (left, right) => {
+    let a = BigInt(left);
+    let b = BigInt(right);
+    while (b !== 0n) [a, b] = [b, a % b];
+    return a;
+  };
+  const actualDivisor = gcd(part, whole);
+  const expectedDivisor = gcd(numerator, denominator);
+  assert.equal(BigInt(part) * BigInt(denominator), BigInt(whole) * BigInt(numerator));
+  assert.deepEqual(
+    [BigInt(part) / actualDivisor, BigInt(whole) / actualDivisor],
+    [BigInt(numerator) / expectedDivisor, BigInt(denominator) / expectedDivisor]
+  );
 };
 
 const expectLayoutsError = (bytes) => {
@@ -128,32 +153,61 @@ test("requires the directly represented fourteen-visible-card structural total f
   expectLayoutsError(source("\t- Fictional Layout (7)\r\n\t\t14 Fictional Alpha Pool\r\n\t\t1 Fictional Beta Pool"));
 });
 
-test("rejects deliberate pinned Layouts aggregate breaks", () => {
+test("enforces published Layout outcome coefficients, slot shapes, and exact integer derived totals", () => {
   const fixture = aggregateFixture();
   assert.equal(validateOmensRecipeLayoutsAggregate(fixture), fixture);
-
-  const withWeights = (weights) => Object.freeze({
-    layouts: Object.freeze(fixture.layouts.map((layout, index) => Object.freeze({
-      ...layout,
-      weight: weights[index]
-    })))
-  });
-  const wrongTotal = fixture.layouts.map((layout) => layout.weight);
-  wrongTotal[wrongTotal.length - 1] += 1;
-  const overflow = fixture.layouts.map((layout) => layout.weight);
-  overflow[0] = Number.MAX_SAFE_INTEGER;
-  const wrongCoefficients = fixture.layouts.map((layout) => layout.weight);
-  wrongCoefficients[0] = 2;
-  wrongCoefficients[2] = 2;
+  const derived = { secondRare: 326400, secondMajestic: 134400, rfcommon: 382464, rfrare: 69120, rfmajestic: 9216 };
+  assert.equal(validateOmensRecipeDerivedTotals(derived), undefined);
+  assertExactFraction(derived.secondRare, 460800, 17, 24);
+  assertExactFraction(derived.secondMajestic, 460800, 7, 24);
+  assertExactFraction(derived.rfcommon, 460800, 83, 100);
+  assertExactFraction(derived.rfrare, 460800, 15, 100);
+  assertExactFraction(derived.rfmajestic, 460800, 2, 100);
+  for (const key of Object.keys(derived)) assert.throws(
+    () => validateOmensRecipeDerivedTotals({ ...derived, [key]: derived[key] + 1 }),
+    OmensRecipeLayoutsError
+  );
+  const replace = (index, change) => Object.freeze({ layouts: Object.freeze(fixture.layouts.map((layout, current) =>
+    current === index ? Object.freeze({ ...layout, ...change }) : layout
+  )) });
+  const alteredSlots = (index, mutate) => {
+    const slots = structuredClone(fixture.layouts[index].slots);
+    mutate(slots);
+    return replace(index, { slots: Object.freeze(slots.map(Object.freeze)) });
+  };
+  const wrongCoefficient = Object.freeze({ layouts: Object.freeze(fixture.layouts.map((layout, index) =>
+    [0, 1, 3, 4].includes(index) ? Object.freeze({ ...layout, weight: layout.weight + ([1, -1, -1, 1][[0, 1, 3, 4].indexOf(index)]) }) : layout
+  )) });
+  const duplicateOutcome = Object.freeze({ layouts: Object.freeze(fixture.layouts.map((layout, index) => {
+    if (index !== 1 && index !== 6) return layout;
+    const slots = structuredClone(layout.slots);
+    slots.at(-1).pool = index === 1 ? "Rfcommon" : "RFRare";
+    return Object.freeze({ ...layout, weight: index === 1 ? 1411 : 255, slots: Object.freeze(slots.map(Object.freeze)) });
+  })) });
+  const wrongRfClassification = alteredSlots(0, (slots) => { slots.at(-1).pool = "RFRare"; });
+  const wrongRarityShape = alteredSlots(0, (slots) => { slots[6] = { count: 1, pool: "Rare" }; });
+  const wrongCommonTotal = Object.freeze({ layouts: Object.freeze(fixture.layouts.map((layout, index) => {
+    if (index > 5) return layout;
+    const slots = structuredClone(layout.slots);
+    slots[0].count = 2;
+    return Object.freeze({ ...layout, slots: Object.freeze(slots.map(Object.freeze)) });
+  })) });
+  const wrongEquipmentCount = Object.freeze({ layouts: Object.freeze(fixture.layouts.map((layout, index) => {
+    if (index < 6) return layout;
+    const slots = structuredClone(layout.slots);
+    slots[5].count = 2;
+    slots[0].count = 2;
+    return Object.freeze({ ...layout, slots: Object.freeze(slots.map(Object.freeze)) });
+  })) });
+  const changedCommonStructure = alteredSlots(6, (slots) => { slots[0].count = 2; slots[1].count = 3; });
+  const wrongTotal = replace(227, { weight: fixture.layouts[227].weight + 1 });
+  const overflow = replace(0, { weight: Number.MAX_SAFE_INTEGER });
 
   for (const invalid of [
-    Object.freeze({ layouts: Object.freeze(fixture.layouts.slice(1)) }),
-    withWeights(wrongTotal),
-    withWeights(overflow),
-    withWeights(wrongCoefficients)
-  ]) {
-    assert.throws(() => validateOmensRecipeLayoutsAggregate(invalid), OmensRecipeLayoutsError);
-  }
+    Object.freeze({ layouts: Object.freeze(fixture.layouts.slice(1)) }), wrongCoefficient, duplicateOutcome,
+    wrongRfClassification, wrongRarityShape, wrongCommonTotal, wrongEquipmentCount, changedCommonStructure,
+    wrongTotal, overflow
+  ]) assert.throws(() => validateOmensRecipeLayoutsAggregate(invalid), OmensRecipeLayoutsError);
 });
 
 test("validates the Settings and CustomCards boundaries while leaving following pool bodies uninterpreted", () => {
