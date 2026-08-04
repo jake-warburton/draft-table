@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -25,6 +25,21 @@ const runConsumer = (source) => {
   }
 };
 
+const runIsolatedPackageConsumer = (source) => {
+  const directory = mkdtempSync(join(tmpdir(), "draft-table-omens-isolated-package-"));
+  cpSync(packageDirectory, directory, { recursive: true });
+  writeFileSync(join(directory, "consumer.mjs"), source);
+
+  try {
+    return spawnSync(process.execPath, ["--experimental-strip-types", "consumer.mjs"], {
+      cwd: directory,
+      encoding: "utf8"
+    });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+};
+
 const expectPackageBoundary = (source) => {
   const result = runConsumer(source);
 
@@ -32,11 +47,19 @@ const expectPackageBoundary = (source) => {
   assert.match(result.stderr, /ERR_PACKAGE_PATH_NOT_EXPORTED/);
 };
 
-test("external consumers can import the supported Omens package root", () => {
-  const result = runConsumer('import { parseVerifiedOmensCustomCards, parseVerifiedOmensLayouts, parseVerifiedOmensPools, parseVerifiedOmensSettings, validateFabEnglishCardDataAgainstSchema, validateVerifiedFabCardSchemaDocument, validateVerifiedFabEnglishCardDocument, verifyFabCardSchemaBytes, verifyFabEnglishCardBytes, verifyOmensRecipeBytes } from "@draft-table/set-omens";\nconsole.log(typeof parseVerifiedOmensCustomCards, typeof parseVerifiedOmensLayouts, typeof parseVerifiedOmensPools, typeof parseVerifiedOmensSettings, typeof validateFabEnglishCardDataAgainstSchema, typeof validateVerifiedFabCardSchemaDocument, typeof validateVerifiedFabEnglishCardDocument, typeof verifyFabCardSchemaBytes, typeof verifyFabEnglishCardBytes, typeof verifyOmensRecipeBytes);');
+test("external consumers can import the supported Omens package root without build-time dependencies", () => {
+  const source = 'import { parseVerifiedOmensCustomCards, parseVerifiedOmensLayouts, parseVerifiedOmensPools, parseVerifiedOmensSettings, validateVerifiedFabCardSchemaDocument, validateVerifiedFabEnglishCardDocument, verifyFabCardSchemaBytes, verifyFabEnglishCardBytes, verifyOmensRecipeBytes } from "@draft-table/set-omens";\nconsole.log(typeof parseVerifiedOmensCustomCards, typeof parseVerifiedOmensLayouts, typeof parseVerifiedOmensPools, typeof parseVerifiedOmensSettings, typeof validateVerifiedFabCardSchemaDocument, typeof validateVerifiedFabEnglishCardDocument, typeof verifyFabCardSchemaBytes, typeof verifyFabEnglishCardBytes, typeof verifyOmensRecipeBytes);';
+  const result = runIsolatedPackageConsumer(source);
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "function function function function function function function function function function");
+  assert.equal(result.stdout.trim(), "function function function function function function function function function");
+});
+
+test("external build-time consumers can import only the schema-validation subpath when dependencies are installed", () => {
+  const result = runConsumer('import { FabCardSourceSchemaValidationError, validateFabEnglishCardDataAgainstSchema } from "@draft-table/set-omens/schema-validation";\nconsole.log(typeof FabCardSourceSchemaValidationError, typeof validateFabEnglishCardDataAgainstSchema);');
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "function function");
 });
 
 test("external consumers cannot import Omens internal source modules or the raw parser", () => {
@@ -55,6 +78,7 @@ test("external consumers cannot import Omens internal source modules or the raw 
   expectPackageBoundary('import "@draft-table/set-omens/src/public-source-document.ts";');
   expectPackageBoundary('import { readValidatedFabEnglishCardBytesForParser } from "@draft-table/set-omens/src/public-source-document.ts";');
   expectPackageBoundary('import "@draft-table/set-omens/src/public-source-schema-validation.ts";');
+  expectPackageBoundary('import "@draft-table/set-omens/schema-validation/public-source-schema-validation.ts";');
   expectPackageBoundary('import { readSchemaValidatedFabEnglishCardDataForParser } from "@draft-table/set-omens/src/public-source-schema-validation.ts";');
   expectPackageBoundary('import { parseOmensPoolsFromTrustedBytes } from "@draft-table/set-omens/src/pools.ts";');
 });

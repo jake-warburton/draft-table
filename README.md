@@ -31,7 +31,7 @@ FAB_CARD_SCHEMA_EVIDENCE_PATH=<path-to-card-schema.json> \
 npm --silent --workspace @draft-table/set-omens run test:public-source-evidence
 ```
 
-Neither evidence command commits or configures its input files.
+Neither evidence command commits or configures its input files. Draft-04 validation is explicit build-time tooling: import `@draft-table/set-omens/schema-validation` for it. That subpath requires the package-local Ajv development dependencies and may fail when they are unavailable; the normal `@draft-table/set-omens` root does not load them.
 
 Pull requests and pushes to `main` install with `npm ci` and run every quality command listed above. `npm run size` enforces a 2,048-byte total emitted-client ceiling; the server boundary is not emitted yet and reports as zero bytes.
 
