@@ -1,6 +1,6 @@
 # Accepted decisions, external unknowns, and risks
 
-External citation IDs resolve in the [research source register](research.md#source-register). The captain accepted the contracts below on 2026-08-03 and subsequently authorized Gate 0 and the walking-skeleton implementation slice. That authorization permits the isolated build-time public-card OMN source projection, dated raw-checksum verification of one caller-held observed Card Vault response, and strict derivation of its canonical official membership fact. It does not extend to source reconciliation, treatment/image/slot classification, recipe reconciliation, or generated snapshots.
+External citation IDs resolve in the [research source register](research.md#source-register). The captain accepted the contracts below on 2026-08-03 and subsequently authorized Gate 0 and the walking-skeleton implementation slice. That authorization permits the isolated build-time public-card OMN source projection, dated raw-checksum verification of one caller-held observed Card Vault response, strict derivation of its canonical official membership fact, and narrowly scoped identity/base reconciliation with the pinned public card source. It does not extend to name or suffix/treatment/image/slot semantics, recipe reconciliation, or generated snapshots.
 
 ## Accepted planning contracts
 

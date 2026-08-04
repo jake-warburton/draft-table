@@ -17,6 +17,7 @@ import { readOfficialCardVaultMembershipPrintIdsForReconciliation } from "../src
 import { readOfficialCardVaultPrintIdForms } from "../src/card-vault-print-id-forms.ts";
 import {
   projectSchemaValidatedFabEnglishCardDataForOmn,
+  reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData,
   validateFabEnglishCardDataAgainstSchema
 } from "../src/schema-validation.ts";
 
@@ -77,6 +78,35 @@ test("the observed official response derives only the published canonical member
   assert.doesNotThrow(() => validateCardVaultOmensOfficialMembership(Buffer.from(JSON.stringify(cosmetic, null, 1))));
   cosmetic.cards[0].print_id = "OMN999";
   assert.throws(() => validateCardVaultOmensOfficialMembership(Buffer.from(JSON.stringify(cosmetic))));
+});
+
+test("the three checksum-verified public sources reconcile all official bases with published aggregates", {
+  skip: !available || !schemaPath ? "public source acceptance did not run; set all three evidence paths or use npm run test:public-source-evidence" : false
+}, () => {
+  const membership = validateCardVaultOmensOfficialMembership(readFileSync(responsePath));
+  const documents = validateVerifiedFabCardSourceDocuments(
+    verifyFabEnglishCardBytes(readFileSync(cardPath)), verifyFabCardSchemaBytes(readFileSync(schemaPath))
+  );
+  const records = reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData(
+    membership, validateFabEnglishCardDataAgainstSchema(documents.card, documents.schema)
+  );
+  const omn = records.filter((record) => record.sourceSetMarker === "OMN");
+  const iar = records.filter((record) => record.sourceSetMarker === "IAR");
+  const rows = records.flatMap((record) => record.printings);
+  assert.equal(records.length, 260); assert.equal(new Set(records.map((record) => record.unique_id)).size, 260);
+  assert.equal(new Set(records.map((record) => record.baseCollectorId)).size, 260);
+  assert.equal(omn.length, 251); assert.equal(omn.flatMap((record) => record.printings).length, 482);
+  assert.equal(new Set(omn.map((record) => record.baseCollectorId)).size, 251);
+  assert.equal(new Set(omn.flatMap((record) => record.printings.map((printing) => printing.unique_id))).size, 482);
+  assert.equal(iar.length, 9); assert.equal(iar.flatMap((record) => record.printings).length, 11);
+  assert.equal(new Set(iar.map((record) => record.baseCollectorId)).size, 9);
+  assert.equal(new Set(iar.flatMap((record) => record.printings.map((printing) => printing.unique_id))).size, 11);
+  assert.equal(rows.length, 493); assert.equal(new Set(rows.map((printing) => printing.unique_id)).size, 493);
+  assert.equal(new Set(omn.flatMap((record) => record.printings.map((printing) => printing.set_printing_unique_id))).size, 1);
+  assert.equal(new Set(iar.flatMap((record) => record.printings.map((printing) => printing.set_printing_unique_id))).size, 1);
+  assert.notEqual(omn[0].printings[0].set_printing_unique_id, iar[0].printings[0].set_printing_unique_id);
+  assert.equal(records.filter((record) => record.suffixMarker === null).length, 242);
+  assert.equal(records.filter((record) => record.suffixMarker !== null).length, 18);
 });
 
 test("the nine canonical IAR IDs are absent from the exact OMN source projection", {
