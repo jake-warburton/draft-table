@@ -201,11 +201,16 @@ const stableMutationSnapshotModules = Object.freeze([
   "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "custom-cards.ts", "descriptor.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
 ]);
 
-const snapshotStableMutationModules = (sourceDirectory) => {
-  const directory = mkdtempSync(join(tmpdir(), "draft-table-upstream-printing-copy-mutation-"));
-  for (const file of stableMutationSnapshotModules) copyFileSync(`${sourceDirectory}/${file}`, `${directory}/${file}`);
-  symlinkSync(join(sourceDirectory, "../../../node_modules"), join(directory, "node_modules"), "dir");
-  return directory;
+const withStableMutationSnapshot = (sourceDirectory, action, copyModule = copyFileSync) => {
+  let directory;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-upstream-printing-copy-mutation-"));
+    for (const file of stableMutationSnapshotModules) copyModule(`${sourceDirectory}/${file}`, `${directory}/${file}`);
+    symlinkSync(join(sourceDirectory, "../../../node_modules"), join(directory, "node_modules"), "dir");
+    return action(directory);
+  } finally {
+    if (directory !== undefined) rmSync(directory, { force: true, recursive: true });
+  }
 };
 
 const artVariationCopyContractName = "art-variation defensive-copy owner prevents aliasing across reconciliation and classification boundaries";
@@ -261,10 +266,11 @@ test("art-variation copy-owner mutation is caught by the named independence cont
   const original = readFileSync(sourcePath, "utf8");
   const mutated = original.replace("art_variations: Object.freeze([...printing.art_variations])", "art_variations: (Object.freeze([...printing.art_variations]), Object.freeze(printing.art_variations))");
   assert.notEqual(mutated, original, "actual common copy owner present");
-  const mutationDirectory = snapshotStableMutationModules(fileURLToPath(sourceDirectory));
-  writeFileSync(join(mutationDirectory, "official-upstream-printing-copy.ts"), mutated);
-  try {
-    const modulePath = pathToFileURL(`${mutationDirectory}/official-suffix-foiling-classification.ts`).href;
+  let mutationDirectory;
+  withStableMutationSnapshot(fileURLToPath(sourceDirectory), (directory) => {
+    mutationDirectory = directory;
+    writeFileSync(join(directory, "official-upstream-printing-copy.ts"), mutated);
+    const modulePath = pathToFileURL(`${directory}/official-suffix-foiling-classification.ts`).href;
     const environment = { ...process.env, [artVariationCopyMutationModuleEnvironmentKey]: modulePath }; delete environment.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${artVariationCopyContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
     const lines = result.stdout.split(/\r?\n/);
@@ -272,18 +278,28 @@ test("art-variation copy-owner mutation is caught by the named independence cont
     assert.equal(lines.filter((line) => line === `# ${artVariationCopyContractMarker}`).length, 1, "exact copy marker");
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(artVariationCopyContractName)).length, 1, "exact named copy failure");
     assert.equal(lines.filter((line) => line.includes("reconciliation-to-candidate array copy")).length, 1, "exact copy independence failure line");
-  } finally { rmSync(mutationDirectory, { force: true, recursive: true }); }
+  });
+  assert.equal(existsSync(mutationDirectory), false, "mutation snapshot cleanup");
 });
 
 test("copy-owner mutation snapshot uses only stable modules and always cleans its OS-temporary workspace", () => {
   const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
-  const snapshot = snapshotStableMutationModules(sourceDirectory);
-  try {
-    assert.deepEqual(readdirSync(snapshot).filter((entry) => entry !== "node_modules").sort(), [...stableMutationSnapshotModules].sort(), "exact stable source allowlist");
-    assert.ok(lstatSync(join(snapshot, "node_modules")).isSymbolicLink(), "dependency resolution is not source snapshotting");
-    assert.ok(snapshot.startsWith(tmpdir()), "OS-temporary snapshot");
-  } finally { rmSync(snapshot, { force: true, recursive: true }); }
+  let snapshot;
+  withStableMutationSnapshot(sourceDirectory, (directory) => {
+    snapshot = directory;
+    assert.deepEqual(readdirSync(directory).filter((entry) => entry !== "node_modules").sort(), [...stableMutationSnapshotModules].sort(), "exact stable source allowlist");
+    assert.ok(lstatSync(join(directory, "node_modules")).isSymbolicLink(), "dependency resolution is not source snapshotting");
+    assert.ok(directory.startsWith(tmpdir()), "OS-temporary snapshot");
+  });
   assert.equal(existsSync(snapshot), false, "snapshot cleanup");
+
+  const setupFailure = new Error("deterministic snapshot setup failure");
+  let failedSnapshot;
+  assert.throws(() => withStableMutationSnapshot(sourceDirectory, () => assert.fail("setup failure reached action"), (_source, destination) => {
+    failedSnapshot = dirname(destination);
+    throw setupFailure;
+  }), setupFailure);
+  assert.equal(existsSync(failedSnapshot), false, "failed snapshot setup cleanup");
 });
 
 test("forged capabilities cannot enter the public schema-validation boundary", async () => {
