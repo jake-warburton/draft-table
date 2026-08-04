@@ -5,7 +5,8 @@ import { discoverPublicSourceEvidenceTests } from "./evidence-discovery.mjs";
 
 const PUBLIC_EVIDENCE_VARIABLES = [
   "FAB_CARD_SOURCE_EVIDENCE_PATH",
-  "FAB_CARD_SCHEMA_EVIDENCE_PATH"
+  "FAB_CARD_SCHEMA_EVIDENCE_PATH",
+  "FAB_CARD_VAULT_EVIDENCE_PATH"
 ];
 const TEST_TIMEOUT_MS = 10_000;
 

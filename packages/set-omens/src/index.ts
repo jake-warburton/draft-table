@@ -28,6 +28,11 @@ import {
 
 export { OmensRecipeChecksumError } from "./checksum.ts";
 export { OMENS_RECIPE } from "./descriptor.ts";
+export { CARD_VAULT_OMENS_PRODUCT_RESPONSE } from "./card-vault-product-descriptor.ts";
+export {
+  CardVaultOmensProductChecksumError,
+  type VerifiedCardVaultOmensProductResponse
+} from "./card-vault-product-checksum.ts";
 export { FAB_CARD_SOURCE } from "./public-source-descriptor.ts";
 export {
   FabCardSourceChecksumError,
@@ -39,6 +44,10 @@ export {
   type ValidatedFabCardSchemaDocument,
   type ValidatedFabEnglishCardDocument
 } from "./public-source-document.ts";
+import {
+  verifyCardVaultOmensProductResponseBytes,
+  type VerifiedCardVaultOmensProductResponse
+} from "./card-vault-product-checksum.ts";
 import {
   verifyPinnedFabCardSchemaBytes,
   verifyPinnedFabEnglishCardBytes,
@@ -89,6 +98,10 @@ const source = <Source extends object>(sourceArtifact: "FAB_CARD_JSON" | "FAB_CA
 const requireVerifiedPublicSource = (candidate: object, artifact: "FAB_CARD_JSON" | "FAB_CARD_SCHEMA_JSON"): void => {
   if (verifiedPublicSources.get(candidate) !== artifact) throw new TypeError("Invalid public card source verification.");
 };
+
+export const verifyCardVaultOmensProductBytes = (
+  bytes: Uint8Array
+): VerifiedCardVaultOmensProductResponse => verifyCardVaultOmensProductResponseBytes(bytes);
 
 export const verifyFabEnglishCardBytes = (bytes: Uint8Array): VerifiedFabEnglishCardSource =>
   source("FAB_CARD_JSON", Object.freeze({

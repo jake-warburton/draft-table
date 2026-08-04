@@ -4,15 +4,17 @@ import { discoverPublicSourceEvidenceTests } from "./evidence-discovery.mjs";
 
 const cardPath = process.env.FAB_CARD_SOURCE_EVIDENCE_PATH;
 const schemaPath = process.env.FAB_CARD_SCHEMA_EVIDENCE_PATH;
+const cardVaultPath = process.env.FAB_CARD_VAULT_EVIDENCE_PATH;
 
-if (!cardPath || !schemaPath) {
-  console.error("FAB_CARD_SOURCE_EVIDENCE_PATH and FAB_CARD_SCHEMA_EVIDENCE_PATH are required for public source acceptance.");
+if (!cardPath || !schemaPath || !cardVaultPath) {
+  console.error("FAB_CARD_SOURCE_EVIDENCE_PATH, FAB_CARD_SCHEMA_EVIDENCE_PATH, and FAB_CARD_VAULT_EVIDENCE_PATH are required for public source acceptance.");
   process.exit(1);
 }
 
 try {
   readFileSync(cardPath);
   readFileSync(schemaPath);
+  readFileSync(cardVaultPath);
 } catch {
   console.error("Public source evidence paths must identify readable files.");
   process.exit(1);

@@ -48,11 +48,11 @@ const expectPackageBoundary = (source) => {
 };
 
 test("external consumers can import the supported Omens package root without build-time dependencies", () => {
-  const source = 'import { parseVerifiedOmensCustomCards, parseVerifiedOmensLayouts, parseVerifiedOmensPools, parseVerifiedOmensSettings, validateVerifiedFabCardSchemaDocument, validateVerifiedFabEnglishCardDocument, verifyFabCardSchemaBytes, verifyFabEnglishCardBytes, verifyOmensRecipeBytes } from "@draft-table/set-omens";\nconsole.log(typeof parseVerifiedOmensCustomCards, typeof parseVerifiedOmensLayouts, typeof parseVerifiedOmensPools, typeof parseVerifiedOmensSettings, typeof validateVerifiedFabCardSchemaDocument, typeof validateVerifiedFabEnglishCardDocument, typeof verifyFabCardSchemaBytes, typeof verifyFabEnglishCardBytes, typeof verifyOmensRecipeBytes);';
+  const source = 'import { parseVerifiedOmensCustomCards, parseVerifiedOmensLayouts, parseVerifiedOmensPools, parseVerifiedOmensSettings, validateVerifiedFabCardSchemaDocument, validateVerifiedFabEnglishCardDocument, verifyCardVaultOmensProductBytes, verifyFabCardSchemaBytes, verifyFabEnglishCardBytes, verifyOmensRecipeBytes } from "@draft-table/set-omens";\nconsole.log(typeof parseVerifiedOmensCustomCards, typeof parseVerifiedOmensLayouts, typeof parseVerifiedOmensPools, typeof parseVerifiedOmensSettings, typeof validateVerifiedFabCardSchemaDocument, typeof validateVerifiedFabEnglishCardDocument, typeof verifyCardVaultOmensProductBytes, typeof verifyFabCardSchemaBytes, typeof verifyFabEnglishCardBytes, typeof verifyOmensRecipeBytes);';
   const result = runIsolatedPackageConsumer(source);
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "function function function function function function function function function");
+  assert.equal(result.stdout.trim(), "function function function function function function function function function function");
 });
 
 test("external build-time consumers can import only the schema-validation subpath when dependencies are installed", () => {
@@ -71,6 +71,9 @@ test("external consumers cannot import Omens internal source modules or the raw 
   expectPackageBoundary('import { parseOmensSettingsFromTrustedBytes } from "@draft-table/set-omens/src/settings.ts";');
   expectPackageBoundary('import "@draft-table/set-omens/src/checksum.ts";');
   expectPackageBoundary('import "@draft-table/set-omens/src/pools.ts";');
+  expectPackageBoundary('import "@draft-table/set-omens/src/card-vault-product-checksum.ts";');
+  expectPackageBoundary('import { readVerifiedCardVaultOmensProductResponseBytesForParser } from "@draft-table/set-omens/src/card-vault-product-checksum.ts";');
+  expectPackageBoundary('import "@draft-table/set-omens/src/card-vault-product-descriptor.ts";');
   expectPackageBoundary('import "@draft-table/set-omens/src/public-source-checksum.ts";');
   expectPackageBoundary('import { readVerifiedFabEnglishCardBytesForParser } from "@draft-table/set-omens/src/public-source-checksum.ts";');
   expectPackageBoundary('import { readVerifiedFabCardSchemaBytesForParser } from "@draft-table/set-omens/src/public-source-checksum.ts";');
