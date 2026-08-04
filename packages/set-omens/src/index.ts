@@ -39,6 +39,10 @@ export {
   type ValidatedFabCardSchemaDocument,
   type ValidatedFabEnglishCardDocument
 } from "./public-source-document.ts";
+export {
+  FabCardSourceSchemaValidationError,
+  type SchemaValidatedFabEnglishCardData
+} from "./public-source-schema-validation.ts";
 import {
   verifyPinnedFabCardSchemaBytes,
   verifyPinnedFabEnglishCardBytes,
@@ -46,11 +50,18 @@ import {
   type VerifiedFabEnglishCardBytes
 } from "./public-source-checksum.ts";
 import {
+  readVerifiedValidatedFabCardSchemaBytesForSchemaValidation,
+  readVerifiedValidatedFabEnglishCardBytesForSchemaValidation,
   validateFabCardSchemaDocumentFromVerifiedBytes,
   validateFabEnglishCardDocumentFromVerifiedBytes,
   type ValidatedFabCardSchemaDocument,
   type ValidatedFabEnglishCardDocument
 } from "./public-source-document.ts";
+import {
+  FabCardSourceSchemaValidationError,
+  validateFabCardDataDocumentsForSchema,
+  type SchemaValidatedFabEnglishCardData
+} from "./public-source-schema-validation.ts";
 export {
   OmensRecipeCustomCardsError,
   type OmensRecipeCardReference
@@ -114,6 +125,29 @@ export const validateVerifiedFabCardSchemaDocument = (
 ): ValidatedFabCardSchemaDocument => {
   requireVerifiedPublicSource(schema, "FAB_CARD_SCHEMA_JSON");
   return validateFabCardSchemaDocumentFromVerifiedBytes(schema.verification);
+};
+
+const requireVerifiedValidatedFabEnglishCardDocument = (card: ValidatedFabEnglishCardDocument): void => {
+  readVerifiedValidatedFabEnglishCardBytesForSchemaValidation(card);
+};
+
+const requireVerifiedValidatedFabCardSchemaDocument = (schema: ValidatedFabCardSchemaDocument): void => {
+  readVerifiedValidatedFabCardSchemaBytesForSchemaValidation(schema);
+};
+
+/** Validates the complete pinned card document against the complete pinned Draft-04 schema. */
+export const validateFabEnglishCardDataAgainstSchema = (
+  card: ValidatedFabEnglishCardDocument,
+  schema: ValidatedFabCardSchemaDocument
+): SchemaValidatedFabEnglishCardData => {
+  try {
+    requireVerifiedValidatedFabEnglishCardDocument(card);
+    requireVerifiedValidatedFabCardSchemaDocument(schema);
+    return validateFabCardDataDocumentsForSchema(card, schema);
+  } catch (error) {
+    if (error instanceof FabCardSourceSchemaValidationError) throw error;
+    throw new FabCardSourceSchemaValidationError();
+  }
 };
 
 export const validateVerifiedFabCardSourceDocuments = (

@@ -1,0 +1,40 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import {
+  FabCardSourceSchemaValidationError,
+  validateFabEnglishCardDataAgainstSchema,
+  validateVerifiedFabCardSourceDocuments,
+  verifyFabCardSchemaBytes,
+  verifyFabEnglishCardBytes
+} from "../src/index.ts";
+import {
+  validateFabCardSchemaDocumentFromTrustedBytes,
+  validateFabEnglishCardDocumentFromTrustedBytes
+} from "../src/public-source-document.ts";
+import { validateFabCardDataDocumentsForSchema } from "../src/public-source-schema-validation.ts";
+
+const cardPath = process.env.FAB_CARD_SOURCE_EVIDENCE_PATH;
+const schemaPath = process.env.FAB_CARD_SCHEMA_EVIDENCE_PATH;
+const available = Boolean(cardPath && schemaPath);
+
+test("the exact pinned public card source fully conforms to its pinned Draft-04 schema", {
+  skip: !available ? "public source acceptance did not run; set FAB_CARD_SOURCE_EVIDENCE_PATH and FAB_CARD_SCHEMA_EVIDENCE_PATH or use npm run test:public-source-evidence" : false
+}, () => {
+  const cardBytes = readFileSync(cardPath);
+  const schemaBytes = readFileSync(schemaPath);
+  const documents = validateVerifiedFabCardSourceDocuments(
+    verifyFabEnglishCardBytes(cardBytes),
+    verifyFabCardSchemaBytes(schemaBytes)
+  );
+  const data = validateFabEnglishCardDataAgainstSchema(documents.card, documents.schema);
+  assert.ok(Object.isFrozen(data));
+
+  const mutated = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(cardBytes));
+  const required = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(schemaBytes)).items.required[0];
+  delete mutated[0][required];
+  assert.throws(() => validateFabCardDataDocumentsForSchema(
+    validateFabEnglishCardDocumentFromTrustedBytes(new TextEncoder().encode(JSON.stringify(mutated))),
+    validateFabCardSchemaDocumentFromTrustedBytes(schemaBytes)
+  ), FabCardSourceSchemaValidationError);
+});

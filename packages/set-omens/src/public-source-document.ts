@@ -34,6 +34,7 @@ type ValidatedDocument = ValidatedFabEnglishCardDocument | ValidatedFabCardSchem
 const bytesByDocument = new WeakMap<ValidatedDocument, Readonly<{
   artifact: FabCardSourceDocumentArtifact;
   bytes: Uint8Array;
+  verified: boolean;
 }>>();
 
 const MAX_JSON_BYTES = 24_000_000;
@@ -167,7 +168,8 @@ class JsonScanner {
 
 const validated = <Document extends ValidatedDocument>(
   bytes: Uint8Array,
-  artifact: FabCardSourceDocumentArtifact
+  artifact: FabCardSourceDocumentArtifact,
+  verified = false
 ): Document => {
   try {
     if (bytes.byteLength > MAX_JSON_BYTES || bytes[0] === 0xef || bytes.includes(0x0d)) throw new SyntaxError();
@@ -182,15 +184,15 @@ const validated = <Document extends ValidatedDocument>(
     throw new FabCardSourceJsonDocumentError(artifact);
   }
   const document = Object.freeze({}) as Document;
-  bytesByDocument.set(document, Object.freeze({ artifact, bytes: new Uint8Array(bytes) }));
+  bytesByDocument.set(document, Object.freeze({ artifact, bytes: new Uint8Array(bytes), verified }));
   return document;
 };
 
 export const validateFabEnglishCardDocumentFromVerifiedBytes = (verification: VerifiedFabEnglishCardBytes): ValidatedFabEnglishCardDocument =>
-  validated<ValidatedFabEnglishCardDocument>(readVerifiedFabEnglishCardBytesForParser(verification), "FAB_CARD_JSON");
+  validated<ValidatedFabEnglishCardDocument>(readVerifiedFabEnglishCardBytesForParser(verification), "FAB_CARD_JSON", true);
 
 export const validateFabCardSchemaDocumentFromVerifiedBytes = (verification: VerifiedFabCardSchemaBytes): ValidatedFabCardSchemaDocument =>
-  validated<ValidatedFabCardSchemaDocument>(readVerifiedFabCardSchemaBytesForParser(verification), "FAB_CARD_SCHEMA_JSON");
+  validated<ValidatedFabCardSchemaDocument>(readVerifiedFabCardSchemaBytesForParser(verification), "FAB_CARD_SCHEMA_JSON", true);
 
 export const validateFabEnglishCardDocumentFromTrustedBytes = (bytes: Uint8Array): ValidatedFabEnglishCardDocument =>
   validated<ValidatedFabEnglishCardDocument>(bytes, "FAB_CARD_JSON");
@@ -198,9 +200,11 @@ export const validateFabEnglishCardDocumentFromTrustedBytes = (bytes: Uint8Array
 export const validateFabCardSchemaDocumentFromTrustedBytes = (bytes: Uint8Array): ValidatedFabCardSchemaDocument =>
   validated<ValidatedFabCardSchemaDocument>(bytes, "FAB_CARD_SCHEMA_JSON");
 
-const readValidated = (document: ValidatedDocument, artifact: FabCardSourceDocumentArtifact): Uint8Array => {
+const readValidated = (document: ValidatedDocument, artifact: FabCardSourceDocumentArtifact, requireVerification = false): Uint8Array => {
   const retained = bytesByDocument.get(document);
-  if (retained === undefined || retained.artifact !== artifact) throw new TypeError("Invalid public card source document.");
+  if (retained === undefined || retained.artifact !== artifact || (requireVerification && !retained.verified)) {
+    throw new TypeError("Invalid public card source document.");
+  }
   return new Uint8Array(retained.bytes);
 };
 
@@ -211,3 +215,11 @@ export const readValidatedFabEnglishCardBytesForParser = (document: ValidatedFab
 /** Package-internal future parser seam; the root package export deliberately does not expose it. */
 export const readValidatedFabCardSchemaBytesForParser = (document: ValidatedFabCardSchemaDocument): Uint8Array =>
   readValidated(document, "FAB_CARD_SCHEMA_JSON");
+
+/** Package-internal schema-validation seam; only checksum-origin document capabilities qualify. */
+export const readVerifiedValidatedFabEnglishCardBytesForSchemaValidation = (document: ValidatedFabEnglishCardDocument): Uint8Array =>
+  readValidated(document, "FAB_CARD_JSON", true);
+
+/** Package-internal schema-validation seam; only checksum-origin document capabilities qualify. */
+export const readVerifiedValidatedFabCardSchemaBytesForSchemaValidation = (document: ValidatedFabCardSchemaDocument): Uint8Array =>
+  readValidated(document, "FAB_CARD_SCHEMA_JSON", true);
