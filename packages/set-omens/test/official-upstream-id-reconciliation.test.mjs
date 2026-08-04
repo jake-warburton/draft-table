@@ -43,6 +43,11 @@ test("capability-bound reconciliation uses exact set plus already-validated base
   assert.equal(result[1].printings.every((printing) => printing.id === "OMN000" && printing.set_id === "OMN"), true);
 });
 
+test("expected-set-map duplicate-base guard rejects two capability-bound fictional forms before reconciliation", () => {
+  const duplicated = Object.freeze([forms[1], Object.freeze({ ...forms[1], officialPrintId: "OMN000-CF", suffixMarker: "CF" })]);
+  safe(() => reconcile(source(), duplicated, Object.freeze({ entries: 2, omnEntries: 2, iarEntries: 0, omnPrintings: 4, iarPrintings: 0 })));
+});
+
 test("collector IDs are text: OMN000 proves no one-based conversion or membership indexing", () => {
   const result = reconcile();
   assert.equal(result.find((entry) => entry.officialPrintId === "OMN000-RF")?.unique_id, "zero-card");
@@ -96,4 +101,18 @@ test("semantic mutations demonstrate focused contracts detect disabled matching,
       assert.equal(result.status, 0, `${name}: intended mutation executed\n${result.stderr}`); assert.equal(result.stdout.trim(), `MUTATION_ACCEPTED:${name}`);
     } finally { rmSync(path, { force: true }); }
   }
+
+  const duplicateBaseMutation = original.replace(
+    "if (expectedSetByBase.has(form.baseCollectorId)) fail();",
+    "if (false) fail();"
+  );
+  assert.notEqual(duplicateBaseMutation, original, "duplicate-base: source guard present");
+  const duplicateBasePath = `${dirname(fileURLToPath(sourcePath))}/reconciliation-mutation-${process.pid}-duplicate-base.ts`;
+  writeFileSync(duplicateBasePath, duplicateBaseMutation);
+  try {
+    const program = `import { reconcileOfficialUpstreamIdRecordsForTest as r } from ${JSON.stringify(new URL(`file://${duplicateBasePath}`).href)}; const f=[{officialPrintId:'OMN000-RF',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:'RF'},{officialPrintId:'OMN000-CF',baseCollectorId:'OMN000',sourceSet:'OMN',suffixMarker:'CF'}]; const s=new Proxy([], {get(target,key,receiver){if(key===Symbol.iterator) console.log('MUTATION_ACCEPTED:duplicate-base'); return Reflect.get(target,key,receiver)}}); try { r(f,s,{entries:2,omnEntries:2,iarEntries:0,omnPrintings:0,iarPrintings:0}) } catch {}`;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", program], { encoding: "utf8" });
+    assert.equal(result.status, 0, `duplicate-base: intended mutation executed\n${result.stderr}`);
+    assert.equal(result.stdout.trim(), "MUTATION_ACCEPTED:duplicate-base");
+  } finally { rmSync(duplicateBasePath, { force: true }); }
 });

@@ -21,13 +21,20 @@ import {
   type OfficialUpstreamIdReconciliation
 } from "./official-upstream-id-reconciliation.ts";
 import type { OfficialCardVaultMembership } from "./card-vault-official-membership.ts";
+import {
+  OfficialSuffixFoilingClassificationError,
+  classifyOfficialCardVaultSuffixFoiling as classifySuffixFoiling,
+  type OfficialSuffixFoilingClassification
+} from "./official-suffix-foiling-classification.ts";
 
 export {
   FabCardSourceSchemaValidationError,
   OmnSourceProjectionError,
   OfficialUpstreamIdReconciliationError,
+  OfficialSuffixFoilingClassificationError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
+  type OfficialSuffixFoilingClassification,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -64,3 +71,8 @@ export const reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData 
   data: SchemaValidatedFabEnglishCardData
 ): OfficialUpstreamIdReconciliation =>
   reconcileOfficialCardVaultMembershipWithSchemaValidatedFabSource(membership, data);
+
+/** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
+export const classifyOfficialCardVaultSuffixFoiling = (
+  reconciliation: OfficialUpstreamIdReconciliation
+): OfficialSuffixFoilingClassification => classifySuffixFoiling(reconciliation);
