@@ -171,7 +171,13 @@ test("enforces published Layout outcome coefficients, slot shapes, and exact int
     slots[0].count = 2;
     return Object.freeze({ ...layout, slots: Object.freeze(slots.map(Object.freeze)) });
   })) });
-  const wrongEquipmentCount = alteredSlots(0, (slots) => { slots[5].count = 2; slots[0].count = 2; });
+  const wrongEquipmentCount = Object.freeze({ layouts: Object.freeze(fixture.layouts.map((layout, index) => {
+    if (index < 6) return layout;
+    const slots = structuredClone(layout.slots);
+    slots[5].count = 2;
+    slots[0].count = 2;
+    return Object.freeze({ ...layout, slots: Object.freeze(slots.map(Object.freeze)) });
+  })) });
   const changedCommonStructure = alteredSlots(6, (slots) => { slots[0].count = 2; slots[1].count = 3; });
   const wrongTotal = replace(227, { weight: fixture.layouts[227].weight + 1 });
   const overflow = replace(0, { weight: Number.MAX_SAFE_INTEGER });
