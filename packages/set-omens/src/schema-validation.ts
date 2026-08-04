@@ -36,6 +36,12 @@ import {
   reconcileOfficialCardVaultFacePrintingMultiplicity as reconcileFacePrintingMultiplicity,
   type OfficialFacePrintingMultiplicityReconciliation
 } from "./official-face-printing-multiplicity-reconciliation.ts";
+import {
+  OmensRecipeOfficialIdentityReconciliationError,
+  reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities as reconcileRecipeIdentities,
+  type OmensRecipeOfficialIdentityReconciliation
+} from "./recipe-official-identity-reconciliation.ts";
+import type { OmensRecipeCardReference } from "./custom-cards.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -44,11 +50,13 @@ export {
   OfficialSuffixFoilingClassificationError,
   CardVaultFaceProjectionError,
   OfficialFacePrintingMultiplicityReconciliationError,
+  OmensRecipeOfficialIdentityReconciliationError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
   type OfficialCardVaultFaceProjection,
   type OfficialFacePrintingMultiplicityReconciliation,
+  type OmensRecipeOfficialIdentityReconciliation,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -85,6 +93,12 @@ export const reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData 
   data: SchemaValidatedFabEnglishCardData
 ): OfficialUpstreamIdReconciliation =>
   reconcileOfficialCardVaultMembershipWithSchemaValidatedFabSource(membership, data);
+
+/** Build-time-only exact community-recipe to official identity membership reconciliation. */
+export const reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities = (
+  recipe: ReadonlyArray<OmensRecipeCardReference>,
+  official: OfficialUpstreamIdReconciliation
+): OmensRecipeOfficialIdentityReconciliation => reconcileRecipeIdentities(recipe, official);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (
