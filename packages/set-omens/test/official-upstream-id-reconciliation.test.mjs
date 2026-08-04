@@ -154,8 +154,13 @@ const rfArtVariationMutationModuleEnvironmentKey = "DRAFT_TABLE_TEST_RF_ART_VARI
 
 test(rfArtVariationContractName, async () => {
   console.log(rfArtVariationContractMarker);
+  const moduleUrl = process.env[rfArtVariationMutationModuleEnvironmentKey]
+    ?? new URL("../src/official-upstream-id-reconciliation.ts", import.meta.url).href;
+  const source = readFileSync(fileURLToPath(moduleUrl), "utf8");
+  const restriction = 'else if (record.suffixMarker === "RF") { if (sequence === "") rfEmpty++; else if (sequence === "EA") rfEa++; else fail(); }';
+  assert.equal(source.split(restriction).length - 1, 1, "RF suffix restriction source text");
   const module = process.env[rfArtVariationMutationModuleEnvironmentKey]
-    ? await import(process.env[rfArtVariationMutationModuleEnvironmentKey])
+    ? await import(moduleUrl)
     : { OfficialUpstreamIdReconciliationError, reconcileOfficialUpstreamIdRecordsForTest, validateOfficialUpstreamArtVariationAggregateForTest };
   const fixtureForms = Object.freeze([
     Object.freeze({ officialPrintId: "OMN100-RF", baseCollectorId: "OMN100", sourceSet: "OMN", suffixMarker: "RF" }),
@@ -175,7 +180,8 @@ test(rfArtVariationContractName, async () => {
 test("RF art-variation suffix mutation is caught by its named capability-bound contract", () => {
   const sourcePath = new URL("../src/official-upstream-id-reconciliation.ts", import.meta.url);
   const original = readFileSync(sourcePath, "utf8");
-  const mutated = original.replace('else if (record.suffixMarker === "RF") { if (sequence === "") rfEmpty++; else if (sequence === "EA") rfEa++; else fail(); }', 'else if (record.suffixMarker === "RF") { if (sequence === "") rfEmpty++; else if (sequence === "EA" || sequence === "FA") rfEa++; else fail(); }');
+  const rfRestriction = 'else if (record.suffixMarker === "RF") { if (sequence === "") rfEmpty++; else if (sequence === "EA") rfEa++; else fail(); }';
+  const mutated = original.replace(rfRestriction, `else if (record.suffixMarker === "RF" && sequence === "FA") rfEa++;\n    ${rfRestriction}`);
   assert.notEqual(mutated, original, "RF suffix restriction present");
   const path = `${dirname(fileURLToPath(sourcePath))}/reconciliation-mutation-${process.pid}-rf-art-variation.ts`;
   writeFileSync(path, mutated);
