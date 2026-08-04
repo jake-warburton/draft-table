@@ -18,7 +18,7 @@ export class OfficialFacePrintingMultiplicityReconciliationError extends Error {
   }
 }
 
-/** MV-only build-time fact; it intentionally carries no face, printing, or source metadata. */
+/** MV-only build-time fact; it carries counts but no face, printing-row, or source details. */
 export type OfficialFacePrintingMultiplicityReconciliation = ReadonlyArray<Readonly<{
   officialPrintId: string;
   officialFaceCount: 1 | 2;
