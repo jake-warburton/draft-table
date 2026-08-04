@@ -33,6 +33,10 @@ export {
   CardVaultOmensProductChecksumError,
   type VerifiedCardVaultOmensProductResponse
 } from "./card-vault-product-checksum.ts";
+export {
+  CardVaultOfficialMembershipError,
+  type OfficialCardVaultMembership
+} from "./card-vault-official-membership.ts";
 export { FAB_CARD_SOURCE } from "./public-source-descriptor.ts";
 export {
   FabCardSourceChecksumError,
@@ -48,6 +52,10 @@ import {
   verifyCardVaultOmensProductResponseBytes,
   type VerifiedCardVaultOmensProductResponse
 } from "./card-vault-product-checksum.ts";
+import {
+  validateCardVaultOmensOfficialMembershipBytes,
+  type OfficialCardVaultMembership
+} from "./card-vault-official-membership.ts";
 import {
   verifyPinnedFabCardSchemaBytes,
   verifyPinnedFabEnglishCardBytes,
@@ -99,9 +107,15 @@ const requireVerifiedPublicSource = (candidate: object, artifact: "FAB_CARD_JSON
   if (verifiedPublicSources.get(candidate) !== artifact) throw new TypeError("Invalid public card source verification.");
 };
 
+/** Dated observed-response evidence only; not a version pin for future live responses. */
 export const verifyCardVaultOmensProductBytes = (
   bytes: Uint8Array
 ): VerifiedCardVaultOmensProductResponse => verifyCardVaultOmensProductResponseBytes(bytes);
+
+/** Validates the durable canonical official-membership fact from caller-provided response bytes. */
+export const validateCardVaultOmensOfficialMembership = (
+  bytes: Uint8Array
+): OfficialCardVaultMembership => validateCardVaultOmensOfficialMembershipBytes(bytes);
 
 export const verifyFabEnglishCardBytes = (bytes: Uint8Array): VerifiedFabEnglishCardSource =>
   source("FAB_CARD_JSON", Object.freeze({

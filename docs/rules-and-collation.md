@@ -159,9 +159,9 @@ Do not derive alternative weights from set card counts, silently normalize malfo
 
 The preferred release dataset, `the-fab-cube/flesh-and-blood-cards` v8.2.0, has 251 OMN collector IDs and 482 OMN printing/treatment rows, all with image URLs in the inspected release. Research inspection of the official Card Vault product endpoint observed 260 product entries: 251 `OMN` plus nine `IAR` Marvel entries [DATA-1][FAB-7]. The product page itself says `251 cards in set` [FAB-3], so these counts are different scopes, not safely interchangeable.
 
-Completed build-time slices pin the exact upstream tag and file checksums, validate the full card source against its pinned schema, project exact source-order `set_id === "OMN"` rows with 251-card/482-printing/251-distinct-collector-ID guards, and checksum-gate one caller-held observed Card Vault response without parsing it. The remaining import validation must:
+Completed build-time slices pin the exact upstream tag and file checksums, validate the full card source against its pinned schema, project exact source-order `set_id === "OMN"` rows with 251-card/482-printing/251-distinct-collector-ID guards, retain the raw checksum of one caller-held observed Card Vault response as dated evidence, and strictly derive its canonical 260-entry membership (251 `OMN`, 9 `IAR`). The raw checksum is not a retrievable version pin and must not gate an otherwise identical canonically derived membership after cosmetic live-response changes. The remaining import validation must:
 
-- start from the official Card Vault product membership list;
+- start from the already validated official Card Vault membership capability;
 - join all matching upstream identities/printings, including the nine `IAR` entries;
 - report missing, duplicate, treatment, image-host, and slot-classification differences;
 - require an explicit classification for all 260 official product entries and every relevant physical treatment;

@@ -4,7 +4,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 - Walking-skeleton implementation has begun; the authoritative setup, commands, and current scope are in `README.md` and root `package.json`. Accepted product contracts, external unknowns, and launch risks live under `docs/`.
 - The captain approved the checksum-pinned community Omens 3.8 recipe and recorded policy decisions in `docs/risks-and-decisions.md`; its Phase 2 import must be test-first and separately reviewed. Do not commit the source recipe or generate a snapshot before that review.
-- The v8.2.0 public English card input/schema and the observed 2026-08-04 official Card Vault Omens product response are separate checksum-pinned build-time evidence inputs; follow the evidence workflow in `README.md`, never commit upstream bytes, and never add runtime fetches.
+- The v8.2.0 public English card input/schema and the observed 2026-08-04 official Card Vault Omens product response are build-time evidence inputs; follow the evidence workflow in `README.md`, never commit upstream bytes, and never add runtime fetches. The Card Vault raw checksum is dated evidence only; canonical official membership is the durable authority.
 - The approved boundary is a platform-independent TypeScript engine plus browser, Cloudflare Worker/Durable Object adapter, shared contracts, and a reviewed versioned set snapshot; see `docs/architecture.md`.
 
 ## Maintaining this file
@@ -15,3 +15,4 @@ Prefer rewriting or pruning existing entries over appending new ones.
 When updating this file, preserve this bar for all agents and keep entries concise.
 
 - Contracts named for a specific guard must semantically bypass that guard while preserving surrounding/source checks and prove the contract fails; deletion-only mutations are insufficient because another layer may mask the guard.
+- Command and mutation evidence must assert that the intended command and named contract actually executed and produced its exact expected success/failure marker; usage errors, wrong environment variables, or arbitrary nonzero exits are invalid evidence even if reported as green.

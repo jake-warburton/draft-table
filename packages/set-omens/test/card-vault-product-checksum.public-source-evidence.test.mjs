@@ -1,20 +1,30 @@
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   CARD_VAULT_OMENS_PRODUCT_RESPONSE,
   CardVaultOmensProductChecksumError,
   verifyCardVaultOmensProductBytes,
+  validateCardVaultOmensOfficialMembership,
+  validateVerifiedFabCardSourceDocuments,
+  verifyFabCardSchemaBytes,
   verifyFabEnglishCardBytes
 } from "../src/index.ts";
 import { readVerifiedCardVaultOmensProductResponseBytesForParser } from "../src/card-vault-product-checksum.ts";
+import { readOfficialCardVaultMembershipPrintIdsForReconciliation } from "../src/card-vault-official-membership.ts";
+import {
+  projectSchemaValidatedFabEnglishCardDataForOmn,
+  validateFabEnglishCardDataAgainstSchema
+} from "../src/schema-validation.ts";
 
 const responsePath = process.env.FAB_CARD_VAULT_EVIDENCE_PATH;
 const cardPath = process.env.FAB_CARD_SOURCE_EVIDENCE_PATH;
+const schemaPath = process.env.FAB_CARD_SCHEMA_EVIDENCE_PATH;
 const available = Boolean(responsePath && cardPath);
 
-test("the observed official Card Vault response is checksum-gated without parsing", {
+test("the observed official Card Vault response remains dated checksum evidence", {
   skip: !available ? "public source acceptance did not run; set FAB_CARD_VAULT_EVIDENCE_PATH and FAB_CARD_SOURCE_EVIDENCE_PATH or use npm run test:public-source-evidence" : false
 }, () => {
   assert.deepEqual(CARD_VAULT_OMENS_PRODUCT_RESPONSE, {
@@ -47,4 +57,39 @@ test("the observed official Card Vault response is checksum-gated without parsin
     () => readVerifiedCardVaultOmensProductResponseBytesForParser(verifyFabEnglishCardBytes(readFileSync(cardPath))),
     TypeError
   );
+});
+
+test("the observed official response derives only the published canonical membership facts", {
+  skip: !available ? "public source acceptance did not run; set FAB_CARD_VAULT_EVIDENCE_PATH and FAB_CARD_SOURCE_EVIDENCE_PATH or use npm run test:public-source-evidence" : false
+}, () => {
+  const response = readFileSync(responsePath);
+  const membership = validateCardVaultOmensOfficialMembership(response);
+  const ids = readOfficialCardVaultMembershipPrintIdsForReconciliation(membership);
+  assert.equal(ids.length, 260);
+  assert.equal(ids.filter((id) => id.startsWith("OMN")).length, 251);
+  assert.equal(ids.filter((id) => id.startsWith("IAR")).length, 9);
+  assert.equal(Buffer.byteLength(`${ids.join("\n")}\n`), 1874);
+  assert.equal(createHash("sha256").update(`${ids.join("\n")}\n`).digest("hex"), "9b16117e4f558c91421a50d814baa3a8a16043bff645cec24291a32df6e079de");
+
+  const cosmetic = JSON.parse(response);
+  cosmetic.cards.reverse();
+  cosmetic.cosmetic_only = { reordered: true };
+  assert.doesNotThrow(() => validateCardVaultOmensOfficialMembership(Buffer.from(JSON.stringify(cosmetic, null, 1))));
+  cosmetic.cards[0].print_id = "OMN999";
+  assert.throws(() => validateCardVaultOmensOfficialMembership(Buffer.from(JSON.stringify(cosmetic))));
+});
+
+test("the nine canonical IAR IDs are absent from the exact OMN source projection", {
+  skip: !available || !schemaPath ? "public source acceptance did not run; set all three evidence paths or use npm run test:public-source-evidence" : false
+}, () => {
+  const membership = validateCardVaultOmensOfficialMembership(readFileSync(responsePath));
+  const iar = readOfficialCardVaultMembershipPrintIdsForReconciliation(membership).filter((id) => id.startsWith("IAR"));
+  const documents = validateVerifiedFabCardSourceDocuments(
+    verifyFabEnglishCardBytes(readFileSync(cardPath)),
+    verifyFabCardSchemaBytes(readFileSync(schemaPath))
+  );
+  const validated = validateFabEnglishCardDataAgainstSchema(documents.card, documents.schema);
+  const omnIds = new Set(projectSchemaValidatedFabEnglishCardDataForOmn(validated).flatMap((card) => card.printings.map((printing) => printing.id)));
+  assert.equal(iar.length, 9);
+  assert.ok(iar.every((id) => !omnIds.has(id)));
 });
