@@ -143,14 +143,16 @@ test(portContractName, async () => {
     ? await import(process.env[portMutationEnvironmentKey])
     : { CardVaultFaceProjectionError, projectCardVaultOfficialFaceMetadataForTest };
   assert.doesNotThrow(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(response(specs)), aggregate));
-  const portResponse = response(specs, { authority: `${host}:8443` });
-  assert.throws(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(portResponse), aggregate), module.CardVaultFaceProjectionError, "PORT_GUARD_REJECTED_EXPLICIT_PORT_URL");
+  for (const authority of [`${host}:8443`, `${host}:443`]) {
+    const portResponse = response(specs, { authority });
+    assert.throws(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(portResponse), aggregate), module.CardVaultFaceProjectionError, "PORT_GUARD_REJECTED_EXPLICIT_PORT_URL");
+  }
 });
 
 test("face projection port mutation is caught by its named authority contract", () => {
   const sourcePath = new URL("../src/card-vault-face-projection.ts", import.meta.url);
   const original = readFileSync(sourcePath, "utf8");
-  const mutated = original.replace("url.port !== \"\"", "(url.port !== \"\") && false");
+  const mutated = original.replace("(url.port !== \"\" || hasExplicitPort(text))", "(url.port !== \"\" || hasExplicitPort(text)) && false");
   assert.notEqual(mutated, original, "port guard present");
   const path = `${dirname(fileURLToPath(sourcePath))}/face-projection-mutation-${process.pid}-port.ts`;
   writeFileSync(path, mutated);

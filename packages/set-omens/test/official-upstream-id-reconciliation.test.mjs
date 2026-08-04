@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -196,16 +196,28 @@ const artVariationCopyMutationModuleEnvironmentKey = "DRAFT_TABLE_TEST_ART_VARIA
 
 test(artVariationCopyContractName, async () => {
   console.log(artVariationCopyContractMarker);
-  const owner = process.env[artVariationCopyMutationModuleEnvironmentKey]
+  const module = process.env[artVariationCopyMutationModuleEnvironmentKey]
     ? await import(process.env[artVariationCopyMutationModuleEnvironmentKey])
-    : await import("../src/official-upstream-printing-copy.ts");
-  const sourceText = readFileSync(new URL("../src/official-upstream-id-reconciliation.ts", import.meta.url), "utf8");
-  const classificationText = readFileSync(new URL("../src/official-suffix-foiling-classification.ts", import.meta.url), "utf8");
-  assert.match(sourceText, /copyOfficialUpstreamPrinting/); assert.match(classificationText, /copyOfficialUpstreamPrinting/);
-  const sourcePrinting = p({ art_variations: ["EA"] });
-  const reconciledPrinting = owner.copyOfficialUpstreamPrinting(sourcePrinting);
-  const classifiedCandidate = owner.copyOfficialUpstreamPrinting(reconciledPrinting);
-  const classifiedSelected = owner.copyOfficialUpstreamPrinting(reconciledPrinting);
+    : await import("../src/official-suffix-foiling-classification.ts");
+  const fixtureForms = Object.freeze([
+    Object.freeze({ officialPrintId: "OMN100-RF", baseCollectorId: "OMN100", sourceSet: "OMN", suffixMarker: "RF" }),
+    Object.freeze({ officialPrintId: "IAR101", baseCollectorId: "IAR101", sourceSet: "IAR", suffixMarker: null })
+  ]);
+  const sourcePrinting = p({ unique_id: "rf-r", id: "OMN100", foiling: "R", art_variations: ["EA"] });
+  const fixtureSource = [
+    c({ unique_id: "rf", printings: [p({ unique_id: "rf-c", id: "OMN100", foiling: "C", art_variations: ["EA"] }), sourcePrinting] }),
+    c({ unique_id: "plain", printings: [p({ unique_id: "plain-p", set_printing_unique_id: "sp-iar", id: "IAR101", set_id: "IAR", foiling: "C", art_variations: [] })] })
+  ];
+  const result = module.reconcileAndClassifyOfficialSuffixFoilingForTest(
+    fixtureForms,
+    fixtureSource,
+    Object.freeze({ entries: 2, omnEntries: 1, iarEntries: 1, omnPrintings: 2, iarPrintings: 1 }),
+    Object.freeze({ unspecifiedEntries: 1, unspecifiedCandidates: 1, rfEntries: 1, rfCandidates: 2, rfSelected: 1, cfEntries: 0, cfCandidates: 0, cfSelected: 0, mvEntries: 0, mvCandidates: 0, mvSelected: 0, mvOneRowEntries: 0, mvTwoRowEntries: 0, suffixEntries: 1, suffixCandidates: 2, selected: 1 })
+  );
+  const reconciledPrinting = result.records[0].printings[1];
+  const classified = result.classification[0];
+  const classifiedCandidate = classified.candidatePrintings[1];
+  const classifiedSelected = classified.selectedCorrespondencePrintings[0];
   assert.notEqual(reconciledPrinting.art_variations, sourcePrinting.art_variations, "source-to-reconciliation array copy");
   assert.notEqual(classifiedCandidate.art_variations, reconciledPrinting.art_variations, "reconciliation-to-candidate array copy");
   assert.notEqual(classifiedSelected.art_variations, reconciledPrinting.art_variations, "reconciliation-to-selected array copy");
@@ -217,21 +229,24 @@ test(artVariationCopyContractName, async () => {
 });
 
 test("art-variation copy-owner mutation is caught by the named independence contract", () => {
-  const sourcePath = new URL("../src/official-upstream-printing-copy.ts", import.meta.url);
+  const sourceDirectory = new URL("../src/", import.meta.url);
+  const sourcePath = new URL("official-upstream-printing-copy.ts", sourceDirectory);
   const original = readFileSync(sourcePath, "utf8");
   const mutated = original.replace("art_variations: Object.freeze([...printing.art_variations])", "art_variations: (Object.freeze([...printing.art_variations]), Object.freeze(printing.art_variations))");
   assert.notEqual(mutated, original, "actual common copy owner present");
-  const path = `${dirname(fileURLToPath(sourcePath))}/upstream-printing-copy-mutation-${process.pid}.ts`;
-  writeFileSync(path, mutated);
+  const mutationDirectory = `${dirname(fileURLToPath(import.meta.url))}/upstream-printing-copy-mutation-${process.pid}`;
+  cpSync(fileURLToPath(sourceDirectory), mutationDirectory, { recursive: true });
+  writeFileSync(`${mutationDirectory}/official-upstream-printing-copy.ts`, mutated);
   try {
-    const environment = { ...process.env, [artVariationCopyMutationModuleEnvironmentKey]: pathToFileURL(path).href }; delete environment.NODE_TEST_CONTEXT;
+    const modulePath = pathToFileURL(`${mutationDirectory}/official-suffix-foiling-classification.ts`).href;
+    const environment = { ...process.env, [artVariationCopyMutationModuleEnvironmentKey]: modulePath }; delete environment.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${artVariationCopyContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
     const lines = result.stdout.split(/\r?\n/);
     assert.equal(result.status, 1, `copy-owner mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
     assert.equal(lines.filter((line) => line === `# ${artVariationCopyContractMarker}`).length, 1, "exact copy marker");
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(artVariationCopyContractName)).length, 1, "exact named copy failure");
-    assert.equal(lines.filter((line) => line.includes("source-to-reconciliation array copy")).length, 1, "exact copy independence failure line");
-  } finally { rmSync(path, { force: true }); }
+    assert.equal(lines.filter((line) => line.includes("reconciliation-to-candidate array copy")).length, 1, "exact copy independence failure line");
+  } finally { rmSync(mutationDirectory, { force: true, recursive: true }); }
 });
 
 test("forged capabilities cannot enter the public schema-validation boundary", async () => {

@@ -1,5 +1,6 @@
 import {
   readOfficialUpstreamIdReconciliationForSuffixFoiling,
+  reconcileOfficialUpstreamIdRecordsForTest,
   type OfficialUpstreamIdReconciliation,
   type OfficialUpstreamPrinting
 } from "./official-upstream-id-reconciliation.ts";
@@ -26,6 +27,10 @@ export type OfficialSuffixFoilingClassification = ReadonlyArray<Readonly<{
   candidatePrintings: ReadonlyArray<OfficialUpstreamPrinting>;
   selectedCorrespondencePrintings: ReadonlyArray<OfficialUpstreamPrinting>;
 }>>;
+
+type ReconciliationExpectedAggregate = Readonly<{
+  entries: number; omnEntries: number; iarEntries: number; omnPrintings: number; iarPrintings: number;
+}>;
 
 type ExpectedAggregate = Readonly<{
   unspecifiedEntries: number; unspecifiedCandidates: number;
@@ -91,6 +96,17 @@ const classify = (records: OfficialUpstreamIdReconciliation, expected: ExpectedA
     mvOneRowEntries !== expected.mvOneRowEntries || mvTwoRowEntries !== expected.mvTwoRowEntries ||
     suffixEntries !== expected.suffixEntries || suffixCandidates !== expected.suffixCandidates || selectedIds.size !== expected.selected) fail();
   return frozen(result);
+};
+
+/** Package-internal fictional seam for copy-isolation contracts across both production owners. */
+export const reconcileAndClassifyOfficialSuffixFoilingForTest = (
+  forms: Parameters<typeof reconcileOfficialUpstreamIdRecordsForTest>[0],
+  source: unknown,
+  reconciliationExpected: ReconciliationExpectedAggregate,
+  classificationExpected: ExpectedAggregate
+): Readonly<{ records: OfficialUpstreamIdReconciliation; classification: OfficialSuffixFoilingClassification }> => {
+  const records = reconcileOfficialUpstreamIdRecordsForTest(forms, source, reconciliationExpected);
+  return frozen({ records, classification: classifyOfficialSuffixFoilingForTest(records, classificationExpected) });
 };
 
 /** Package-internal fictional seam: its records must still be reconciliation capabilities. */
