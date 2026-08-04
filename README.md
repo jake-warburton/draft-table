@@ -23,7 +23,7 @@ Before shipping any `set-omens` slice that depends on the captain-held recipe, r
 OMENS_RECIPE_EVIDENCE_PATH=<path-to-private-recipe> npm --silent --workspace @draft-table/set-omens run test:evidence
 ```
 
-To verify caller-provided copies of the pinned public card and schema inputs without a network fetch, run:
+To verify caller-provided copies of all three pinned public evidence inputs without a network fetch, run:
 
 ```sh
 FAB_CARD_SOURCE_EVIDENCE_PATH=<path-to-card.json> \
@@ -32,7 +32,7 @@ FAB_CARD_VAULT_EVIDENCE_PATH=<path-to-observed-card-vault-response.json> \
 npm --silent --workspace @draft-table/set-omens run test:public-source-evidence
 ```
 
-Neither evidence command commits or configures its input files. The unversioned Card Vault endpoint is represented only by an immutable observed-response checksum descriptor (not an API release or future-stability promise); its response is neither parsed nor fetched at runtime. Draft-04 validation and the resulting OMN source projection are explicit build-time tooling: import `validateFabEnglishCardDataAgainstSchema` and `projectSchemaValidatedFabEnglishCardDataForOmn` from `@draft-table/set-omens/schema-validation`. That subpath requires the package-local Ajv development dependencies and may fail when they are unavailable; the normal `@draft-table/set-omens` root does not load them.
+Neither evidence command commits or configures its input files. Keep the evidence bytes outside Git pending later provenance and human review. The unversioned Card Vault endpoint is represented only by an immutable observed-response checksum descriptor (not an API release or future-stability promise); its response is neither parsed nor fetched at runtime. Draft-04 validation and the resulting OMN source projection are explicit build-time tooling: import `validateFabEnglishCardDataAgainstSchema` and `projectSchemaValidatedFabEnglishCardDataForOmn` from `@draft-table/set-omens/schema-validation`. That subpath requires the package-local Ajv development dependencies and may fail when they are unavailable; the normal `@draft-table/set-omens` root does not load them.
 
 Pull requests and pushes to `main` install with `npm ci` and run every quality command listed above. `npm run size` enforces a 2,048-byte total emitted-client ceiling; the server boundary is not emitted yet and reports as zero bytes.
 
