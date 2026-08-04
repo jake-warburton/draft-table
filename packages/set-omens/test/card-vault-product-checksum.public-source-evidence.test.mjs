@@ -14,6 +14,7 @@ import {
 } from "../src/index.ts";
 import { readVerifiedCardVaultOmensProductResponseBytesForParser } from "../src/card-vault-product-checksum.ts";
 import { readOfficialCardVaultMembershipPrintIdsForReconciliation } from "../src/card-vault-official-membership.ts";
+import { readOfficialCardVaultPrintIdForms } from "../src/card-vault-print-id-forms.ts";
 import {
   projectSchemaValidatedFabEnglishCardDataForOmn,
   validateFabEnglishCardDataAgainstSchema
@@ -83,6 +84,7 @@ test("the nine canonical IAR IDs are absent from the exact OMN source projection
 }, () => {
   const membership = validateCardVaultOmensOfficialMembership(readFileSync(responsePath));
   const iar = readOfficialCardVaultMembershipPrintIdsForReconciliation(membership).filter((id) => id.startsWith("IAR"));
+  const forms = readOfficialCardVaultPrintIdForms(membership);
   const documents = validateVerifiedFabCardSourceDocuments(
     verifyFabEnglishCardBytes(readFileSync(cardPath)),
     verifyFabCardSchemaBytes(readFileSync(schemaPath))
@@ -91,4 +93,10 @@ test("the nine canonical IAR IDs are absent from the exact OMN source projection
   const omnIds = new Set(projectSchemaValidatedFabEnglishCardDataForOmn(validated).flatMap((card) => card.printings.map((printing) => printing.id)));
   assert.equal(iar.length, 9);
   assert.ok(iar.every((id) => !omnIds.has(id)));
+  assert.equal(forms.filter((form) => form.sourceSet === "OMN" && form.suffixMarker === null).length, 242);
+  assert.equal(forms.filter((form) => form.suffixMarker === "RF").length, 6);
+  assert.equal(forms.filter((form) => form.suffixMarker === "CF").length, 3);
+  assert.equal(forms.filter((form) => form.suffixMarker === "MV").length, 9);
+  assert.equal(forms.length, 260);
+  assert.equal(new Set(forms.map((form) => form.baseCollectorId)).size, 260);
 });

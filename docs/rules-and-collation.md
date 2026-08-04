@@ -168,7 +168,7 @@ Completed build-time slices pin the exact upstream tag and file checksums, valid
 - fail closed on unknown rarity/foiling/slot metadata;
 - output a small reviewed Omens-only snapshot; never ship the upstream ~12 MB all-card package to browsers.
 
-Reconciliation, classification, and snapshot generation remain future data-import slices. No generated snapshot belongs in the repository before its separate review.
+Reconciliation, semantic treatment/slot classification, and snapshot generation remain future data-import slices. No generated snapshot belongs in the repository before its separate review.
 
 ## Collation invariants for TDD
 
