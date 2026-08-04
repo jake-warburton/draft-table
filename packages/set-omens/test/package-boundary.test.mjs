@@ -33,10 +33,10 @@ const expectPackageBoundary = (source) => {
 };
 
 test("external consumers can import the supported Omens package root", () => {
-  const result = runConsumer('import { parseVerifiedOmensCustomCards, parseVerifiedOmensLayouts, parseVerifiedOmensPools, parseVerifiedOmensSettings, verifyFabCardSchemaBytes, verifyFabEnglishCardBytes, verifyOmensRecipeBytes } from "@draft-table/set-omens";\nconsole.log(typeof parseVerifiedOmensCustomCards, typeof parseVerifiedOmensLayouts, typeof parseVerifiedOmensPools, typeof parseVerifiedOmensSettings, typeof verifyFabCardSchemaBytes, typeof verifyFabEnglishCardBytes, typeof verifyOmensRecipeBytes);');
+  const result = runConsumer('import { parseVerifiedOmensCustomCards, parseVerifiedOmensLayouts, parseVerifiedOmensPools, parseVerifiedOmensSettings, validateVerifiedFabCardSchemaDocument, validateVerifiedFabEnglishCardDocument, verifyFabCardSchemaBytes, verifyFabEnglishCardBytes, verifyOmensRecipeBytes } from "@draft-table/set-omens";\nconsole.log(typeof parseVerifiedOmensCustomCards, typeof parseVerifiedOmensLayouts, typeof parseVerifiedOmensPools, typeof parseVerifiedOmensSettings, typeof validateVerifiedFabCardSchemaDocument, typeof validateVerifiedFabEnglishCardDocument, typeof verifyFabCardSchemaBytes, typeof verifyFabEnglishCardBytes, typeof verifyOmensRecipeBytes);');
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "function function function function function function function");
+  assert.equal(result.stdout.trim(), "function function function function function function function function function");
 });
 
 test("external consumers cannot import Omens internal source modules or the raw parser", () => {
@@ -52,5 +52,7 @@ test("external consumers cannot import Omens internal source modules or the raw 
   expectPackageBoundary('import { readVerifiedFabEnglishCardBytesForParser } from "@draft-table/set-omens/src/public-source-checksum.ts";');
   expectPackageBoundary('import { readVerifiedFabCardSchemaBytesForParser } from "@draft-table/set-omens/src/public-source-checksum.ts";');
   expectPackageBoundary('import "@draft-table/set-omens/src/public-source-descriptor.ts";');
+  expectPackageBoundary('import "@draft-table/set-omens/src/public-source-document.ts";');
+  expectPackageBoundary('import { readValidatedFabEnglishCardBytesForParser } from "@draft-table/set-omens/src/public-source-document.ts";');
   expectPackageBoundary('import { parseOmensPoolsFromTrustedBytes } from "@draft-table/set-omens/src/pools.ts";');
 });

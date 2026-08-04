@@ -33,12 +33,24 @@ export {
   FabCardSourceChecksumError,
   type FabCardSourceArtifact
 } from "./public-source-checksum.ts";
+export {
+  FabCardSourceJsonDocumentError,
+  type FabCardSourceDocumentArtifact,
+  type ValidatedFabCardSchemaDocument,
+  type ValidatedFabEnglishCardDocument
+} from "./public-source-document.ts";
 import {
   verifyPinnedFabCardSchemaBytes,
   verifyPinnedFabEnglishCardBytes,
   type VerifiedFabCardSchemaBytes,
   type VerifiedFabEnglishCardBytes
 } from "./public-source-checksum.ts";
+import {
+  validateFabCardSchemaDocumentFromVerifiedBytes,
+  validateFabEnglishCardDocumentFromVerifiedBytes,
+  type ValidatedFabCardSchemaDocument,
+  type ValidatedFabEnglishCardDocument
+} from "./public-source-document.ts";
 export {
   OmensRecipeCustomCardsError,
   type OmensRecipeCardReference
@@ -67,17 +79,57 @@ export type VerifiedFabCardSchemaSource = Readonly<{
   verification: VerifiedFabCardSchemaBytes;
 }>;
 
+const verifiedPublicSources = new WeakMap<object, "FAB_CARD_JSON" | "FAB_CARD_SCHEMA_JSON">();
+
+const source = <Source extends object>(sourceArtifact: "FAB_CARD_JSON" | "FAB_CARD_SCHEMA_JSON", verification: Source): Source => {
+  verifiedPublicSources.set(verification, sourceArtifact);
+  return verification;
+};
+
+const requireVerifiedPublicSource = (candidate: object, artifact: "FAB_CARD_JSON" | "FAB_CARD_SCHEMA_JSON"): void => {
+  if (verifiedPublicSources.get(candidate) !== artifact) throw new TypeError("Invalid public card source verification.");
+};
+
 export const verifyFabEnglishCardBytes = (bytes: Uint8Array): VerifiedFabEnglishCardSource =>
-  Object.freeze({
+  source("FAB_CARD_JSON", Object.freeze({
     descriptor: FAB_CARD_SOURCE,
     verification: verifyPinnedFabEnglishCardBytes(bytes)
-  });
+  }));
 
 export const verifyFabCardSchemaBytes = (bytes: Uint8Array): VerifiedFabCardSchemaSource =>
-  Object.freeze({
+  source("FAB_CARD_SCHEMA_JSON", Object.freeze({
     descriptor: FAB_CARD_SOURCE,
     verification: verifyPinnedFabCardSchemaBytes(bytes)
+  }));
+
+export const validateVerifiedFabEnglishCardDocument = (
+  card: VerifiedFabEnglishCardSource
+): ValidatedFabEnglishCardDocument => {
+  requireVerifiedPublicSource(card, "FAB_CARD_JSON");
+  return validateFabEnglishCardDocumentFromVerifiedBytes(card.verification);
+};
+
+export const validateVerifiedFabCardSchemaDocument = (
+  schema: VerifiedFabCardSchemaSource
+): ValidatedFabCardSchemaDocument => {
+  requireVerifiedPublicSource(schema, "FAB_CARD_SCHEMA_JSON");
+  return validateFabCardSchemaDocumentFromVerifiedBytes(schema.verification);
+};
+
+export const validateVerifiedFabCardSourceDocuments = (
+  card: VerifiedFabEnglishCardSource,
+  schema: VerifiedFabCardSchemaSource
+): Readonly<{
+  card: ValidatedFabEnglishCardDocument;
+  schema: ValidatedFabCardSchemaDocument;
+}> => {
+  requireVerifiedPublicSource(card, "FAB_CARD_JSON");
+  requireVerifiedPublicSource(schema, "FAB_CARD_SCHEMA_JSON");
+  return Object.freeze({
+    card: validateFabEnglishCardDocumentFromVerifiedBytes(card.verification),
+    schema: validateFabCardSchemaDocumentFromVerifiedBytes(schema.verification)
   });
+};
 
 export type VerifiedOmensRecipe = Readonly<{
   descriptor: typeof OMENS_RECIPE;
