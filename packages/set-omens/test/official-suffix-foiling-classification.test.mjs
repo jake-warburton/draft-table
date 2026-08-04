@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   OfficialSuffixFoilingClassificationError,
@@ -82,6 +82,62 @@ test("forgery and every marker, row-selection, multiplicity, uniqueness, and agg
   ];
   for (const mutate of cases) safe(() => classify(mutate()));
   for (const key of Object.keys(aggregate)) safe(() => classify(source(), forms, { ...aggregate, [key]: aggregate[key] + 1 }));
+});
+
+const rfStructuralContractName = "RF structural contract rejects redistributed 3-plus-1 rows despite valid aggregates";
+const rfStructuralContractMarker = "RF_STRUCTURAL_CONTRACT_EXECUTED:redistributed-3-plus-1";
+const rfMutationModuleEnvironmentKey = "DRAFT_TABLE_TEST_RF_CLASSIFICATION_MODULE";
+
+test(rfStructuralContractName, async () => {
+  console.log(rfStructuralContractMarker);
+  const classificationModule = process.env[rfMutationModuleEnvironmentKey]
+    ? await import(process.env[rfMutationModuleEnvironmentKey])
+    : { OfficialSuffixFoilingClassificationError, classifyOfficialSuffixFoilingForTest };
+  const rfForms = Object.freeze([
+    Object.freeze({ officialPrintId: "OMN010-RF", baseCollectorId: "OMN010", sourceSet: "OMN", suffixMarker: "RF" }),
+    Object.freeze({ officialPrintId: "OMN011-RF", baseCollectorId: "OMN011", sourceSet: "OMN", suffixMarker: "RF" }),
+    Object.freeze({ officialPrintId: "IAR000", baseCollectorId: "IAR000", sourceSet: "IAR", suffixMarker: null })
+  ]);
+  const rfRows = [
+    c("rf-a", [p("OMN010", "rf-a-c", "C"), p("OMN010", "rf-a-r1", "R"), p("OMN010", "rf-a-r2", "R")]),
+    c("rf-b", [p("OMN011", "rf-b-c", "C")]),
+    c("iar", [p("IAR000", "iar-c", "C")])
+  ];
+  const rfExpected = Object.freeze({ unspecifiedEntries: 1, unspecifiedCandidates: 1, rfEntries: 2, rfCandidates: 4, rfSelected: 2, cfEntries: 0, cfCandidates: 0, cfSelected: 0, mvEntries: 0, mvCandidates: 0, mvSelected: 0, mvOneRowEntries: 0, mvTwoRowEntries: 0, suffixEntries: 2, suffixCandidates: 4, selected: 2 });
+  assert.throws(() => classificationModule.classifyOfficialSuffixFoilingForTest(
+    reconcileOfficialUpstreamIdRecordsForTest(rfForms, rfRows, { entries: 3, omnEntries: 2, iarEntries: 1, omnPrintings: 4, iarPrintings: 1 }), rfExpected
+  ), classificationModule.OfficialSuffixFoilingClassificationError, "RF_PER_BASE_GUARD_REJECTED_REDISTRIBUTED_ROWS");
+});
+
+test("RF per-base guard mutation is caught by the named redistributed-row contract", () => {
+  const sourcePath = new URL("../src/official-suffix-foiling-classification.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace(
+    'if (rows.length !== 2 || selected.length !== 1 || rows.filter((row) => row.foiling === "C").length !== 1) fail();',
+    'if (false && (rows.length !== 2 || selected.length !== 1 || rows.filter((row) => row.foiling === "C").length !== 1)) fail();'
+  );
+  assert.notEqual(mutated, original, "RF per-base guard present");
+  const path = `${dirname(fileURLToPath(sourcePath))}/suffix-foiling-mutation-${process.pid}-rf-per-base.ts`;
+  writeFileSync(path, mutated);
+  try {
+    const childEnvironment = { ...process.env, [rfMutationModuleEnvironmentKey]: pathToFileURL(path).href };
+    delete childEnvironment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types",
+      "--test",
+      "--test-name-pattern",
+      `^${rfStructuralContractName}$`,
+      fileURLToPath(import.meta.url)
+    ], {
+      encoding: "utf8",
+      env: childEnvironment
+    });
+    const outputLines = result.stdout.split(/\r?\n/);
+    assert.equal(result.status, 1, `RF per-base mutation did not fail the focused contract\n${result.stdout}\n${result.stderr}`);
+    assert.equal(outputLines.filter((line) => line === `# ${rfStructuralContractMarker}`).length, 1, "exact RF focused-contract execution marker");
+    assert.equal(outputLines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(rfStructuralContractName)).length, 1, "exact named RF focused-contract failure");
+    assert.equal(outputLines.filter((line) => line.includes("Missing expected exception") && line.includes("RF_PER_BASE_GUARD_REJECTED_REDISTRIBUTED_ROWS")).length, 1, "exact RF focused-contract failure output");
+  } finally { rmSync(path, { force: true }); }
 });
 
 test("semantic mutations prove every named classification guard owns its focused contract", () => {
