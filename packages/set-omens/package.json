@@ -13,5 +13,9 @@
     "test": "node --experimental-strip-types --test test/*.test.mjs",
     "test:evidence": "node test/evidence-command.mjs",
     "test:public-source-evidence": "node test/public-source-evidence-command.mjs"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0",
+    "ajv-draft-04": "1.0.0"
   }
 }
