@@ -56,10 +56,10 @@ test("external consumers can import the supported Omens package root without bui
 });
 
 test("external build-time consumers can import only the schema-validation subpath when dependencies are installed", () => {
-  const result = runConsumer('import { FabCardSourceSchemaValidationError, validateFabEnglishCardDataAgainstSchema } from "@draft-table/set-omens/schema-validation";\nconsole.log(typeof FabCardSourceSchemaValidationError, typeof validateFabEnglishCardDataAgainstSchema);');
+  const result = runConsumer('import { FabCardSourceSchemaValidationError, OmnSourceProjectionError, projectSchemaValidatedFabEnglishCardDataForOmn, validateFabEnglishCardDataAgainstSchema } from "@draft-table/set-omens/schema-validation";\nconsole.log(typeof FabCardSourceSchemaValidationError, typeof OmnSourceProjectionError, typeof projectSchemaValidatedFabEnglishCardDataForOmn, typeof validateFabEnglishCardDataAgainstSchema);');
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "function function");
+  assert.equal(result.stdout.trim(), "function function function function");
 });
 
 test("external consumers cannot import Omens internal source modules or the raw parser", () => {

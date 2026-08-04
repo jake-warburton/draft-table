@@ -1,6 +1,6 @@
 # Accepted decisions, external unknowns, and risks
 
-External citation IDs resolve in the [research source register](research.md#source-register). The captain accepted the contracts below on 2026-08-03 and subsequently authorized Gate 0 and the walking-skeleton implementation slice. That authorization does not extend to the Phase 2 card-data importer or generated snapshot.
+External citation IDs resolve in the [research source register](research.md#source-register). The captain accepted the contracts below on 2026-08-03 and subsequently authorized Gate 0 and the walking-skeleton implementation slice. That authorization permits the isolated build-time public-card OMN source projection only; it does not extend to official membership or IAR inclusion, recipe reconciliation, treatment/image/slot classification, or generated snapshots.
 
 ## Accepted planning contracts
 
