@@ -7,6 +7,7 @@ import {
   readSchemaValidatedFabEnglishCardDataForParser,
   type SchemaValidatedFabEnglishCardData
 } from "./public-source-schema-validation.ts";
+import { copyOfficialUpstreamPrinting } from "./official-upstream-printing-copy.ts";
 
 /** Stable, source-secret failure for build-time official/upstream identity reconciliation. */
 export class OfficialUpstreamIdReconciliationError extends Error {
@@ -68,7 +69,6 @@ const artVariations = (value: unknown): ReadonlyArray<string> => {
   }
   return frozen(result);
 };
-const copyPrinting = (printing: OfficialUpstreamPrinting): OfficialUpstreamPrinting => frozen({ ...printing, art_variations: frozen([...printing.art_variations]) });
 
 const projectSource = (data: unknown, expectedSetByBase: ReadonlyMap<string, "OMN" | "IAR">): readonly SourceCard[] => {
   if (!Array.isArray(data)) return fail();
@@ -140,7 +140,7 @@ const reconcile = (forms: readonly CardVaultPrintIdForm[], source: unknown, expe
       else if (setPrinting !== printing.set_printing_unique_id) return fail();
     }
     return frozen({ officialPrintId: form.officialPrintId, baseCollectorId: form.baseCollectorId, sourceSetMarker: form.sourceSet,
-      suffixMarker: form.suffixMarker, unique_id: card.unique_id, name: card.name, printings: frozen(printings.map(copyPrinting)) });
+      suffixMarker: form.suffixMarker, unique_id: card.unique_id, name: card.name, printings: frozen(printings.map(copyOfficialUpstreamPrinting)) });
   });
   const omn = result.filter((entry) => entry.sourceSetMarker === "OMN"); const iar = result.filter((entry) => entry.sourceSetMarker === "IAR");
   const omnRows = omn.flatMap((entry) => entry.printings); const iarRows = iar.flatMap((entry) => entry.printings);

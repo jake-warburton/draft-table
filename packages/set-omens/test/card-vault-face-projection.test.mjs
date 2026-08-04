@@ -101,6 +101,70 @@ test("face projection semantic mutation ownership catches the position guard thr
   } finally { rmSync(path, { force: true }); }
 });
 
+const credentialContractName = "face projection rejects credential-bearing rendition URLs while exact authority passes";
+const credentialContractMarker = "FACE_CREDENTIAL_CONTRACT_EXECUTED";
+const credentialMutationEnvironmentKey = "DRAFT_TABLE_TEST_FACE_CREDENTIAL_MODULE";
+
+test(credentialContractName, async () => {
+  console.log(credentialContractMarker);
+  const module = process.env[credentialMutationEnvironmentKey]
+    ? await import(process.env[credentialMutationEnvironmentKey])
+    : { CardVaultFaceProjectionError, projectCardVaultOfficialFaceMetadataForTest };
+  assert.doesNotThrow(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(response(specs)), aggregate));
+  const credentialResponse = response(specs, { authority: `user:pw@${host}` });
+  assert.throws(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(credentialResponse), aggregate), module.CardVaultFaceProjectionError, "CREDENTIAL_GUARD_REJECTED_USERINFO_URL");
+});
+
+test("face projection credential mutation is caught by its named authority contract", () => {
+  const sourcePath = new URL("../src/card-vault-face-projection.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace("url.username !== \"\" || url.password !== \"\"", "(url.username !== \"\" || url.password !== \"\") && false");
+  assert.notEqual(mutated, original, "credential guard present");
+  const path = `${dirname(fileURLToPath(sourcePath))}/face-projection-mutation-${process.pid}-credentials.ts`;
+  writeFileSync(path, mutated);
+  try {
+    const env = { ...process.env, [credentialMutationEnvironmentKey]: pathToFileURL(path).href }; delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${credentialContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env });
+    const lines = result.stdout.split(/\r?\n/);
+    assert.equal(result.status, 1, `credential mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === `# ${credentialContractMarker}`).length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(credentialContractName)).length, 1);
+    assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("CREDENTIAL_GUARD_REJECTED_USERINFO_URL")).length, 1);
+  } finally { rmSync(path, { force: true }); }
+});
+
+const portContractName = "face projection rejects explicit-port rendition URLs while exact authority passes";
+const portContractMarker = "FACE_PORT_CONTRACT_EXECUTED";
+const portMutationEnvironmentKey = "DRAFT_TABLE_TEST_FACE_PORT_MODULE";
+
+test(portContractName, async () => {
+  console.log(portContractMarker);
+  const module = process.env[portMutationEnvironmentKey]
+    ? await import(process.env[portMutationEnvironmentKey])
+    : { CardVaultFaceProjectionError, projectCardVaultOfficialFaceMetadataForTest };
+  assert.doesNotThrow(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(response(specs)), aggregate));
+  const portResponse = response(specs, { authority: `${host}:8443` });
+  assert.throws(() => module.projectCardVaultOfficialFaceMetadataForTest(membership(), encode(portResponse), aggregate), module.CardVaultFaceProjectionError, "PORT_GUARD_REJECTED_EXPLICIT_PORT_URL");
+});
+
+test("face projection port mutation is caught by its named authority contract", () => {
+  const sourcePath = new URL("../src/card-vault-face-projection.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace("url.port !== \"\"", "(url.port !== \"\") && false");
+  assert.notEqual(mutated, original, "port guard present");
+  const path = `${dirname(fileURLToPath(sourcePath))}/face-projection-mutation-${process.pid}-port.ts`;
+  writeFileSync(path, mutated);
+  try {
+    const env = { ...process.env, [portMutationEnvironmentKey]: pathToFileURL(path).href }; delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${portContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env });
+    const lines = result.stdout.split(/\r?\n/);
+    assert.equal(result.status, 1, `port mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === `# ${portContractMarker}`).length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(portContractName)).length, 1);
+    assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("PORT_GUARD_REJECTED_EXPLICIT_PORT_URL")).length, 1);
+  } finally { rmSync(path, { force: true }); }
+});
+
 test("aggregate and suffix split guards reject every independently pinned aggregate drift", () => {
   for (const key of Object.keys(aggregate)) safe(() => project(response(specs), { ...aggregate, [key]: aggregate[key] + 1 }));
 });

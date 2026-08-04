@@ -3,6 +3,7 @@ import {
   type OfficialUpstreamIdReconciliation,
   type OfficialUpstreamPrinting
 } from "./official-upstream-id-reconciliation.ts";
+import { copyOfficialUpstreamPrinting } from "./official-upstream-printing-copy.ts";
 
 /** Stable, source-secret failure for build-time suffix/foiling correspondence classification. */
 export class OfficialSuffixFoilingClassificationError extends Error {
@@ -43,7 +44,6 @@ const publicAggregate: ExpectedAggregate = Object.freeze({
 });
 const fail = (): never => { throw new OfficialSuffixFoilingClassificationError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
-const copyPrinting = (row: OfficialUpstreamPrinting): OfficialUpstreamPrinting => frozen({ ...row, art_variations: frozen([...row.art_variations]) });
 
 const classify = (records: OfficialUpstreamIdReconciliation, expected: ExpectedAggregate): OfficialSuffixFoilingClassification => {
   const selectedIds = new Set<string>();
@@ -80,7 +80,7 @@ const classify = (records: OfficialUpstreamIdReconciliation, expected: ExpectedA
     for (const row of selected) { if (selectedIds.has(row.unique_id)) fail(); selectedIds.add(row.unique_id); }
     return frozen({ officialPrintId: record.officialPrintId, baseCollectorId: record.baseCollectorId, sourceSetMarker: record.sourceSetMarker,
       suffixMarker: record.suffixMarker, classification, requiredUpstreamFoiling,
-      candidatePrintings: frozen(rows.map(copyPrinting)), selectedCorrespondencePrintings: frozen(selected.map(copyPrinting)) });
+      candidatePrintings: frozen(rows.map(copyOfficialUpstreamPrinting)), selectedCorrespondencePrintings: frozen(selected.map(copyOfficialUpstreamPrinting)) });
   });
   const suffixEntries = rfEntries + cfEntries + mvEntries;
   const suffixCandidates = rfCandidates + cfCandidates + mvCandidates;

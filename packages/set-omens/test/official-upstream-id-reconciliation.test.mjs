@@ -148,6 +148,92 @@ test("art-variation uniqueness mutation is caught by its named duplicate contrac
   } finally { rmSync(path, { force: true }); }
 });
 
+const rfArtVariationContractName = "RF art-variation suffix restriction rejects FA while global sequences remain constant";
+const rfArtVariationContractMarker = "RF_ART_VARIATION_SUFFIX_CONTRACT_EXECUTED";
+const rfArtVariationMutationModuleEnvironmentKey = "DRAFT_TABLE_TEST_RF_ART_VARIATION_RECONCILIATION_MODULE";
+
+test(rfArtVariationContractName, async () => {
+  console.log(rfArtVariationContractMarker);
+  const module = process.env[rfArtVariationMutationModuleEnvironmentKey]
+    ? await import(process.env[rfArtVariationMutationModuleEnvironmentKey])
+    : { OfficialUpstreamIdReconciliationError, reconcileOfficialUpstreamIdRecordsForTest, validateOfficialUpstreamArtVariationAggregateForTest };
+  const fixtureForms = Object.freeze([
+    Object.freeze({ officialPrintId: "OMN100-RF", baseCollectorId: "OMN100", sourceSet: "OMN", suffixMarker: "RF" }),
+    Object.freeze({ officialPrintId: "IAR101", baseCollectorId: "IAR101", sourceSet: "IAR", suffixMarker: null })
+  ]);
+  const rows = (rfSequence, unsuffixedSequence) => [
+    c({ unique_id: "rf", printings: [p({ unique_id: "rf-p", id: "OMN100", art_variations: rfSequence })] }),
+    c({ unique_id: "plain", printings: [p({ unique_id: "plain-p", set_printing_unique_id: "sp-iar", id: "IAR101", set_id: "IAR", art_variations: unsuffixedSequence })] })
+  ];
+  const reconciliationExpected = Object.freeze({ entries: 2, omnEntries: 1, iarEntries: 1, omnPrintings: 1, iarPrintings: 1 });
+  const globallyValid = module.reconcileOfficialUpstreamIdRecordsForTest(fixtureForms, rows(["EA"], ["FA"]), reconciliationExpected);
+  assert.doesNotThrow(() => module.validateOfficialUpstreamArtVariationAggregateForTest(globallyValid, Object.freeze({ empty: 0, ea: 1, fa: 1, aaFa: 0, unsuffixedEmpty: 0, unsuffixedEa: 0, unsuffixedFa: 1, unsuffixedAaFa: 0, rfEmpty: 0, rfEa: 1, cfEmpty: 0, mvFa: 0 })));
+  const rejected = module.reconcileOfficialUpstreamIdRecordsForTest(fixtureForms, rows(["FA"], ["EA"]), reconciliationExpected);
+  assert.throws(() => module.validateOfficialUpstreamArtVariationAggregateForTest(rejected, Object.freeze({ empty: 0, ea: 1, fa: 1, aaFa: 0, unsuffixedEmpty: 0, unsuffixedEa: 1, unsuffixedFa: 0, unsuffixedAaFa: 0, rfEmpty: 0, rfEa: 1, cfEmpty: 0, mvFa: 0 })), module.OfficialUpstreamIdReconciliationError, "RF_SUFFIX_GUARD_REJECTED_FA_WITH_GLOBAL_SEQUENCE_TOTALS_HELD");
+});
+
+test("RF art-variation suffix mutation is caught by its named capability-bound contract", () => {
+  const sourcePath = new URL("../src/official-upstream-id-reconciliation.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace('else if (record.suffixMarker === "RF") { if (sequence === "") rfEmpty++; else if (sequence === "EA") rfEa++; else fail(); }', 'else if (record.suffixMarker === "RF") { if (sequence === "") rfEmpty++; else if (sequence === "EA" || sequence === "FA") rfEa++; else fail(); }');
+  assert.notEqual(mutated, original, "RF suffix restriction present");
+  const path = `${dirname(fileURLToPath(sourcePath))}/reconciliation-mutation-${process.pid}-rf-art-variation.ts`;
+  writeFileSync(path, mutated);
+  try {
+    const environment = { ...process.env, [rfArtVariationMutationModuleEnvironmentKey]: pathToFileURL(path).href }; delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${rfArtVariationContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/);
+    assert.equal(result.status, 1, `RF art-variation mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === `# ${rfArtVariationContractMarker}`).length, 1, "exact RF art-variation marker");
+    assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(rfArtVariationContractName)).length, 1, "exact named RF art-variation failure");
+    assert.equal(lines.filter((line) => line.includes("Missing expected exception") && line.includes("RF_SUFFIX_GUARD_REJECTED_FA_WITH_GLOBAL_SEQUENCE_TOTALS_HELD")).length, 1, "exact RF suffix failure line");
+  } finally { rmSync(path, { force: true }); }
+});
+
+const artVariationCopyContractName = "art-variation defensive-copy owner prevents aliasing across reconciliation and classification boundaries";
+const artVariationCopyContractMarker = "ART_VARIATION_COPY_INDEPENDENCE_CONTRACT_EXECUTED";
+const artVariationCopyMutationModuleEnvironmentKey = "DRAFT_TABLE_TEST_ART_VARIATION_COPY_OWNER_MODULE";
+
+test(artVariationCopyContractName, async () => {
+  console.log(artVariationCopyContractMarker);
+  const owner = process.env[artVariationCopyMutationModuleEnvironmentKey]
+    ? await import(process.env[artVariationCopyMutationModuleEnvironmentKey])
+    : await import("../src/official-upstream-printing-copy.ts");
+  const sourceText = readFileSync(new URL("../src/official-upstream-id-reconciliation.ts", import.meta.url), "utf8");
+  const classificationText = readFileSync(new URL("../src/official-suffix-foiling-classification.ts", import.meta.url), "utf8");
+  assert.match(sourceText, /copyOfficialUpstreamPrinting/); assert.match(classificationText, /copyOfficialUpstreamPrinting/);
+  const sourcePrinting = p({ art_variations: ["EA"] });
+  const reconciledPrinting = owner.copyOfficialUpstreamPrinting(sourcePrinting);
+  const classifiedCandidate = owner.copyOfficialUpstreamPrinting(reconciledPrinting);
+  const classifiedSelected = owner.copyOfficialUpstreamPrinting(reconciledPrinting);
+  assert.notEqual(reconciledPrinting.art_variations, sourcePrinting.art_variations, "source-to-reconciliation array copy");
+  assert.notEqual(classifiedCandidate.art_variations, reconciledPrinting.art_variations, "reconciliation-to-candidate array copy");
+  assert.notEqual(classifiedSelected.art_variations, reconciledPrinting.art_variations, "reconciliation-to-selected array copy");
+  assert.notEqual(classifiedCandidate.art_variations, classifiedSelected.art_variations, "candidate and selected copies are independent");
+  sourcePrinting.art_variations[0] = "FA";
+  assert.deepEqual(reconciledPrinting.art_variations, ["EA"]);
+  assert.deepEqual(classifiedCandidate.art_variations, ["EA"]);
+  assert.deepEqual(classifiedSelected.art_variations, ["EA"]);
+});
+
+test("art-variation copy-owner mutation is caught by the named independence contract", () => {
+  const sourcePath = new URL("../src/official-upstream-printing-copy.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace("art_variations: Object.freeze([...printing.art_variations])", "art_variations: (Object.freeze([...printing.art_variations]), Object.freeze(printing.art_variations))");
+  assert.notEqual(mutated, original, "actual common copy owner present");
+  const path = `${dirname(fileURLToPath(sourcePath))}/upstream-printing-copy-mutation-${process.pid}.ts`;
+  writeFileSync(path, mutated);
+  try {
+    const environment = { ...process.env, [artVariationCopyMutationModuleEnvironmentKey]: pathToFileURL(path).href }; delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${artVariationCopyContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/);
+    assert.equal(result.status, 1, `copy-owner mutation did not fail named contract\n${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === `# ${artVariationCopyContractMarker}`).length, 1, "exact copy marker");
+    assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(artVariationCopyContractName)).length, 1, "exact named copy failure");
+    assert.equal(lines.filter((line) => line.includes("source-to-reconciliation array copy")).length, 1, "exact copy independence failure line");
+  } finally { rmSync(path, { force: true }); }
+});
+
 test("forged capabilities cannot enter the public schema-validation boundary", async () => {
   const { reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData } = await import("../src/schema-validation.ts");
   safe(() => reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData(Object.freeze({}), Object.freeze({})));
