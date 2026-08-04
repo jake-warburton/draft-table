@@ -17,7 +17,7 @@ Why it is the best fit [DATA-1][DATA-2][DATA-3]:
 - published JSON Schemas and semantic-versioned release tags;
 - direct raw-file URLs make a build-time, checksum-pinned import possible with no production API dependency.
 
-Recommended inputs are the tagged `card.json`, `set.json`, schemas, and official Card Vault product membership—not `develop` and not a live fetch at application runtime. v8.2.0 was published 2026-06-30 and includes Omens; observed development commits continued through 2026-08-03 [DATA-4]. The project warns that past releases are not back-patched and recommends pinning a tag [DATA-2].
+Recommended inputs are the tagged English `json/english/card.json`, `set.json`, schemas, and official Card Vault product membership—not `develop` and not a live fetch at application runtime. The build-time boundary checksum-pins v8.2.0 commit `d0665abbbce2ef6876bc14e34883d4e3cf3fb904` for that card input and `json-schema/card-schema.json`; it does not yet decode or validate either input. v8.2.0 was published 2026-06-30 and includes Omens; observed development commits continued through 2026-08-03 [DATA-4]. The project warns that past releases are not back-patched and recommends pinning a tag [DATA-2].
 
 Observed Omens coverage at v8.2.0:
 
