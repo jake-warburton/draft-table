@@ -17,3 +17,11 @@ When updating this file, preserve this bar for all agents and keep entries conci
 
 - Contracts named for a specific guard must semantically bypass that guard while preserving surrounding/source checks and prove the contract fails; deletion-only mutations are insufficient because another layer may mask the guard.
 - Command and mutation evidence must assert that the intended command and named contract actually executed and produced its exact expected success/failure marker; usage errors, wrong environment variables, or arbitrary nonzero exits are invalid evidence even if reported as green.
+- Mutation proofs for focused guard contracts must execute the **named** contract against a
+  semantically modified copy of the production module, not a re-implemented fixture. Parameterize
+  only the module path through a test-only environment variable that defaults to the production
+  import, run the contract by exact name via `--test-name-pattern`, and assert the exact exit
+  status, one execution marker, one `not ok` carrying the contract name, and one specific failure
+  line. No loaders, interception, or shared harnesses. See
+  `packages/set-omens/test/official-suffix-foiling-classification.test.mjs` for the reference
+  implementation. Existing inline-duplicate proofs are follow-up candidates, not blessed.
