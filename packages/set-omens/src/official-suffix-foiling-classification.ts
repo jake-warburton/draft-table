@@ -43,7 +43,7 @@ const publicAggregate: ExpectedAggregate = Object.freeze({
 });
 const fail = (): never => { throw new OfficialSuffixFoilingClassificationError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
-const copyPrinting = (row: OfficialUpstreamPrinting): OfficialUpstreamPrinting => frozen({ ...row });
+const copyPrinting = (row: OfficialUpstreamPrinting): OfficialUpstreamPrinting => frozen({ ...row, art_variations: frozen([...row.art_variations]) });
 
 const classify = (records: OfficialUpstreamIdReconciliation, expected: ExpectedAggregate): OfficialSuffixFoilingClassification => {
   const selectedIds = new Set<string>();
