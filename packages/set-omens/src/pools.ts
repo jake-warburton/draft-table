@@ -37,6 +37,11 @@ const OMENS_POOL_AGGREGATES: Readonly<Record<string, readonly [number, number]>>
 const NORMAL_POOL_NAMES = new Set(["Wizard", "Illusionist", "Runeblade", "Lightning", "Generic", "Equipment", "Rare", "Majestic"]);
 const RF_POOL_NAMES = new Set(["Rfcommon", "RFRare", "RFMajestic"]);
 const PINNED_POOL_NAMES = new Set([...NORMAL_POOL_NAMES, ...RF_POOL_NAMES]);
+const POOL_RARITIES: Readonly<Record<string, OmensRecipeCardReference["rarity"]>> = Object.freeze({
+  Wizard: "common", Illusionist: "common", Runeblade: "common", Lightning: "common",
+  Generic: "common", Equipment: "common", Rare: "rare", Majestic: "mythic",
+  Rfcommon: "common", RFRare: "rare", RFMajestic: "mythic"
+});
 
 const invalidPools = (): never => {
   throw new OmensRecipePoolsError();
@@ -67,9 +72,13 @@ export const validateOmensRecipeReferences = (
       usedPools.add(slot.pool);
     }
   }
+  const cardsByName = new Map(cards.map((card) => [card.name, card]));
   for (const pool of pools.pools) {
     for (const entry of pool.entries) {
-      if (!cardNames.has(entry.reference)) return invalidPools();
+      const card = cardsByName.get(entry.reference);
+      if (card === undefined) return invalidPools();
+      const expectedRarity = POOL_RARITIES[pool.name];
+      if (pinnedPools && expectedRarity !== undefined && card.rarity !== expectedRarity) return invalidPools();
     }
   }
   if (pinnedPools) {
