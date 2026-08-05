@@ -171,9 +171,9 @@ export class DraftRuleError extends Error {
 
 interface StateFields extends Omit<DraftState, "legalChoices" | "pendingSeatIds"> {}
 
-const fail = (code: DraftRuleErrorCode, message: string): never => {
+function fail(code: DraftRuleErrorCode, message: string): never {
   throw new DraftRuleError(code, message);
-};
+}
 const frozenArray = <T>(values: readonly T[]): readonly T[] => Object.freeze(Array.from(values));
 const isIdentifier = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0 && value.trim().length > 0;
@@ -423,11 +423,12 @@ export const resolveTimeout = (
   const missing = state.seats.filter(({ id }) => !queued.has(id));
   if (fallbacks.length !== missing.length) fail("FALLBACK_MISMATCH", "Fallback intents must exactly cover unqueued seats.");
   const validatedFallbacks = fallbacks.map((value) => {
-    if (!isCurrentFields(value) || value.type !== "random-fallback" ||
-      !isIdentifier(value.seatId) || !isIdentifier(value.packId)) {
+    const intent: RandomFallbackIntent = value;
+    if (!isCurrentFields(value) || intent.type !== "random-fallback" ||
+      !isIdentifier(intent.seatId) || !isIdentifier(intent.packId)) {
       fail("MALFORMED_ACTION", "Random fallback intent fields are malformed.");
     }
-    return value;
+    return intent;
   });
   const missingIds = new Set(missing.map(({ id }) => id));
   const fallbackBySeat = new Map<string, RandomFallbackIntent>();
