@@ -175,6 +175,11 @@ export const readOmensRecipeOfficialIdentityReconciliationForDraftEligibility = 
   reconciliation: OmensRecipeOfficialIdentityReconciliation
 ): OmensRecipeOfficialIdentityReconciliation => reconciliationCapabilities.has(reconciliation) ? reconciliation : fail();
 
+/** Reads only the completed exact identity capability for recipe-pool resolution. */
+export const readOmensRecipeOfficialIdentityReconciliationForPoolResolution = (
+  reconciliation: OmensRecipeOfficialIdentityReconciliation
+): OmensRecipeOfficialIdentityReconciliation => reconciliationCapabilities.has(reconciliation) ? reconciliation : fail();
+
 /** Build-time-only exact identity membership reconciliation over both opaque capabilities. */
 export const reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities = (
   recipe: ReadonlyArray<OmensRecipeCardReference>,
