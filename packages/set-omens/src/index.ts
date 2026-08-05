@@ -180,18 +180,20 @@ export const parseVerifiedOmensCustomCards = (
   parseOmensCustomCardsFromTrustedBytes(readVerifiedOmensBytesForParser(recipe.verification))
 );
 
+const parseCompletedVerifiedOmensRecipeStructure = (
+  recipe: VerifiedOmensRecipe
+): Readonly<{ layouts: OmensLayouts; pools: OmensPools }> => {
+  const bytes = readVerifiedOmensBytesForParser(recipe.verification);
+  const layouts = validateOmensRecipeLayoutsAggregate(parseOmensLayoutsFromTrustedBytes(bytes));
+  const cards = validateOmensRecipeCustomCardsAggregate(parseOmensCustomCardsFromTrustedBytes(bytes));
+  const pools = completeValidatedOmensRecipePools(parseOmensPoolsFromTrustedBytes(bytes), layouts, cards, recipe.verification);
+  return Object.freeze({ layouts, pools });
+};
+
 export const parseVerifiedOmensLayouts = (
   recipe: VerifiedOmensRecipe
-): OmensLayouts => validateOmensRecipeLayoutsAggregate(parseOmensLayoutsFromTrustedBytes(
-  readVerifiedOmensBytesForParser(recipe.verification)
-));
+): OmensLayouts => parseCompletedVerifiedOmensRecipeStructure(recipe).layouts;
 
 export const parseVerifiedOmensPools = (
   recipe: VerifiedOmensRecipe
-): OmensPools => {
-  const bytes = readVerifiedOmensBytesForParser(recipe.verification);
-  const pools = parseOmensPoolsFromTrustedBytes(bytes);
-  const layouts = validateOmensRecipeLayoutsAggregate(parseOmensLayoutsFromTrustedBytes(bytes));
-  const cards = validateOmensRecipeCustomCardsAggregate(parseOmensCustomCardsFromTrustedBytes(bytes));
-  return completeValidatedOmensRecipePools(pools, layouts, cards);
-};
+): OmensPools => parseCompletedVerifiedOmensRecipeStructure(recipe).pools;

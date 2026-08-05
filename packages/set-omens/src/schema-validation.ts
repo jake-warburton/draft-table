@@ -53,6 +53,12 @@ import {
   type OmensRecipePoolOfficialIdentityResolution
 } from "./recipe-pool-identity-resolution.ts";
 import type { OmensPools } from "./pools.ts";
+import type { OmensLayouts } from "./layouts.ts";
+import {
+  OmensRecipeLayoutPoolResolutionError,
+  resolveOmensRecipeLayoutsToOfficialIdentityPools as resolveRecipeLayouts,
+  type OmensRecipeLayoutOfficialIdentityPoolResolution
+} from "./recipe-layout-pool-resolution.ts";
 import {
   OmensRecipeRarityCorrespondenceError,
   reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings as reconcileRecipeRarities,
@@ -70,6 +76,7 @@ export {
   OmensRecipeRarityCorrespondenceError,
   DraftEligibilityClassificationError,
   OmensRecipePoolIdentityResolutionError,
+  OmensRecipeLayoutPoolResolutionError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -79,6 +86,7 @@ export {
   type OmensRecipeRarityCorrespondence,
   type OmensDraftEligibilityClassification,
   type OmensRecipePoolOfficialIdentityResolution,
+  type OmensRecipeLayoutOfficialIdentityPoolResolution,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -137,6 +145,11 @@ export const classifyOmensOfficialDraftEligibility = (
 export const resolveOmensRecipePoolsToDraftableOfficialIdentities = (
   ...inputs: [OmensPools, OmensRecipeOfficialIdentityReconciliation, OmensDraftEligibilityClassification]
 ): OmensRecipePoolOfficialIdentityResolution => resolveRecipePools(...inputs);
+
+/** Build-time-only resolution of every completed weighted layout slot through its exact capability-owned pool. */
+export const resolveOmensRecipeLayoutsToOfficialIdentityPools = (
+  ...inputs: [OmensLayouts, OmensRecipePoolOfficialIdentityResolution]
+): OmensRecipeLayoutOfficialIdentityPoolResolution => resolveRecipeLayouts(...inputs);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (

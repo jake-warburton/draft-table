@@ -24,6 +24,8 @@ const DERIVED_TOTALS = Object.freeze({
   rfmajestic: 9216
 });
 const EXPECTED_OUTCOME_KEYS = new Set(Object.keys(RF_COEFFICIENTS));
+const parsedLayoutCapabilities = new WeakSet<object>();
+const completedLayoutCapabilities = new WeakMap<object, object>();
 type DerivedTotals = Readonly<Record<keyof typeof DERIVED_TOTALS, number>>;
 
 export class OmensRecipeLayoutsError extends Error {
@@ -184,6 +186,35 @@ const layoutsLinesFromTrustedBytes = (bytes: Uint8Array): string[] => {
   return lines.slice(layoutsHeader.index + 1, nextHeader.index);
 };
 
+/** Registers a parser-owned fictional layout only after its surrounding pool/reference contracts pass. */
+export const completeOmensRecipeLayoutsForPoolResolutionForTest = (
+  layouts: OmensLayouts,
+  sourceOwner: object
+): OmensLayouts => {
+  if (!parsedLayoutCapabilities.has(layouts) || sourceOwner === null || typeof sourceOwner !== "object") return invalidLayouts();
+  completedLayoutCapabilities.set(layouts, sourceOwner);
+  return layouts;
+};
+
+/** Registers the exact pinned layout only after all existing aggregate and pool/reference contracts pass. */
+export const completeValidatedOmensRecipeLayoutsForPoolResolution = (
+  layouts: OmensLayouts,
+  sourceOwner: object
+): OmensLayouts => {
+  if (!parsedLayoutCapabilities.has(layouts) || sourceOwner === null || typeof sourceOwner !== "object") return invalidLayouts();
+  validateOmensRecipeLayoutsAggregate(layouts);
+  completedLayoutCapabilities.set(layouts, sourceOwner);
+  return layouts;
+};
+
+/** Narrow package-internal reader for the exact completed layout capability. */
+export const readCompletedOmensRecipeLayoutsForPoolResolution = (layouts: OmensLayouts): OmensLayouts =>
+  completedLayoutCapabilities.has(layouts) ? layouts : invalidLayouts();
+
+/** Narrow package-internal ownership reader; it exposes only an opaque identity token. */
+export const readCompletedOmensRecipeLayoutsSourceOwner = (layouts: OmensLayouts): object =>
+  completedLayoutCapabilities.get(layouts) ?? invalidLayouts();
+
 /** Test-only seam for synthetic malformed-input contracts; not publicly exported. */
 export const parseOmensLayoutsFromTrustedBytes = (bytes: Uint8Array): OmensLayouts => {
   try {
@@ -217,7 +248,9 @@ export const parseOmensLayoutsFromTrustedBytes = (bytes: Uint8Array): OmensLayou
 
     if (current === undefined || current.slots.length === 0 || current.slots.reduce((total, slot) => total + slot.count, 0) !== VISIBLE_CARD_TOTAL) return invalidLayouts();
     layouts.push(Object.freeze({ ...current, slots: Object.freeze(current.slots) }));
-    return Object.freeze({ layouts: Object.freeze(layouts) });
+    const capability = Object.freeze({ layouts: Object.freeze(layouts) });
+    parsedLayoutCapabilities.add(capability);
+    return capability;
   } catch (error) {
     if (error instanceof OmensRecipeLayoutsError) throw error;
     return invalidLayouts();

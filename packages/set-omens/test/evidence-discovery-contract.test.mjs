@@ -16,7 +16,8 @@ import {
   discoverRecipeIdentityEvidenceTests,
   discoverRecipeRarityEvidenceTests,
   discoverDraftEligibilityEvidenceTests,
-  discoverRecipePoolIdentityEvidenceTests
+  discoverRecipePoolIdentityEvidenceTests,
+  discoverRecipeLayoutPoolResolutionEvidenceTests
 } from "./evidence-discovery.mjs";
 
 const syntheticFiles = [
@@ -27,6 +28,7 @@ const syntheticFiles = [
   "recipe-rarity-correspondence.recipe-rarity-evidence.test.mjs",
   "draft-eligibility-classification.draft-eligibility-evidence.test.mjs",
   "recipe-pool-identity-resolution.recipe-pool-identity-evidence.test.mjs",
+  "recipe-layout-pool-resolution.recipe-layout-pool-resolution-evidence.test.mjs",
   "topic-about-public-source.test.mjs",
   "synthetic-contract.test.mjs"
 ];
@@ -111,6 +113,12 @@ test("draft eligibility evidence discovery selects only its separate four-source
 test("recipe pool identity evidence discovery selects only its separate four-source gate", () => {
   assert.deepEqual(discoverRecipePoolIdentityEvidenceTests(syntheticFiles), [
     "recipe-pool-identity-resolution.recipe-pool-identity-evidence.test.mjs"
+  ]);
+});
+
+test("recipe layout pool resolution evidence discovery selects only its separate four-source gate", () => {
+  assert.deepEqual(discoverRecipeLayoutPoolResolutionEvidenceTests(syntheticFiles), [
+    "recipe-layout-pool-resolution.recipe-layout-pool-resolution-evidence.test.mjs"
   ]);
 });
 
