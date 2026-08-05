@@ -95,6 +95,14 @@ test(intrinsicContractName, async () => {
     projected = presentation.projectOmensOfficialCardPresentation(capabilities.reconciliation, capabilities.faces, identity, printing, 10);
   } catch (error) { includesError = error; } finally { Object.defineProperty(Array.prototype, "includes", includesDescriptor); }
   assert.equal(includesError, undefined, "BOUND_ARRAY_INCLUDES_MUST_SURVIVE_CALL_TIME_POISON");
+  const weakSetAddDescriptor = Object.getOwnPropertyDescriptor(WeakSet.prototype, "add");
+  let added, weakSetAddError;
+  try {
+    Object.defineProperty(WeakSet.prototype, "add", { configurable: true, writable: true, value: () => { throw new Error("poisoned weak set add"); } });
+    added = presentation.projectOmensOfficialCardPresentation(capabilities.reconciliation, capabilities.faces, identity, printing, 10);
+  } catch (error) { weakSetAddError = error; } finally { Object.defineProperty(WeakSet.prototype, "add", weakSetAddDescriptor); }
+  assert.equal(weakSetAddError, undefined, "BOUND_WEAK_SET_ADD_MUST_SURVIVE_CALL_TIME_POISON");
+  assert.equal(presentation.readOmensCardPresentationForBuild(added), added);
   const findDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, "find");
   let findError;
   try {
@@ -140,6 +148,12 @@ test("call-time intrinsic lookup mutations fail the named card-presentation boun
       "const arrayFilter = Function.prototype.call.bind(Array.prototype.filter) as <Value>(values: readonly Value[], predicate: (value: Value) => boolean) => Value[];",
       "const arrayFilter = (<Value>(values: readonly Value[], predicate: (value: Value) => boolean) => values.filter(predicate)) as <Value>(values: readonly Value[], predicate: (value: Value) => boolean) => Value[];",
       "BOUND_ARRAY_FILTER_MUST_SURVIVE_CALL_TIME_POISON"
+    ],
+    [
+      "weak-set-add",
+      "const weakSetAdd = Function.prototype.call.bind(WeakSet.prototype.add) as (set: WeakSet<object>, value: object) => WeakSet<object>;",
+      "const weakSetAdd = ((set: WeakSet<object>, value: object) => WeakSet.prototype.add.call(set, value)) as (set: WeakSet<object>, value: object) => WeakSet<object>;",
+      "BOUND_WEAK_SET_ADD_MUST_SURVIVE_CALL_TIME_POISON"
     ],
     [
       "weak-set-has",

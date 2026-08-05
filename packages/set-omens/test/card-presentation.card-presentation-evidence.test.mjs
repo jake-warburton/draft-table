@@ -19,6 +19,30 @@ test(contractName, { skip: !available ? "public presentation acceptance did not 
   const membership = validateCardVaultOmensOfficialMembership(vaultBytes);
   const reconciliation = reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData(membership, validateFabEnglishCardDataAgainstSchema(documents.card, documents.schema));
   const faces = projectOfficialCardVaultFaceMetadata(membership, vaultBytes);
-  const identity = reconciliation[0]; const result = projectOmensOfficialCardPresentation(reconciliation, faces, identity, identity.printings[0], 10);
-  assert.equal(result.officialPrintId, identity.officialPrintId); assert.equal(result.imageUrl, faces[0].faces[0].image.normal);
+  const identity = reconciliation[0]; const printing = identity.printings[0]; const face = faces[0].faces[0];
+  const result = projectOmensOfficialCardPresentation(reconciliation, faces, identity, printing, face.layout_position);
+  assert.deepEqual(result, {
+    officialPrintId: identity.officialPrintId,
+    baseCollectorId: identity.baseCollectorId,
+    upstreamCardId: identity.unique_id,
+    upstreamPrintingId: printing.unique_id,
+    faceLayoutPosition: face.layout_position,
+    displayName: identity.name,
+    pitch: identity.pitch,
+    pitchColour: null,
+    rarity: printing.rarity,
+    imageUrl: face.image.normal,
+    treatment: printing.foiling,
+    rearMarker: null,
+    source: {
+      identity: "official-card-vault-membership + pinned-upstream-card.json",
+      displayName: "pinned-upstream-card.json",
+      pitch: "pinned-upstream-card.json",
+      pitchColour: "unavailable",
+      rarity: "pinned-upstream-card.json",
+      imageUrl: "official-card-vault-response:normal-rendition",
+      treatment: "pinned-upstream-card.json:foiling",
+      rearMarker: "unavailable"
+    }
+  });
 });
