@@ -87,6 +87,10 @@ import {
   removeOmensPackLocalPoolOfficialIdentity as removePackLocalPoolOfficialIdentity,
   type OmensPackLocalPoolDrawState
 } from "./pack-local-pool-draw-state.ts";
+import {
+  OmensPackLocalPoolTicketSelectionError,
+  selectOmensPackLocalPoolOfficialIdentityByTicket as selectPackLocalPoolOfficialIdentityByTicket
+} from "./pack-local-pool-ticket-selection.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -104,6 +108,7 @@ export {
   OmensCollationWeightTicketSelectionError,
   OmensCollationSampleSelectionError,
   OmensPackLocalPoolDrawStateError,
+  OmensPackLocalPoolTicketSelectionError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -220,6 +225,15 @@ export const removeOmensPackLocalPoolOfficialIdentity = (
     OmensRecipePoolOfficialIdentityResolution[number]["entries"][number]["officialIdentity"]
   ]
 ): OmensPackLocalPoolDrawState => removePackLocalPoolOfficialIdentity(...inputs);
+
+/** Deterministically selects one remaining capability-owned identity from a dynamic pack-local bounded ticket. */
+export const selectOmensPackLocalPoolOfficialIdentityByTicket = (
+  ...inputs: [
+    OmensPackLocalPoolDrawState,
+    OmensRecipePoolOfficialIdentityResolution[number],
+    number
+  ]
+): OmensRecipePoolOfficialIdentityResolution[number]["entries"][number]["officialIdentity"] => selectPackLocalPoolOfficialIdentityByTicket(...inputs);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (
