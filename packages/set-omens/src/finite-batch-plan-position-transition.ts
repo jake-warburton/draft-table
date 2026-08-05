@@ -121,7 +121,7 @@ const snapshotFiniteBatch = (batchInput: unknown): Readonly<{
     sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
   const sampleSnapshot: unknown[] = [];
   for (let index = 0; index < sampleCount; index++) {
-    defineOwnDataProperty(sampleSnapshot, index, {
+    defineOwnDataProperty(sampleSnapshot, String(index), {
       value: batchInput[index], writable: false, enumerable: true, configurable: false
     });
   }
