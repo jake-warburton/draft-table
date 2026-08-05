@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import { UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END } from "@draft-table/engine";
 import { fictionalCollationCapabilities } from "./fictional-collation-capabilities.mjs";
+import { discoverEvidenceTests } from "./evidence-discovery.mjs";
 import { exactTestNamePattern } from "./recipe-layout-pool-resolution-test-name.mjs";
 import { initializeOmensPackLocalPoolDrawState, removeOmensPackLocalPoolOfficialIdentity } from "../src/pack-local-pool-draw-state.ts";
 import {
@@ -107,9 +108,16 @@ test(capacityContract, async () => {
   assert.equal(layout.slots.length, 14); assert.equal(pool.officialIdentityChoices.length, 1); assert.equal(layout.slots.filter((position) => position.resolvedPool === pool.poolReference).length, 3); assert.ok(layout.slots.every((position, index) => position.position === index + 1)); assert.deepEqual(layout.slots.map((position) => position.recipeStructuralRole), [...Array(11).fill("common-rarity"), "fixed-rare", "rare-or-majestic", "rainbow-foil"]);
   assert.throws(() => plan.initializeOmensPackCollationPlanFromOneUnsigned32SampleForTest(capabilities.tables, 0, (tables) => Object.freeze({ state: "selected", layoutReference: tables.layoutChoices[0].layoutReference }), () => { initialized++; return drawState.initializeOmensPackLocalPoolDrawState(capabilities.tables); }), { code: "OMENS_PACK_COLLATION_PLAN_INITIALIZATION_FAILED" }, "CAPACITY_MUST_REJECT_BEFORE_INITIALIZATION"); assert.equal(initialized, 0, "CAPACITY_MUST_REJECT_BEFORE_INITIALIZATION");
 });
-test("plan capacity semantic mutation fails its exact named contract", () => {
-  const original = readFileSync(sourcePath, "utf8"), mutated = original.replace("  if (![...requiredByPool].every(([poolReference, required]) => {\n    const poolTable = poolTablesByReference.get(poolReference);\n    return poolTable !== undefined && poolTable.poolTotalWeight > 0 &&\n      poolTable.officialIdentityChoices.length >= required;\n  })) fail();", "  if (false) fail();");
-  assert.notEqual(mutated, original); runMutation(mutated, capacityContract, capacityMarker, "CAPACITY_MUST_REJECT_BEFORE_INITIALIZATION");
+const capacityMutationContract = "plan capacity semantic mutation fails its exact named contract";
+test(capacityMutationContract, () => {
+  const guard = "  if (![...requiredByPool].every(hasSufficientCapacity)) fail();", original = readFileSync(sourcePath, "utf8"), mutated = original.replace(guard, "  if (false) fail();");
+  assert.equal(original.split(guard).length - 1, 1, "CAPACITY_GUARD_MUST_HAVE_ONE_CANONICAL_OCCURRENCE"); assert.notEqual(mutated, original, "CAPACITY_MUTATION_BYTES_MUST_CHANGE"); runMutation(mutated, capacityContract, capacityMarker, "CAPACITY_MUST_REJECT_BEFORE_INITIALIZATION");
+});
+
+test("evidence-discovered package-cwd subset runs capacity isolation without inherited context", () => {
+  const packageDirectory = fileURLToPath(new URL("..", import.meta.url)), files = discoverEvidenceTests(readdirSync(join(packageDirectory, "test"))).map((file) => `test/${file}`), environment = { ...process.env }, contracts = [capacityContract, capacityMutationContract], pattern = `^(?:${contracts.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`; delete environment.NODE_TEST_CONTEXT; for (const variable of ["OMENS_RECIPE_EVIDENCE_PATH", "FAB_CARD_SOURCE_EVIDENCE_PATH", "FAB_CARD_SCHEMA_EVIDENCE_PATH", "FAB_CARD_VAULT_EVIDENCE_PATH"]) delete environment[variable];
+  const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", pattern, ...files], { cwd: packageDirectory, encoding: "utf8", env: environment }), lines = result.stdout.split(/\r?\n/u);
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`); assert.equal(lines.filter((line) => line === `# ${capacityMarker}`).length, 1); for (const contract of contracts) assert.equal(lines.filter((line) => /^ok \d+ - /u.test(line) && line.replace(/^ok \d+ - /u, "") === contract).length, 1);
 });
 
 test("plan mutation snapshots are file-local OS-temp canonical copies and always clean", () => { let snapshot; withCanonicalSnapshot((directory) => { snapshot = directory; assert.ok(directory.startsWith(tmpdir())); assert.equal(directory.startsWith(`${resolvePath(fileURLToPath(new URL("../../..", import.meta.url)))}${sep}`), false); }); assert.equal(existsSync(snapshot), false); let failed; assert.throws(() => withCanonicalSnapshot((directory) => { failed = directory; throw new Error("body"); })); assert.equal(existsSync(failed), false); });

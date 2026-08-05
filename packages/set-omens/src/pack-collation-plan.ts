@@ -76,11 +76,12 @@ const validateSelectedPlan = (
     requiredByPool.set(position.resolvedPool, (requiredByPool.get(position.resolvedPool) ?? 0) + 1);
     return true;
   })) fail();
-  if (![...requiredByPool].every(([poolReference, required]) => {
+  const hasSufficientCapacity = ([poolReference, required]: [OmensCollationWeightTables["poolTables"][number]["poolReference"], number]): boolean => {
     const poolTable = poolTablesByReference.get(poolReference);
     return poolTable !== undefined && poolTable.poolTotalWeight > 0 &&
       poolTable.officialIdentityChoices.length >= required;
-  })) fail();
+  };
+  if (![...requiredByPool].every(hasSufficientCapacity)) fail();
 };
 
 const register = (
