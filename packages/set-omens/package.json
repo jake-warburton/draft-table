@@ -21,7 +21,8 @@
     "test:recipe-layout-pool-resolution-evidence": "node test/recipe-layout-pool-resolution-evidence-command.mjs",
     "test:collation-weight-tables-evidence": "node test/collation-weight-tables-evidence-command.mjs",
     "test:collation-weighted-selection-evidence": "node test/collation-weight-ticket-selection-evidence-command.mjs",
-    "test:collation-sample-selection-evidence": "node test/collation-sample-selection-evidence-command.mjs"
+    "test:collation-sample-selection-evidence": "node test/collation-sample-selection-evidence-command.mjs",
+    "test:pack-local-pool-draw-state-evidence": "node test/pack-local-pool-draw-state-evidence-command.mjs"
   },
   "dependencies": {
     "@draft-table/engine": "0.0.0"

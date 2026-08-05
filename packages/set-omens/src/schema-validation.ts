@@ -81,6 +81,12 @@ import {
   type OmensCollationLayoutSampleSelection,
   type OmensCollationPoolSampleSelection
 } from "./collation-sample-selection.ts";
+import {
+  OmensPackLocalPoolDrawStateError,
+  initializeOmensPackLocalPoolDrawState as initializePackLocalPoolDrawState,
+  removeOmensPackLocalPoolOfficialIdentity as removePackLocalPoolOfficialIdentity,
+  type OmensPackLocalPoolDrawState
+} from "./pack-local-pool-draw-state.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -97,6 +103,7 @@ export {
   OmensCollationWeightTablesError,
   OmensCollationWeightTicketSelectionError,
   OmensCollationSampleSelectionError,
+  OmensPackLocalPoolDrawStateError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -110,6 +117,7 @@ export {
   type OmensCollationWeightTables,
   type OmensCollationLayoutSampleSelection,
   type OmensCollationPoolSampleSelection,
+  type OmensPackLocalPoolDrawState,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -198,6 +206,20 @@ export const selectOmensCollationLayoutFromOneUnsigned32Sample = (
 export const selectOmensCollationPoolOfficialIdentityFromOneUnsigned32Sample = (
   ...inputs: [OmensCollationWeightTables, OmensRecipePoolOfficialIdentityResolution[number], number]
 ): OmensCollationPoolSampleSelection => selectPoolOfficialIdentityFromOneSample(...inputs);
+
+/** Creates one fresh immutable pack-local same-pool no-replacement state from registered pool tables. */
+export const initializeOmensPackLocalPoolDrawState = (
+  ...inputs: [OmensCollationWeightTables]
+): OmensPackLocalPoolDrawState => initializePackLocalPoolDrawState(...inputs);
+
+/** Removes one exact capability-owned identity from one exact pool in a registered pack-local state. */
+export const removeOmensPackLocalPoolOfficialIdentity = (
+  ...inputs: [
+    OmensPackLocalPoolDrawState,
+    OmensRecipePoolOfficialIdentityResolution[number],
+    OmensRecipePoolOfficialIdentityResolution[number]["entries"][number]["officialIdentity"]
+  ]
+): OmensPackLocalPoolDrawState => removePackLocalPoolOfficialIdentity(...inputs);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (

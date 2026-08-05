@@ -131,6 +131,11 @@ export const readOmensCollationLayoutWeightTotalForSampleSelection = (
   return tables.layoutTotalWeight;
 };
 
+/** Narrow reader for all exact registered pool tables consumed only by pack-local draw-state initialization. */
+export const readOmensCollationPoolWeightTablesForPackLocalDrawState = (
+  tables: OmensCollationWeightTables
+): OmensCollationWeightTables["poolTables"] => collationWeightTableCapabilities.has(tables) ? tables.poolTables : fail();
+
 /** Narrow reader for one exact registered named pool table consumed only by bounded-ticket selection. */
 export const readOmensCollationPoolWeightTableForTicketSelection = (
   tables: OmensCollationWeightTables,
