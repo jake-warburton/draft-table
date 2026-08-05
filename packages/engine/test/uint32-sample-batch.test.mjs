@@ -351,6 +351,17 @@ test(capturedFreezeContract, async () => {
   assert.equal(Object.isFrozen(result), true, "BATCH_RESULT_MUST_USE_CAPTURED_FREEZE");
 });
 
+const mapperResultValidationContract = "finite batch validates mapper result arithmetic before returning ticket";
+test(mapperResultValidationContract, async () => {
+  console.log("FINITE_BATCH_MAPPER_RESULT_VALIDATION_CONTRACT_EXECUTED");
+  const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
+  assert.deepEqual(
+    mapping.mapUnsigned32SampleBatchToBoundedTicket([7], 10),
+    { state: "accepted", ticket: 7, consumedSamples: 1 },
+    "MAPPER_RESULT_VALIDATION_MUST_REJECT_FORGED_TICKET"
+  );
+});
+
 const hostileProxyContract = "finite batch snapshots hostile Proxy length for bounded consumption";
 test(hostileProxyContract, async () => {
   console.log("FINITE_BATCH_HOSTILE_PROXY_CONTRACT_EXECUTED");
@@ -778,8 +789,8 @@ test("captured-freeze semantic mutation fails its exact named contract", () => {
 });
 
 test("mapper-result-validation semantic mutation fails its exact named contract", () => {
-  const before = "mapUnsigned32SampleToBoundedTicket(samples[index], inputs[1]), samples[index], inputs[1]";
-  const after = "frozen({ state: \"accepted\", sample: samples[index], ticketBound: inputs[1], sampleDomainExclusiveEnd: UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END, acceptedSampleExclusiveEnd: UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END % inputs[1], ticket: 3 }), samples[index], inputs[1]";
+  const before = "const mapping = validateMapping(\n        mapUnsigned32SampleToBoundedTicket(samples[index], inputs[1]), samples[index], inputs[1]\n      );";
+  const after = "const mapping = (\n        mapUnsigned32SampleToBoundedTicket(samples[index], inputs[1]),\n        { state: \"accepted\" as const, ticket: 3 }\n      );";
   const original = readFileSync(sourcePath, "utf8");
   assert.equal(original.split(before).length - 1, 1);
   const mutated = original.replace(before, after);
@@ -801,13 +812,13 @@ test("mapper-result-validation semantic mutation fails its exact named contract"
     const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
     delete environment.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, [
-      "--experimental-strip-types", "--test", "--test-name-pattern", `^${capturedFreezeContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
+      "--experimental-strip-types", "--test", "--test-name-pattern", `^${mapperResultValidationContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
     ], { encoding: "utf8", env: environment });
     const lines = result.stdout.split(/\r?\n/u);
     assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
-    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_CAPTURED_FREEZE_CONTRACT_EXECUTED").length, 1);
-    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === capturedFreezeContract).length, 1);
-    assert.equal(lines.filter((line) => line.includes("FORGED_MAPPER_TICKET_MUST_BE_REJECTED")).length, 1);
+    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_MAPPER_RESULT_VALIDATION_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === mapperResultValidationContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("MAPPER_RESULT_VALIDATION_MUST_REJECT_FORGED_TICKET")).length, 1);
   } catch (error) {
     testError = error;
   } finally {
