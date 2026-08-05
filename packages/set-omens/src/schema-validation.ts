@@ -114,6 +114,11 @@ import {
   initializeOmensPackCollationPlanFromUnsigned32SampleBatch as initializePackCollationPlanFromBatch,
   type OmensFiniteBatchCollationPlanInitialization
 } from "./finite-batch-collation-plan.ts";
+import {
+  OmensPackCollationPlanPositionTransitionError,
+  transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatch as transitionPackCollationPlanPositionFromBatch,
+  type OmensFiniteBatchCollationPlanPositionTransition
+} from "./finite-batch-plan-position-transition.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -135,6 +140,7 @@ export {
   OmensPackLocalPoolSampleSelectionError,
   OmensPackLocalPoolSampleDrawTransitionError,
   OmensPackCollationPlanInitializationError,
+  OmensPackCollationPlanPositionTransitionError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -154,6 +160,7 @@ export {
   type OmensPackCollationPlan,
   type OmensPackCollationPlanInitialization,
   type OmensFiniteBatchCollationPlanInitialization,
+  type OmensFiniteBatchCollationPlanPositionTransition,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -294,7 +301,12 @@ export const initializeOmensPackCollationPlanFromUnsigned32SampleBatch = (
   ...inputs: [OmensCollationWeightTables, readonly number[]]
 ): OmensFiniteBatchCollationPlanInitialization => initializePackCollationPlanFromBatch(...inputs);
 
-/** Narrow future-transition reader for the exact selected layout bound to a plan. */
+/** Atomically transitions exactly one current recipe position from one finite caller-supplied batch. */
+export const transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatch = (
+  ...inputs: [OmensPackCollationPlan, readonly number[]]
+): OmensFiniteBatchCollationPlanPositionTransition => transitionPackCollationPlanPositionFromBatch(...inputs);
+
+/** Narrow transition readers for the exact layout, historical state, and cursor bound to a plan. */
 export { readOmensPackCollationPlanLayoutForTransition, readOmensPackCollationPlanNextPositionForTransition, readOmensPackCollationPlanPoolDrawStateForTransition };
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */

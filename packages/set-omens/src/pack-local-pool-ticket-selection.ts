@@ -23,20 +23,25 @@ type PoolChoice = Readonly<{
   cumulativeExclusiveEnd: number;
 }>;
 
+const isArray: typeof Array.isArray = Array.isArray;
+const isFrozen: typeof Object.isFrozen = Object.isFrozen;
+const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
+const floor: typeof Math.floor = Math.floor;
 const fail = (): never => { throw new OmensPackLocalPoolTicketSelectionError(); };
 
 const validTicket = (ticket: unknown, total: unknown): ticket is number =>
-  typeof ticket === "number" && Number.isSafeInteger(ticket) && ticket >= 0 &&
-  typeof total === "number" && Number.isSafeInteger(total) && total > 0 && ticket < total;
+  typeof ticket === "number" && isSafeInteger(ticket) && ticket >= 0 &&
+  typeof total === "number" && isSafeInteger(total) && total > 0 && ticket < total;
 
 const validateChoices = (choices: unknown, total: unknown): choices is ReadonlyArray<PoolChoice> => {
-  if (!Array.isArray(choices) || choices.length === 0 || !Object.isFrozen(choices) ||
-    typeof total !== "number" || !Number.isSafeInteger(total) || total <= 0) return false;
+  if (!isArray(choices) || choices.length === 0 || !isFrozen(choices) ||
+    typeof total !== "number" || !isSafeInteger(total) || total <= 0) return false;
   let priorEnd = 0;
-  for (const choice of choices) {
-    if (typeof choice !== "object" || choice === null || !Object.isFrozen(choice) ||
-      !Object.isFrozen(choice.officialIdentityReference) || !Number.isSafeInteger(choice.weight) || choice.weight <= 0 ||
-      !Number.isSafeInteger(choice.cumulativeExclusiveEnd) || choice.cumulativeExclusiveEnd !== priorEnd + choice.weight) return false;
+  for (let index = 0; index < choices.length; index++) {
+    const choice = choices[index];
+    if (typeof choice !== "object" || choice === null || !isFrozen(choice) ||
+      !isFrozen(choice.officialIdentityReference) || !isSafeInteger(choice.weight) || choice.weight <= 0 ||
+      !isSafeInteger(choice.cumulativeExclusiveEnd) || choice.cumulativeExclusiveEnd !== priorEnd + choice.weight) return false;
     priorEnd = choice.cumulativeExclusiveEnd;
   }
   return priorEnd === total;
@@ -48,7 +53,7 @@ const choiceForTicket = (choices: ReadonlyArray<PoolChoice>, total: number, tick
   let lower = 0;
   let upper = choices.length;
   while (lower < upper) {
-    const middle = lower + Math.floor((upper - lower) / 2);
+    const middle = lower + floor((upper - lower) / 2);
     if (choices[middle].cumulativeExclusiveEnd > ticket) upper = middle;
     else lower = middle + 1;
   }
@@ -64,7 +69,7 @@ export const selectOmensPackLocalPoolOfficialIdentityByTicket = (
   try {
     const scope = readOmensPackLocalPoolDrawStatePoolForTicketSelection(inputs[0], inputs[1]);
     const choice = choiceForTicket(scope.choices, scope.scopedTotal, inputs[2]);
-    if (!Object.isFrozen(choice.officialIdentityReference)) return fail();
+    if (!isFrozen(choice.officialIdentityReference)) return fail();
     return choice.officialIdentityReference;
   } catch (error) {
     if (error instanceof OmensPackLocalPoolTicketSelectionError) throw error;

@@ -178,6 +178,51 @@ export const readOmensPackLocalPoolDrawStatePoolForTicketSelection = (
   return frozen({ scopedTotal: selectedPool.poolTotalWeight, choices: selectedPool.officialIdentityChoices });
 };
 
+/** Narrow verifier for one exact same-capability, same-pool removal used by plan registration. */
+export const isOmensPackLocalPoolDrawStateExactRemovalForPlanTransition = (
+  tables: OmensCollationWeightTables,
+  priorState: OmensPackLocalPoolDrawState,
+  nextState: OmensPackLocalPoolDrawState,
+  selectedPoolReference: PoolReference,
+  selectedIdentity: OfficialIdentityReference
+): boolean => {
+  try {
+    if (priorState === nextState || !weakSetHas(drawStateCapabilities, priorState) ||
+      !weakSetHas(drawStateCapabilities, nextState) || weakMapGet(drawStateTables, priorState) !== tables ||
+      weakMapGet(drawStateTables, nextState) !== tables || !isFrozen(selectedPoolReference) ||
+      !isFrozen(selectedIdentity) || priorState.poolStates.length !== EXPECTED_POOL_COUNT ||
+      nextState.poolStates.length !== EXPECTED_POOL_COUNT) return false;
+    let selectedPoolCount = 0;
+    for (let poolIndex = 0; poolIndex < EXPECTED_POOL_COUNT; poolIndex++) {
+      const priorPool = priorState.poolStates[poolIndex], nextPool = nextState.poolStates[poolIndex];
+      if (priorPool.poolReference !== nextPool.poolReference) return false;
+      if (priorPool.poolReference !== selectedPoolReference) {
+        if (nextPool !== priorPool) return false;
+        continue;
+      }
+      selectedPoolCount++;
+      if (nextPool === priorPool || !validPoolState(priorPool) || !validPoolState(nextPool) ||
+        nextPool.poolReference !== selectedPoolReference ||
+        nextPool.officialIdentityChoices.length !== priorPool.officialIdentityChoices.length - 1) return false;
+      let removedCount = 0, nextChoiceIndex = 0, cumulativeExclusiveEnd = 0, removedWeight = 0;
+      for (let choiceIndex = 0; choiceIndex < priorPool.officialIdentityChoices.length; choiceIndex++) {
+        const priorChoice = priorPool.officialIdentityChoices[choiceIndex];
+        if (priorChoice.officialIdentityReference === selectedIdentity) {
+          removedCount++; removedWeight = priorChoice.weight; continue;
+        }
+        const nextChoice = nextPool.officialIdentityChoices[nextChoiceIndex++];
+        cumulativeExclusiveEnd = nextExclusiveEnd(cumulativeExclusiveEnd, priorChoice.weight);
+        if (nextChoice === undefined || nextChoice.officialIdentityReference !== priorChoice.officialIdentityReference ||
+          nextChoice.weight !== priorChoice.weight || nextChoice.cumulativeExclusiveEnd !== cumulativeExclusiveEnd) return false;
+      }
+      if (removedCount !== 1 || nextChoiceIndex !== nextPool.officialIdentityChoices.length ||
+        nextPool.poolTotalWeight !== priorPool.poolTotalWeight - removedWeight ||
+        nextPool.poolTotalWeight !== cumulativeExclusiveEnd) return false;
+    }
+    return selectedPoolCount === 1;
+  } catch { return false; }
+};
+
 /** Removes one exact identity only from its exact pack-local pool and recompiles that pool's prefixes. */
 export const removeOmensPackLocalPoolOfficialIdentity = (
   ...inputs: [OmensPackLocalPoolDrawState, PoolReference, OfficialIdentityReference]
