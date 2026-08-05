@@ -98,6 +98,7 @@ test("tracked semantic mutation probers allocate outside the repository and neve
     "collation-sample-selection.test.mjs",
     "card-vault-print-id-forms.test.mjs",
     "draft-eligibility-classification.test.mjs",
+    "finite-batch-collation-plan-intrinsic-mutations.test.mjs",
     "official-face-printing-multiplicity-reconciliation.test.mjs",
     "official-suffix-foiling-classification.test.mjs",
     "official-upstream-id-reconciliation.test.mjs",

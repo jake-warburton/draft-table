@@ -31,7 +31,7 @@ The approved npm-workspaces TypeScript scaffold now establishes these boundaries
 
 - `packages/engine`: pure deterministic draft/collation/state transitions, the one-sample uint32 rejection mapper, and the finite caller-supplied uint32 batch mapper; zero platform dependencies. The build-time set importer composes these primitives with its opaque collation capabilities. Caller entropy ownership, generation, reseeding, infinite retry policy, set/layout/pool composition, plan transitions, pack construction, and runtime behavior remain outside these primitives.
 - `packages/contracts`: protocol/domain view contracts and boundary validation.
-- `packages/set-omens`: Omens-specific build-time source verification, strict recipe parsing, aggregate validation, source reconciliation, pool handling, import, and reviewed versioned snapshots. Its normal root is runtime-safe; public-source validation and projection, reconciliation, draft-eligibility, recipe-pool identity resolution, weighted-layout-to-pool resolution, suffix/foiling correspondence, and Card Vault face-metadata projection tooling is available only through the explicit build-time `@draft-table/set-omens/schema-validation` subpath.
+- `packages/set-omens`: Omens-specific build-time source verification, strict recipe parsing, aggregate validation, source reconciliation, collation capability handling, import, and reviewed versioned snapshots. Its normal root is runtime-safe; source validation, reconciliation, classification, collation, and projection tooling is available only through the explicit build-time `@draft-table/set-omens/schema-validation` subpath.
 - `apps/web`: static browser client.
 - `apps/server`: thin Worker router and Durable Object adapter.
 
