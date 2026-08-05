@@ -17,6 +17,7 @@ import { selectOmensPackLocalPoolOfficialIdentityByTicket } from "./pack-local-p
 import type { OmensRecipeLayoutOfficialIdentityPoolResolution } from "./recipe-layout-pool-resolution.ts";
 import type { OmensRecipePoolOfficialIdentityResolution } from "./recipe-pool-identity-resolution.ts";
 
+const isArray: typeof Array.isArray = Array.isArray;
 const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;
 const freeze: typeof Object.freeze = Object.freeze;
 const getOwnPropertyDescriptor: typeof Object.getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
@@ -110,6 +111,23 @@ const validateMapping = (mapping: unknown, ticketBound: number, sampleCount: num
   return { state, ticket, consumedSamples };
 };
 
+const snapshotFiniteBatch = (batchInput: unknown): Readonly<{
+  samples: readonly number[];
+  sampleCount: number;
+}> => {
+  if (!isArray(batchInput)) return fail();
+  const sampleCount = batchInput.length;
+  if (!isSafeInteger(sampleCount) || sampleCount < 0 ||
+    sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
+  const sampleSnapshot: unknown[] = [];
+  for (let index = 0; index < sampleCount; index++) {
+    defineOwnDataProperty(sampleSnapshot, index, {
+      value: batchInput[index], writable: false, enumerable: true, configurable: false
+    });
+  }
+  return { samples: frozen(sampleSnapshot) as readonly number[], sampleCount };
+};
+
 const exactSelectedIdentity = (
   choices: ReadonlyArray<Readonly<{
     officialIdentityReference: OfficialIdentityReference;
@@ -156,6 +174,20 @@ const selected = (
   return frozen(result);
 };
 
+const transitionCapturedBatch = (
+  plan: OmensPackCollationPlan,
+  batchInput: unknown,
+  mapBatch: BatchMapper,
+  selectIdentity: TicketSelector,
+  removeIdentity: IdentityRemover,
+  registerPlan: PlanRegistrar
+): OmensFiniteBatchCollationPlanPositionTransition => {
+  const batch = snapshotFiniteBatch(batchInput);
+  return compose(
+    plan, batch.samples, batch.sampleCount, mapBatch, selectIdentity, removeIdentity, registerPlan
+  );
+};
+
 const compose = (
   plan: OmensPackCollationPlan,
   samples: readonly number[],
@@ -199,11 +231,8 @@ export const transitionOmensPackCollationPlanCurrentPositionFromUnsigned32Sample
 ): OmensFiniteBatchCollationPlanPositionTransition => {
   try {
     if (inputs.length !== 2) return fail();
-    const samples = inputs[1], sampleCount = samples.length;
-    if (!isSafeInteger(sampleCount) || sampleCount < 0 ||
-      sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
-    return compose(
-      inputs[0], samples, sampleCount, mapUnsigned32SampleBatchToBoundedTicket,
+    return transitionCapturedBatch(
+      inputs[0], inputs[1], mapUnsigned32SampleBatchToBoundedTicket,
       selectOmensPackLocalPoolOfficialIdentityByTicket,
       removeOmensPackLocalPoolOfficialIdentity,
       registerOmensPackCollationPlanPositionTransition
@@ -218,9 +247,8 @@ export const transitionOmensPackCollationPlanCurrentPositionFromUnsigned32Sample
   try {
     if (inputs.length !== 6 || typeof inputs[2] !== "function" || typeof inputs[3] !== "function" ||
       typeof inputs[4] !== "function" || typeof inputs[5] !== "function") return fail();
-    const samples = inputs[1], sampleCount = samples.length;
-    if (!isSafeInteger(sampleCount) || sampleCount < 0 ||
-      sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
-    return compose(inputs[0], samples, sampleCount, inputs[2], inputs[3], inputs[4], inputs[5]);
+    return transitionCapturedBatch(
+      inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5]
+    );
   } catch { return fail(); }
 };

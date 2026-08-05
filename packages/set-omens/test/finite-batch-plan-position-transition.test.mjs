@@ -116,7 +116,7 @@ test("an accepted first sample still prevalidates valid trailing samples and pre
   const { tables } = fictionalCollationCapabilities(), plan = freshPlan(tables);
   let lengthReads = 0, elementReads = 0;
   const samples = new Proxy([0, 1, 2], { get(target, property, receiver) {
-    if (property === "length") lengthReads++;
+    if (property === "length") return ++lengthReads === 1 ? 3 : 0;
     if (property === "0" || property === "1" || property === "2") elementReads++;
     return Reflect.get(target, property, receiver);
   } });
@@ -247,6 +247,6 @@ test("transition error constructor and prototype are frozen and outputs remain h
 
 test("position transition source owns no entropy retry loop pack construction or excluded future policy", () => {
   const source = readFileSync(new URL("../src/finite-batch-plan-position-transition.ts", import.meta.url), "utf8");
-  assert.equal(source.match(/sampleCount = samples\.length/g)?.length, 2);
+  assert.equal(source.match(/sampleCount = batchInput\.length/g)?.length, 1);
   assert.doesNotMatch(source, /mapUnsigned32SampleToBoundedTicket|FromOneUnsigned32Sample|samples\s*\[|inputs\[1\]\.length|Array\.isArray|Math\.random|crypto|randomBytes|randomUUID|while\s*\(|pack construction|card instance|rear|treatment|printing|image|snapshot|room|simulation|console\.|process\./iu);
 });
