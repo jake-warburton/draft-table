@@ -8,6 +8,7 @@ import {
 } from "./collation-weight-tables.ts";
 import {
   initializeOmensPackLocalPoolDrawState,
+  isOmensPackLocalPoolDrawStateExactRemovalForPlanTransition,
   isOmensPackLocalPoolDrawStateFreshForPlanInitialization,
   type OmensPackLocalPoolDrawState
 } from "./pack-local-pool-draw-state.ts";
@@ -16,6 +17,7 @@ import type { OmensRecipeLayoutOfficialIdentityPoolResolution } from "./recipe-l
 const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;
 const freeze: typeof Object.freeze = Object.freeze;
 const isFrozen: typeof Object.isFrozen = Object.isFrozen;
+const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
 
 /** Stable, source-secret failure for one selected layout's fresh pack-local collation plan. */
 export class OmensPackCollationPlanInitializationError extends Error {
@@ -33,14 +35,16 @@ freeze(OmensPackCollationPlanInitializationError.prototype);
 freeze(OmensPackCollationPlanInitializationError);
 
 type LayoutReference = OmensRecipeLayoutOfficialIdentityPoolResolution["layouts"][number];
+type PositionReference = LayoutReference["slots"][number];
+type OfficialIdentityReference = PositionReference["resolvedPool"]["entries"][number]["officialIdentity"];
 type PlanParts = Readonly<{
   tables: OmensCollationWeightTables;
   layoutReference: LayoutReference;
   poolDrawState: OmensPackLocalPoolDrawState;
-  nextPosition: 0;
+  nextPosition: number;
 }>;
 
-/** Opaque, immutable initial state for future recipe-position transitions. */
+/** Opaque, immutable historical capability for one exact layout, pool state, and cursor. */
 export type OmensPackCollationPlan = Readonly<Record<never, never>>;
 export type OmensPackCollationPlanInitialization = Readonly<{
   state: "selected";
@@ -163,8 +167,78 @@ const partsFor = (plan: OmensPackCollationPlan): PlanParts => weakMapGet(planCap
 /** Narrow reader returning only the exact layout reference bound during initialization. */
 export const readOmensPackCollationPlanLayoutForTransition = (plan: OmensPackCollationPlan): LayoutReference => partsFor(plan).layoutReference;
 
-/** Narrow reader returning only the fresh registered all-pool state bound during initialization. */
+/** Narrow reader returning the registered all-pool historical state bound to this exact plan. */
 export const readOmensPackCollationPlanPoolDrawStateForTransition = (plan: OmensPackCollationPlan): OmensPackLocalPoolDrawState => partsFor(plan).poolDrawState;
 
-/** Narrow reader returning the initial recipe-position cursor for a future transition. */
+/** Narrow reader returning the exact next recipe-position cursor. */
 export const readOmensPackCollationPlanNextPositionForTransition = (plan: OmensPackCollationPlan): number => partsFor(plan).nextPosition;
+
+/** Package-internal current-position capability reader; terminal plans reject before mapping. */
+export const readOmensPackCollationPlanCurrentPositionForTransition = (
+  plan: OmensPackCollationPlan
+): Readonly<{ positionReference: PositionReference; poolDrawState: OmensPackLocalPoolDrawState }> => {
+  const parts = partsFor(plan);
+  if (!isSafeInteger(parts.nextPosition) || parts.nextPosition < 0 ||
+    parts.nextPosition >= EXPECTED_POSITION_COUNT) return fail();
+  const positionReference = parts.layoutReference.slots[parts.nextPosition];
+  if (positionReference === undefined || !isFrozen(positionReference) ||
+    positionReference.position !== parts.nextPosition + 1) return fail();
+  return frozen({ positionReference, poolDrawState: parts.poolDrawState });
+};
+
+/** Package-internal registration of exactly one validated atomic position transition. */
+export const registerOmensPackCollationPlanPositionTransition = (
+  ...inputs: [OmensPackCollationPlan, PositionReference, OfficialIdentityReference, OmensPackLocalPoolDrawState]
+): OmensPackCollationPlan => {
+  if (inputs.length !== 4) return fail();
+  try {
+    const [priorPlan, positionReference, officialIdentityReference, nextPoolDrawState] = inputs;
+    const prior = partsFor(priorPlan);
+    if (!isSafeInteger(prior.nextPosition) || prior.nextPosition < 0 ||
+      prior.nextPosition >= EXPECTED_POSITION_COUNT ||
+      prior.layoutReference.slots[prior.nextPosition] !== positionReference ||
+      !isOmensPackLocalPoolDrawStateExactRemovalForPlanTransition(
+        prior.tables, prior.poolDrawState, nextPoolDrawState,
+        positionReference.resolvedPool, officialIdentityReference
+      )) return fail();
+    const nextPlan: OmensPackCollationPlan = frozen({});
+    weakMapSet(planCapabilities, nextPlan, frozen({
+      tables: prior.tables,
+      layoutReference: prior.layoutReference,
+      poolDrawState: nextPoolDrawState,
+      nextPosition: prior.nextPosition + 1
+    }));
+    return nextPlan;
+  } catch (error) {
+    if (error instanceof OmensPackCollationPlanInitializationError) throw error;
+    return fail();
+  }
+};
+
+/** Package-internal exact relationship check for injected registration results. */
+export const isOmensPackCollationPlanExactPositionTransition = (
+  priorPlan: OmensPackCollationPlan,
+  nextPlan: OmensPackCollationPlan,
+  positionReference: PositionReference,
+  officialIdentityReference: OfficialIdentityReference,
+  nextPoolDrawState: OmensPackLocalPoolDrawState
+): boolean => {
+  try {
+    const prior = weakMapGet(planCapabilities, priorPlan), next = weakMapGet(planCapabilities, nextPlan);
+    return prior !== undefined && next !== undefined && priorPlan !== nextPlan &&
+      isSafeInteger(prior.nextPosition) && isSafeInteger(next.nextPosition) &&
+      prior.nextPosition >= 0 && prior.nextPosition < EXPECTED_POSITION_COUNT &&
+      prior.layoutReference.slots[prior.nextPosition] === positionReference &&
+      next.tables === prior.tables && next.layoutReference === prior.layoutReference &&
+      next.poolDrawState === nextPoolDrawState && next.nextPosition === prior.nextPosition + 1 &&
+      isOmensPackLocalPoolDrawStateExactRemovalForPlanTransition(
+        prior.tables, prior.poolDrawState, nextPoolDrawState,
+        positionReference.resolvedPool, officialIdentityReference
+      );
+  } catch { return false; }
+};
+
+/** Package-internal identity reader for capability-retention contracts only. */
+export const readOmensPackCollationPlanTablesForTest = (
+  plan: OmensPackCollationPlan
+): OmensCollationWeightTables => partsFor(plan).tables;

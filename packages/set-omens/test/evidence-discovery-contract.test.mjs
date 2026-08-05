@@ -21,7 +21,8 @@ import {
   discoverCollationWeightTablesEvidenceTests,
   discoverCollationSampleSelectionEvidenceTests,
   discoverPackLocalPoolTicketSelectionEvidenceTests,
-  discoverPackLocalPoolSampleSelectionEvidenceTests
+  discoverPackLocalPoolSampleSelectionEvidenceTests,
+  discoverFiniteBatchPlanPositionTransitionEvidenceTests
 } from "./evidence-discovery.mjs";
 
 const syntheticFiles = [
@@ -37,6 +38,7 @@ const syntheticFiles = [
   "collation-sample-selection.collation-sample-selection-evidence.test.mjs",
   "pack-local-pool-ticket-selection.pack-local-pool-ticket-selection-evidence.test.mjs",
   "pack-local-pool-sample-selection.pack-local-pool-sample-selection-evidence.test.mjs",
+  "finite-batch-plan-position-transition.finite-batch-plan-position-transition-evidence.test.mjs",
   "topic-about-public-source.test.mjs",
   "synthetic-contract.test.mjs"
 ];
@@ -151,6 +153,12 @@ test("pack-local ticket selection evidence discovery selects only its separate f
 test("pack-local sample selection evidence discovery selects only its separate four-source gate", () => {
   assert.deepEqual(discoverPackLocalPoolSampleSelectionEvidenceTests(syntheticFiles), [
     "pack-local-pool-sample-selection.pack-local-pool-sample-selection-evidence.test.mjs"
+  ]);
+});
+
+test("finite batch plan-position evidence discovery selects only its separate four-source gate", () => {
+  assert.deepEqual(discoverFiniteBatchPlanPositionTransitionEvidenceTests(syntheticFiles), [
+    "finite-batch-plan-position-transition.finite-batch-plan-position-transition-evidence.test.mjs"
   ]);
 });
 
