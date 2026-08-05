@@ -25,8 +25,13 @@ const ownKeys: typeof Reflect.ownKeys = Reflect.ownKeys;
 const isFrozen: typeof Object.isFrozen = Object.isFrozen;
 const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
 const handedOutTransitionPlans = new WeakSet<object>();
-const hasHandedOutTransitionPlan = WeakSet.prototype.has.bind(handedOutTransitionPlans);
-const addHandedOutTransitionPlan = WeakSet.prototype.add.bind(handedOutTransitionPlans);
+const handedOutTransitionPoolDrawStates = new WeakSet<object>();
+const weakSetHas = Function.prototype.call.bind(WeakSet.prototype.has) as (
+  set: WeakSet<object>, value: object
+) => boolean;
+const weakSetAdd = Function.prototype.call.bind(WeakSet.prototype.add) as (
+  set: WeakSet<object>, value: object
+) => WeakSet<object>;
 
 /** Stable, source-secret failure for exactly one finite-batch plan-position transition. */
 export class OmensPackCollationPlanPositionTransitionError extends Error {
@@ -216,8 +221,10 @@ const compose = (
   ) as OmensPackCollationPlan;
   if (!isOmensPackCollationPlanExactPositionTransition(
     plan, nextPlan, positionReference, officialIdentityReference, nextPoolDrawState
-  ) || hasHandedOutTransitionPlan(nextPlan)) return fail();
-  addHandedOutTransitionPlan(nextPlan);
+  ) || weakSetHas(handedOutTransitionPlans, nextPlan) ||
+    weakSetHas(handedOutTransitionPoolDrawStates, nextPoolDrawState)) return fail();
+  weakSetAdd(handedOutTransitionPlans, nextPlan);
+  weakSetAdd(handedOutTransitionPoolDrawStates, nextPoolDrawState);
   return selected(
     mapping.consumedSamples, positionReference, officialIdentityReference, nextPlan
   );

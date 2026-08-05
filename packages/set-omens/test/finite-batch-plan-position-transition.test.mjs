@@ -14,7 +14,8 @@ import {
 import { selectOmensPackLocalPoolOfficialIdentityByTicket } from "../src/pack-local-pool-ticket-selection.ts";
 import { removeOmensPackLocalPoolOfficialIdentity } from "../src/pack-local-pool-draw-state.ts";
 import {
-  readOmensPackCollationPlanTablesForTest
+  readOmensPackCollationPlanTablesForTest,
+  registerOmensPackCollationPlanPositionTransition
 } from "../src/pack-collation-plan.ts";
 import {
   transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest
@@ -203,6 +204,12 @@ test("invalid extra foreign copied malformed and cross-capability inputs fail th
   assert.equal(sibling.state, "selected");
   const siblingState = current(sibling.nextPlan).state;
   safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest(plan, [0], mapUnsigned32SampleBatchToBoundedTicket, selectOmensPackLocalPoolOfficialIdentityByTicket, () => siblingState, () => sibling.nextPlan));
+  let freshSiblingPlan;
+  safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest(plan, [0], mapUnsigned32SampleBatchToBoundedTicket, selectOmensPackLocalPoolOfficialIdentityByTicket, () => siblingState, (...inputs) => {
+    freshSiblingPlan = registerOmensPackCollationPlanPositionTransition(...inputs);
+    return freshSiblingPlan;
+  }));
+  assert.notEqual(freshSiblingPlan, sibling.nextPlan);
   assert.deepEqual(state, before);
 });
 
