@@ -34,8 +34,9 @@ type PoolState = OmensPackLocalPoolDrawState["poolStates"][number];
 const EXPECTED_POOL_COUNT = 11;
 const drawStateCapabilities = new WeakSet<object>();
 const drawStateTables = new WeakMap<object, OmensCollationWeightTables>();
+const freeze: typeof Object.freeze = Object.freeze;
 const fail = (): never => { throw new OmensPackLocalPoolDrawStateError(); };
-const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
+const frozen = <Value>(value: Value): Readonly<Value> => freeze(value);
 
 const nextExclusiveEnd = (prior: number, weight: number): number => {
   if (!Number.isSafeInteger(prior) || prior < 0 || !Number.isSafeInteger(weight) || weight <= 0 || prior > Number.MAX_SAFE_INTEGER - weight) fail();

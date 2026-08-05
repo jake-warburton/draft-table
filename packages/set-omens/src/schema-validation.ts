@@ -110,6 +110,10 @@ import {
   type OmensPackCollationPlan,
   type OmensPackCollationPlanInitialization
 } from "./pack-collation-plan.ts";
+import {
+  initializeOmensPackCollationPlanFromUnsigned32SampleBatch as initializePackCollationPlanFromBatch,
+  type OmensFiniteBatchCollationPlanInitialization
+} from "./finite-batch-collation-plan.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -149,6 +153,7 @@ export {
   type OmensPackLocalPoolSampleDrawTransition,
   type OmensPackCollationPlan,
   type OmensPackCollationPlanInitialization,
+  type OmensFiniteBatchCollationPlanInitialization,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -283,6 +288,11 @@ export const drawOmensPackLocalPoolOfficialIdentityFromOneUnsigned32Sample = (
 export const initializeOmensPackCollationPlanFromOneUnsigned32Sample = (
   ...inputs: [OmensCollationWeightTables, number]
 ): OmensPackCollationPlanInitialization => initializePackCollationPlanFromOneSample(...inputs);
+
+/** Initializes one fresh layout-bound plan from only one finite caller-supplied batch; it is not a pack and draws no card. */
+export const initializeOmensPackCollationPlanFromUnsigned32SampleBatch = (
+  ...inputs: [OmensCollationWeightTables, readonly number[]]
+): OmensFiniteBatchCollationPlanInitialization => initializePackCollationPlanFromBatch(...inputs);
 
 /** Narrow future-transition reader for the exact selected layout bound to a plan. */
 export { readOmensPackCollationPlanLayoutForTransition, readOmensPackCollationPlanNextPositionForTransition, readOmensPackCollationPlanPoolDrawStateForTransition };

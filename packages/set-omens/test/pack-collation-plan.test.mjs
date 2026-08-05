@@ -110,7 +110,7 @@ test(capacityContract, async () => {
 });
 const capacityMutationContract = "plan capacity semantic mutation fails its exact named contract";
 test(capacityMutationContract, () => {
-  const guard = "  if (![...requiredByPool].every(hasSufficientCapacity)) fail();", original = readFileSync(sourcePath, "utf8"), mutated = original.replace(guard, "  if (false) fail();");
+  const guard = "  if (!arrayEvery.call([...requiredByPool], hasSufficientCapacity)) fail();", original = readFileSync(sourcePath, "utf8"), mutated = original.replace(guard, "  if (false) fail();");
   assert.equal(original.split(guard).length - 1, 1, "CAPACITY_GUARD_MUST_HAVE_ONE_CANONICAL_OCCURRENCE"); assert.notEqual(mutated, original, "CAPACITY_MUTATION_BYTES_MUST_CHANGE"); runMutation(mutated, capacityContract, capacityMarker, "CAPACITY_MUST_REJECT_BEFORE_INITIALIZATION");
 });
 
