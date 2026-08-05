@@ -51,6 +51,8 @@ It is useful as a comparison oracle in import tests, not as a browser runtime de
 
 The public Card Vault endpoint [FAB-7] supplied official observed-response evidence for product membership and image renditions. Research inspection observed 260 Omens product entries and permissive CORS. The caller-held 2026-08-04 response retains its raw checksum as dated historical evidence, while strict build-time parsing derives the durable canonical membership fact (260 IDs: 251 `OMN`, 9 `IAR`; sorted newline-delimited SHA-256 `9b16117e4f558c91421a50d814baa3a8a16043bff645cec24291a32df6e079de`). The endpoint is unversioned, and no ETag, Last-Modified, or reviewed stability promise was observed: the raw checksum is not a future response-version pin, so cosmetic serialization changes do not gate identical canonical membership. It is not a production dependency or unsupported write endpoint.
 
+The exact observed IAR222 source-name boundary, collector-ID-first join constraint, and separately captain-supplied product/draft-legality context are recorded in [the rules and collation contract](rules-and-collation.md#iar-product-context-and-name-boundary).
+
 ### Proposed versioned import boundary
 
 A future `SetImporter` consumes immutable source documents and emits a set-specific snapshot with a schema version, source versions/checksums, identities, physical treatments, slot eligibility, image URLs, Fabrary IDs, and explicit inclusion/exclusion evidence. The platform-independent engine consumes only that snapshot. Adding a set means adding evidence and an adapter invocation, not subclassing the engine.
