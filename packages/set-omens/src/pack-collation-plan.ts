@@ -148,8 +148,7 @@ const appendSelectionHistory = (
   defineOwnDataProperty(history, prior.length, { value: immutableRecord, writable: false, enumerable: true, configurable: false });
   // Both sequential numeric writes use captured own-property definition, so this mismatch is
   // unreachable in the current construction. Retain it as defense in depth for a future
-  // wrong-length construction; array push can still advance length when an inherited setter
-  // swallows its indexed write, so the exact-own-entry contract remains independently required.
+  // wrong-length construction defect.
   if (history.length !== prior.length + 1) return fail();
   return frozen(history);
 };
