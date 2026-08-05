@@ -39,28 +39,31 @@ export type RetryBoundedTicketMapping = Readonly<{
 /** One deeply immutable result for a caller-controlled one-sample bounded-ticket attempt. */
 export type BoundedTicketMapping = AcceptedBoundedTicketMapping | RetryBoundedTicketMapping;
 
+const freeze: typeof Object.freeze = Object.freeze;
+const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
+const maximumSafeInteger = Number.MAX_SAFE_INTEGER;
 const fail = (): never => { throw new UnbiasedUint32TicketMappingError(); };
-const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
+const frozen = <Value>(value: Value): Readonly<Value> => freeze(value);
 
 const isExactIntegerInHalfOpenRange = (value: unknown, exclusiveEnd: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value >= 0 &&
-  typeof exclusiveEnd === "number" && Number.isSafeInteger(exclusiveEnd) && value < exclusiveEnd;
+  typeof value === "number" && isSafeInteger(value) && value >= 0 &&
+  typeof exclusiveEnd === "number" && isSafeInteger(exclusiveEnd) && value < exclusiveEnd;
 
 const isExactPositiveIntegerAtMost = (value: unknown, maximum: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value >= 1 &&
-  typeof maximum === "number" && Number.isSafeInteger(maximum) && value <= maximum;
+  typeof value === "number" && isSafeInteger(value) && value >= 1 &&
+  typeof maximum === "number" && isSafeInteger(maximum) && value <= maximum;
 
 const mapExactIntegerSampleToBoundedTicket = (
   sample: unknown,
   ticketBound: unknown,
   sampleDomainExclusiveEnd: unknown
 ): BoundedTicketMapping => {
-  if (!isExactPositiveIntegerAtMost(sampleDomainExclusiveEnd, Number.MAX_SAFE_INTEGER) ||
+  if (!isExactPositiveIntegerAtMost(sampleDomainExclusiveEnd, maximumSafeInteger) ||
     !isExactIntegerInHalfOpenRange(sample, sampleDomainExclusiveEnd) ||
     !isExactPositiveIntegerAtMost(ticketBound, sampleDomainExclusiveEnd)) return fail();
 
   const acceptedSampleExclusiveEnd = sampleDomainExclusiveEnd - sampleDomainExclusiveEnd % ticketBound;
-  if (!Number.isSafeInteger(acceptedSampleExclusiveEnd) || acceptedSampleExclusiveEnd < 0 ||
+  if (!isSafeInteger(acceptedSampleExclusiveEnd) || acceptedSampleExclusiveEnd < 0 ||
     acceptedSampleExclusiveEnd > sampleDomainExclusiveEnd || acceptedSampleExclusiveEnd % ticketBound !== 0) return fail();
 
   if (sample < acceptedSampleExclusiveEnd) return frozen({
@@ -79,8 +82,7 @@ export const mapUnsigned32SampleToBoundedTicket = (
   if (inputs.length !== 2) return fail();
   try {
     return mapExactIntegerSampleToBoundedTicket(inputs[0], inputs[1], UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END);
-  } catch (error) {
-    if (error instanceof UnbiasedUint32TicketMappingError) throw error;
+  } catch {
     return fail();
   }
 };
@@ -92,8 +94,7 @@ export const mapExactIntegerSampleToBoundedTicketForTest = (
   if (inputs.length !== 3) return fail();
   try {
     return mapExactIntegerSampleToBoundedTicket(inputs[0], inputs[1], inputs[2]);
-  } catch (error) {
-    if (error instanceof UnbiasedUint32TicketMappingError) throw error;
+  } catch {
     return fail();
   }
 };

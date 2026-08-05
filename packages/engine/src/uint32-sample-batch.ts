@@ -12,6 +12,8 @@ export type Unsigned32SampleBatchTicketResult = Readonly<
 
 const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;
 const freeze: typeof Object.freeze = Object.freeze;
+const getOwnPropertyDescriptor: typeof Object.getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+const ownKeys: typeof Reflect.ownKeys = Reflect.ownKeys;
 const isArray: typeof Array.isArray = Array.isArray;
 const isFiniteNumber: typeof Number.isFinite = Number.isFinite;
 const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
@@ -23,6 +25,38 @@ const isUint32Sample = (value: unknown): value is number =>
 const isAcceptedTicketBound = (value: unknown): value is number =>
   typeof value === "number" && isFiniteNumber(value) && isSafeInteger(value) && value >= 1 &&
   value <= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
+
+type ValidatedMapping =
+  | { readonly state: "accepted"; readonly ticket: number }
+  | { readonly state: "retry" };
+
+const ownFrozenDataValue = (mapping: object, property: string): unknown => {
+  const descriptor = getOwnPropertyDescriptor(mapping, property);
+  if (descriptor === undefined || descriptor.enumerable !== true || descriptor.configurable !== false ||
+    descriptor.writable !== false) return fail();
+  return descriptor.value;
+};
+
+const validateMapping = (mapping: unknown, sample: number, ticketBound: number): ValidatedMapping => {
+  if (typeof mapping !== "object" || mapping === null) return fail();
+  const state = ownFrozenDataValue(mapping, "state");
+  const expectedPropertyCount = state === "accepted" ? 6 : state === "retry" ? 5 : 0;
+  if (expectedPropertyCount === 0 || ownKeys(mapping).length !== expectedPropertyCount ||
+    ownFrozenDataValue(mapping, "sample") !== sample ||
+    ownFrozenDataValue(mapping, "ticketBound") !== ticketBound ||
+    ownFrozenDataValue(mapping, "sampleDomainExclusiveEnd") !== UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
+  const acceptedSampleExclusiveEnd = UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END -
+    UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END % ticketBound;
+  if (ownFrozenDataValue(mapping, "acceptedSampleExclusiveEnd") !== acceptedSampleExclusiveEnd) return fail();
+  if (state === "retry") {
+    if (sample < acceptedSampleExclusiveEnd) return fail();
+    return { state };
+  }
+  const ticket = ownFrozenDataValue(mapping, "ticket");
+  if (sample >= acceptedSampleExclusiveEnd || typeof ticket !== "number" || !isFiniteNumber(ticket) ||
+    !isSafeInteger(ticket) || ticket < 0 || ticket >= ticketBound || ticket !== sample % ticketBound) return fail();
+  return { state, ticket };
+};
 
 /**
  * Consumes one finite batch of caller-owned uint32 samples in source order.
@@ -49,16 +83,13 @@ export const mapUnsigned32SampleBatchToBoundedTicket = (
     const samples = sampleSnapshot as number[];
 
     for (let index = 0; index < sampleCount; index++) {
-      const mapping: unknown = mapUnsigned32SampleToBoundedTicket(samples[index], inputs[1]);
-      if (typeof mapping !== "object" || mapping === null) return fail();
-      const state: unknown = (mapping as { readonly state?: unknown }).state;
-      if (state === "accepted") {
-        const ticket: unknown = (mapping as { readonly ticket?: unknown }).ticket;
-        if (typeof ticket !== "number" || !isFiniteNumber(ticket) || !isSafeInteger(ticket) ||
-          ticket < 0 || ticket >= inputs[1]) return fail();
-        return frozen({ state: "accepted", ticket, consumedSamples: index + 1 });
+      const mapping = validateMapping(
+        mapUnsigned32SampleToBoundedTicket(samples[index], inputs[1]), samples[index], inputs[1]
+      );
+      if (mapping.state === "accepted") {
+        return frozen({ state: "accepted", ticket: mapping.ticket, consumedSamples: index + 1 });
       }
-      if (state === "retry") continue;
+      if (mapping.state === "retry") continue;
       return fail();
     }
     return frozen({ state: "needs-sample", consumedSamples: sampleCount });

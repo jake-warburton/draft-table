@@ -320,15 +320,18 @@ test(capturedFreezeContract, async () => {
       return 7;
     }
   });
+  let forgedResult;
   try {
-    assert.throws(
-      () => mapping.mapUnsigned32SampleBatchToBoundedTicket(forgedSamples, 10),
-      (error) => error instanceof UnbiasedUint32TicketMappingError,
-      "FORGED_MAPPER_TICKET_MUST_BE_REJECTED"
-    );
+    forgedResult = mapping.mapUnsigned32SampleBatchToBoundedTicket(forgedSamples, 10);
   } finally {
     Object.freeze = originalFreeze;
   }
+  assert.deepEqual(
+    forgedResult,
+    { state: "accepted", ticket: 7, consumedSamples: 1 },
+    "FORGED_MAPPER_TICKET_MUST_BE_REJECTED"
+  );
+  assert.equal(Object.isFrozen(forgedResult), true);
 
   const unfrozenMapperSamples = [7];
   Object.defineProperty(unfrozenMapperSamples, 0, {
@@ -419,8 +422,8 @@ test(retryFallbackContract, async () => {
   assert.deepEqual(mapping.mapUnsigned32SampleBatchToBoundedTicket([UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1, 12], 7), { state: "accepted", ticket: 5, consumedSamples: 2 }, "RETRY_MUST_CONTINUE_TO_NEXT_SUPPLIED_SAMPLE");
 });
 test("retry-fallback semantic mutation fails its exact named contract", () => {
-  const before = "if (state === \"retry\") continue;";
-  const after = "if (state === \"retry\") return frozen({ state: \"accepted\", ticket: 0, consumedSamples: index + 1 });";
+  const before = "if (mapping.state === \"retry\") continue;";
+  const after = "if (mapping.state === \"retry\") return frozen({ state: \"accepted\", ticket: 0, consumedSamples: index + 1 });";
   const original = readFileSync(sourcePath, "utf8");
   assert.equal(original.split(before).length - 1, 1);
   const mutated = original.replace(before, after);
@@ -465,8 +468,8 @@ test(firstAcceptanceContract, async () => {
   assert.deepEqual(mapping.mapUnsigned32SampleBatchToBoundedTicket([12, 13], 7), { state: "accepted", ticket: 5, consumedSamples: 1 }, "FIRST_ACCEPTANCE_MUST_STOP_SELECTION");
 });
 test("first-acceptance semantic mutation fails its exact named contract", () => {
-  const before = "return frozen({ state: \"accepted\", ticket, consumedSamples: index + 1 });";
-  const after = "frozen({ state: \"accepted\", ticket, consumedSamples: index + 1 });\n        continue;";
+  const before = "return frozen({ state: \"accepted\", ticket: mapping.ticket, consumedSamples: index + 1 });";
+  const after = "frozen({ state: \"accepted\", ticket: mapping.ticket, consumedSamples: index + 1 });\n        continue;";
   const original = readFileSync(sourcePath, "utf8");
   assert.equal(original.split(before).length - 1, 1);
   const mutated = original.replace(before, after);
@@ -655,8 +658,8 @@ test(ownResultPropertiesContract, async () => {
   }
 });
 test("own-result-properties semantic mutation fails its exact named contract", () => {
-  const before = "return frozen({ state: \"accepted\", ticket, consumedSamples: index + 1 });\n      }\n      if (state === \"retry\") continue;\n      return fail();\n    }\n    return frozen({ state: \"needs-sample\", consumedSamples: sampleCount });";
-  const after = "const result = {} as { state: \"accepted\"; ticket: number; consumedSamples: number };\n        result.state = \"accepted\";\n        result.ticket = ticket;\n        result.consumedSamples = index + 1;\n        return frozen(result);\n      }\n      if (state === \"retry\") continue;\n      return fail();\n    }\n    const result = {} as { state: \"needs-sample\"; consumedSamples: number };\n    result.state = \"needs-sample\";\n    result.consumedSamples = sampleCount;\n    return frozen(result);";
+  const before = "return frozen({ state: \"accepted\", ticket: mapping.ticket, consumedSamples: index + 1 });\n      }\n      if (mapping.state === \"retry\") continue;\n      return fail();\n    }\n    return frozen({ state: \"needs-sample\", consumedSamples: sampleCount });";
+  const after = "const result = {} as { state: \"accepted\"; ticket: number; consumedSamples: number };\n        result.state = \"accepted\";\n        result.ticket = mapping.ticket;\n        result.consumedSamples = index + 1;\n        return frozen(result);\n      }\n      if (mapping.state === \"retry\") continue;\n      return fail();\n    }\n    const result = {} as { state: \"needs-sample\"; consumedSamples: number };\n    result.state = \"needs-sample\";\n    result.consumedSamples = sampleCount;\n    return frozen(result);";
   const original = readFileSync(sourcePath, "utf8");
   assert.equal(original.split(before).length - 1, 1);
   const mutated = original.replace(before, after);
@@ -764,7 +767,7 @@ test("captured-freeze semantic mutation fails its exact named contract", () => {
     assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
     assert.equal(lines.filter((line) => line === "# FINITE_BATCH_CAPTURED_FREEZE_CONTRACT_EXECUTED").length, 1);
     assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === capturedFreezeContract).length, 1);
-    assert.equal(lines.filter((line) => line.includes("BATCH_RESULT_MUST_USE_CAPTURED_FREEZE")).length, 1);
+    assert.equal(lines.filter((line) => line.includes("FORGED_MAPPER_TICKET_MUST_BE_REJECTED")).length, 1);
   } catch (error) {
     testError = error;
   } finally {
@@ -775,8 +778,8 @@ test("captured-freeze semantic mutation fails its exact named contract", () => {
 });
 
 test("mapper-result-validation semantic mutation fails its exact named contract", () => {
-  const before = "if (typeof ticket !== \"number\" || !isFiniteNumber(ticket) || !isSafeInteger(ticket) ||\n          ticket < 0 || ticket >= inputs[1]) return fail();";
-  const after = "if (typeof ticket !== \"number\") return fail();";
+  const before = "mapUnsigned32SampleToBoundedTicket(samples[index], inputs[1]), samples[index], inputs[1]";
+  const after = "frozen({ state: \"accepted\", sample: samples[index], ticketBound: inputs[1], sampleDomainExclusiveEnd: UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END, acceptedSampleExclusiveEnd: UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END % inputs[1], ticket: 3 }), samples[index], inputs[1]";
   const original = readFileSync(sourcePath, "utf8");
   assert.equal(original.split(before).length - 1, 1);
   const mutated = original.replace(before, after);

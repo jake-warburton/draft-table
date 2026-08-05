@@ -180,6 +180,70 @@ test("external runtime consumers receive only the supported platform-independent
 const mutationModuleKey = "DRAFT_TABLE_TEST_UNBIASED_UINT32_TICKET_MODULE";
 const sourcePath = new URL("../src/unbiased-uint32-ticket.ts", import.meta.url);
 const exactTestNamePattern = (name) => `^${name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`;
+
+const capturedMapperFreezeContract = "one-sample mapper uses its captured freeze intrinsic";
+test(capturedMapperFreezeContract, async () => {
+  console.log("ONE_SAMPLE_CAPTURED_FREEZE_CONTRACT_EXECUTED");
+  const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
+  const originalFreeze = Object.freeze;
+  let calls = 0;
+  let result;
+  try {
+    Object.freeze = (value) => ++calls === 1 ? { state: "accepted", ticket: 3 } : value;
+    result = mapping.mapUnsigned32SampleToBoundedTicket(7, 10);
+  } finally {
+    Object.freeze = originalFreeze;
+  }
+  assert.deepEqual(result, {
+    state: "accepted",
+    sample: 7,
+    ticketBound: 10,
+    sampleDomainExclusiveEnd: UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END,
+    acceptedSampleExclusiveEnd: 4_294_967_290,
+    ticket: 7
+  }, "ONE_SAMPLE_CAPTURED_FREEZE_MUST_PRESERVE_EXACT_MAPPING");
+  assert.equal(Object.isFrozen(result), true);
+});
+
+test("one-sample captured-freeze semantic mutation fails its exact named contract", () => {
+  const before = "const frozen = <Value>(value: Value): Readonly<Value> => freeze(value);";
+  const after = "const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);";
+  const original = readFileSync(sourcePath, "utf8");
+  assert.equal(original.split(before).length - 1, 1);
+  const mutated = original.replace(before, after);
+  assert.equal(mutated.split(after).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(after) - Buffer.byteLength(before));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-unbiased-uint32-ticket-captured-freeze-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "unbiased-uint32-ticket.ts");
+    writeFileSync(mutationPath, mutated);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", exactTestNamePattern(capturedMapperFreezeContract), fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# ONE_SAMPLE_CAPTURED_FREEZE_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === capturedMapperFreezeContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("ONE_SAMPLE_CAPTURED_FREEZE_MUST_PRESERVE_EXACT_MAPPING")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
+});
 const withCanonicalSnapshot = (action) => {
   let directory;
   try {
