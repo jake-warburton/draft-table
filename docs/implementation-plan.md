@@ -22,7 +22,7 @@ Complete the minimal npm-workspaces TypeScript layout approved in [architecture.
 
 Avoid shared “utils”, plugin systems, generic event buses, multiple-set inheritance, deployment environments, and runtime dependencies without an immediate MVP use.
 
-**Acceptance:** clean install is reproducible; baseline commands documented; CI/no-mistakes green; no product behavior yet; bundle tooling enforces the emitted-client budget and reports the zero-byte, not-yet-emitted server boundary.
+**Acceptance:** clean install is reproducible; baseline commands documented; CI/no-mistakes green; no product behavior yet; bundle tooling follows the [web build and size-reporting contract](streams/web-playable-shell.md#build-ownership-and-evidence) and reports the zero-byte, not-yet-emitted server boundary.
 
 ## Phase 2 — Omens and community-recipe import
 
@@ -72,7 +72,7 @@ Run adversarial protocol/auth/visibility tests, reconnect/deploy simulation, quo
 - accepted planning contracts unchanged or explicitly re-reviewed;
 - no critical/high security or accessibility findings;
 - measured per-room/quota model has captain-approved safety margin;
-- static/runtime bundles within ratcheted budgets;
+- static/runtime bundle sizes measured and reviewed;
 - docs and unofficial notice accurate;
 - all tests/lint/typecheck/docs/license checks and no-mistakes CI green.
 

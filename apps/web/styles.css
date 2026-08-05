@@ -1,1 +1,54 @@
-body{margin:0;font:1rem/1.5 system-ui,sans-serif}main{max-width:70rem;margin:auto;padding:2rem}section{padding:1rem}.cards{display:grid;gap:1rem;grid-template-columns:repeat(3,1fr)}button{background:#e7f1e8;border:2px solid #285943;font:inherit;min-height:6rem;padding:1rem}button:focus-visible{outline:4px solid #e07724}@media(prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important;transition:none!important}}@media(max-width:42rem){main{padding:1rem}.cards{grid-template-columns:1fr}button{min-height:4rem}}
+body {
+  margin: 0;
+  font: 1rem/1.5 system-ui, sans-serif;
+}
+
+main {
+  max-width: 70rem;
+  margin: auto;
+  padding: 2rem;
+}
+
+section {
+  padding: 1rem;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+button {
+  min-height: 6rem;
+  padding: 1rem;
+  background: #e7f1e8;
+  border: 2px solid #285943;
+  font: inherit;
+}
+
+button:focus-visible {
+  outline: 4px solid #e07724;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
+@media (max-width: 42rem) {
+  main {
+    padding: 1rem;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  button {
+    min-height: 4rem;
+  }
+}

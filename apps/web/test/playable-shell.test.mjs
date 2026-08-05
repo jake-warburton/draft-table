@@ -90,17 +90,44 @@ test("the static shell has labelled regions, visible focus, reduced motion, no n
   assert.match(html, /aria-label="Cards in fixture pack"/);
   assert.match(html, /aria-label="Picked cards"/);
   assert.match(css, /:focus-visible/);
-  assert.match(css, /prefers-reduced-motion:reduce/);
+  assert.match(css, /section\s*{\s*padding:\s*1rem/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /scroll-behavior:\s*auto\s*!important/);
+  assert.match(css, /@media \(max-width:\s*42rem\)[\s\S]*main\s*{\s*padding:\s*1rem/);
+  assert.match(css, /@media \(max-width:\s*42rem\)[\s\S]*button\s*{\s*min-height:\s*4rem/);
   assert.doesNotMatch(`${html}\n${css}\n${js}`, /fetch\(|XMLHttpRequest|https?:\/\//);
   assert.doesNotMatch(js, /^\s*import\s/m);
 });
 
-test("the static build is deterministic, inline-only, and does not emit an external app module", () => {
-  execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
-  const first = readFileSync(file("dist/index.html"), "utf8");
-  execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
-  assert.equal(readFileSync(file("dist/index.html"), "utf8"), first);
-  assert.match(first, /<script type="module">/);
-  assert.doesNotMatch(first, /src="\.\/main\.js"/);
-  rmSync(file("dist"), { recursive: true, force: true });
+test("readable source remains structured before the deterministic inline build", () => {
+  const html = readFileSync(file("index.html"), "utf8");
+  const css = readFileSync(file("styles.css"), "utf8");
+  const js = readFileSync(file("main.js"), "utf8");
+  assert.ok(html.split("\n").length > 15, "HTML source should retain its structure");
+  assert.ok(css.split("\n").length > 20, "CSS source should retain its structure");
+  assert.ok(js.split("\n").length > 35, "JavaScript source should retain its structure");
+  assert.match(js, /function renderFixturePack/);
+  assert.match(js, /const fixturePacks/);
+});
+
+test("the static build is deterministic, inline-only, and preserves readable source output", () => {
+  try {
+    const html = readFileSync(file("index.html"), "utf8");
+    const app = readFileSync(file("main.js"), "utf8");
+    const stylesheet = readFileSync(file("styles.css"), "utf8");
+    execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
+    const first = {
+      html: readFileSync(file("dist/index.html"), "utf8"),
+      css: readFileSync(file("dist/styles.css"), "utf8")
+    };
+    execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
+    assert.equal(readFileSync(file("dist/index.html"), "utf8"), first.html);
+    assert.equal(readFileSync(file("dist/styles.css"), "utf8"), first.css);
+    assert.equal(first.html, html.replace("<!--app-->", `<script type="module">${app}</script>`));
+    assert.equal(first.css, stylesheet);
+    assert.match(first.html, /<script type="module">/);
+    assert.doesNotMatch(first.html, /src="\.\/main\.js"/);
+  } finally {
+    rmSync(file("dist"), { recursive: true, force: true });
+  }
 });
