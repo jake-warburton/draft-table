@@ -86,7 +86,7 @@ const resolve = (
       if (!ownedPools.has(pool) || !Number.isSafeInteger(sourceSlot.count) || sourceSlot.count <= 0) fail();
       usedPools.add(pool);
       for (let repetition = 0; repetition < sourceSlot.count; repetition++) {
-        let recipeStructuralRole: OmensRecipeStructuralRole;
+        let recipeStructuralRole: OmensRecipeStructuralRole = "common-rarity";
         if (pool.recipePoolCategory === "rainbow-foil") {
           rainbowCount++;
           recipeStructuralRole = "rainbow-foil";
