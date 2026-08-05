@@ -279,6 +279,17 @@ test("stale, foreign-occupant, foreign-pack, foreign-card, and unknown-seat acti
   assert.equal(initial.pickedPools[0].cards.length, 0);
 });
 
+test("an exact duplicate provisional action is rejected without changing state", () => {
+  const initial = createDraft(makeSetup());
+  const action = actionFor(initial, "seat-0");
+  const queued = pickCard(initial, action);
+  const snapshot = JSON.stringify(queued);
+
+  expectRuleError(() => pickCard(queued, action), "DUPLICATE_ACTION");
+  assert.equal(JSON.stringify(queued), snapshot);
+  assert.equal(queued.provisionalPicks.length, 1);
+});
+
 test("a stale action from before a completed barrier cannot affect the next pick", () => {
   const initial = createDraft(makeSetup({ cardsPerRound: [3, 2, 2] }));
   const stale = actionFor(initial, "seat-0");

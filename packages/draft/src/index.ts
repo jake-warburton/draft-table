@@ -145,6 +145,7 @@ export type BotPolicy = (context: BotChoiceContext) => string;
 export type DraftRuleErrorCode =
   | "INVALID_SETUP"
   | "MALFORMED_ACTION"
+  | "DUPLICATE_ACTION"
   | "DRAFT_COMPLETE"
   | "STALE_ACTION"
   | "UNKNOWN_SEAT"
@@ -296,6 +297,9 @@ export const pickCard = (state: DraftState, action: PickCardAction): DraftState 
   if (!pack.cards.some(({ instanceId }) => instanceId === action.cardInstanceId)) fail("CARD_NOT_IN_PACK", "Pick action card is not in the active pack.");
   const provisional = Object.freeze({ ...action });
   const priorIndex = state.provisionalPicks.findIndex(({ seatId }) => seatId === seat.id);
+  if (priorIndex >= 0 && state.provisionalPicks[priorIndex].cardInstanceId === action.cardInstanceId) {
+    fail("DUPLICATE_ACTION", "The same provisional pick is already queued for this seat.");
+  }
   const picks = priorIndex < 0 ? [...state.provisionalPicks, provisional] :
     state.provisionalPicks.map((pick, index) => index === priorIndex ? provisional : pick);
   return makeState({ ...state, provisionalPicks: frozenArray(picks) });
