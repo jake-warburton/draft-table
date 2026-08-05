@@ -8,7 +8,7 @@ import {
 } from "./collation-weight-tables.ts";
 import {
   initializeOmensPackLocalPoolDrawState,
-  isOmensPackLocalPoolDrawStateRegisteredForPlanInitialization,
+  isOmensPackLocalPoolDrawStateFreshForPlanInitialization,
   type OmensPackLocalPoolDrawState
 } from "./pack-local-pool-draw-state.ts";
 import type { OmensRecipeLayoutOfficialIdentityPoolResolution } from "./recipe-layout-pool-resolution.ts";
@@ -64,12 +64,17 @@ const validateSelectedPlan = (
     !Object.isFrozen(tables.poolTables) || tables.poolTables.length !== EXPECTED_POOL_COUNT ||
     !Object.isFrozen(layoutReference) || !Object.isFrozen(layoutReference.slots) ||
     layoutReference.slots.length !== EXPECTED_POSITION_COUNT) fail();
+  const compiledLayout = tables.layoutChoices.find((choice) => choice.layoutReference === layoutReference)?.layoutReference;
+  if (compiledLayout === undefined || compiledLayout.slots.length !== EXPECTED_POSITION_COUNT) fail();
   const poolTablesByReference = new Map(tables.poolTables.map((table) => [table.poolReference, table]));
   if (poolTablesByReference.size !== EXPECTED_POOL_COUNT) fail();
   const requiredByPool = new Map<OmensCollationWeightTables["poolTables"][number]["poolReference"], number>();
   if (!layoutReference.slots.every((position, index) => {
     const poolTable = poolTablesByReference.get(position.resolvedPool);
-    if (!Object.isFrozen(position) || position.position !== index + 1 ||
+    const compiledPosition = compiledLayout.slots[index];
+    if (position !== compiledPosition || !Object.isFrozen(position) || position.position !== index + 1 ||
+      position.resolvedPool !== compiledPosition.resolvedPool ||
+      position.recipeStructuralRole !== compiledPosition.recipeStructuralRole ||
       position.recipeStructuralRole !== expectedRoles[index] || poolTable === undefined) return false;
     requiredByPool.set(position.resolvedPool, (requiredByPool.get(position.resolvedPool) ?? 0) + 1);
     return true;
@@ -88,7 +93,7 @@ const register = (
 ): OmensPackCollationPlan => {
   if (!isOmensCollationLayoutRegisteredForPlanInitialization(tables, layoutReference) ||
     !Object.isFrozen(layoutReference) || !Object.isFrozen(layoutReference.slots) || layoutReference.slots.length !== 14 ||
-    !isOmensPackLocalPoolDrawStateRegisteredForPlanInitialization(tables, poolDrawState)) fail();
+    !isOmensPackLocalPoolDrawStateFreshForPlanInitialization(tables, poolDrawState)) fail();
   const plan: OmensPackCollationPlan = frozen({});
   planCapabilities.set(plan, frozen({ tables, layoutReference, poolDrawState, nextPosition: 0 }));
   return plan;

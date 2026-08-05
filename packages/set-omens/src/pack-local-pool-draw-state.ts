@@ -94,11 +94,32 @@ export const initializeOmensPackLocalPoolDrawState = (
   catch (error) { if (error instanceof OmensPackLocalPoolDrawStateError) throw error; return fail(); }
 };
 
-/** Narrow capability check consumed only by selected pack-collation-plan initialization. */
+/** Narrow capability check retained as a constituent of exact plan freshness validation. */
 export const isOmensPackLocalPoolDrawStateRegisteredForPlanInitialization = (
   tables: OmensCollationWeightTables,
   state: OmensPackLocalPoolDrawState
 ): boolean => drawStateCapabilities.has(state) && drawStateTables.get(state) === tables;
+
+/** Narrow exact-freshness check consumed only by selected pack-collation-plan initialization. */
+export const isOmensPackLocalPoolDrawStateFreshForPlanInitialization = (
+  tables: OmensCollationWeightTables,
+  state: OmensPackLocalPoolDrawState
+): boolean => {
+  if (!isOmensPackLocalPoolDrawStateRegisteredForPlanInitialization(tables, state) ||
+    state.poolStates.length !== tables.poolTables.length) return false;
+  return state.poolStates.every((poolState, poolIndex) => {
+    const poolTable = tables.poolTables[poolIndex];
+    if (poolState.poolReference !== poolTable.poolReference ||
+      poolState.poolTotalWeight !== poolTable.poolTotalWeight ||
+      poolState.officialIdentityChoices.length !== poolTable.officialIdentityChoices.length) return false;
+    return poolState.officialIdentityChoices.every((choice, choiceIndex) => {
+      const expected = poolTable.officialIdentityChoices[choiceIndex];
+      return choice.officialIdentityReference === expected.officialIdentityReference &&
+        choice.weight === expected.weight &&
+        choice.cumulativeExclusiveEnd === expected.cumulativeExclusiveEnd;
+    });
+  });
+};
 
 const removeFromPool = (selectedPool: PoolState, selectedIdentity: OfficialIdentityReference): PoolState => {
   const choices = selectedPool.officialIdentityChoices;
