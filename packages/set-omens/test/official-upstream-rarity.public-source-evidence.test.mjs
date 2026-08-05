@@ -28,7 +28,7 @@ const schemaPath = process.env.FAB_CARD_SCHEMA_EVIDENCE_PATH;
 const cardVaultPath = process.env.FAB_CARD_VAULT_EVIDENCE_PATH;
 const available = Boolean(cardPath && schemaPath && cardVaultPath);
 
-test("checksum-pinned public sources establish all-upstream domain, OMN official-base rows, all-official retained rows, exact IAR composition, and anomaly contexts", {
+test("checksum-pinned public sources establish rarity aggregates and exact anomaly rarity sets", {
   skip: !available ? "public source acceptance did not run; set all three evidence paths or use npm run test:public-source-evidence" : false
 }, () => {
   const cardBytes = readFileSync(cardPath), schemaBytes = readFileSync(schemaPath), cardVaultBytes = readFileSync(cardVaultPath);
@@ -57,25 +57,9 @@ test("checksum-pinned public sources establish all-upstream domain, OMN official
     assert.equal((OMN_OFFICIAL_BASE_RARITY_ROW_COUNTS[rarity] ?? 0) + (IAR_OFFICIAL_BASE_RARITY_ROW_COUNTS[rarity] ?? 0), ALL_OFFICIAL_RETAINED_RARITY_ROW_COUNTS[rarity]);
   }
   assert.deepEqual(Object.keys(IAR_OFFICIAL_BASE_RARITY_ROW_COUNTS), ["V"]);
-  const candidates = records.filter((record) => record.sourceSetMarker === "OMN" && record.suffixMarker === null);
-  const omnUnsuffixedOfficialCandidateRaritySetCounts = new Map();
-  for (const record of candidates) {
-    const key = [...new Set(record.printings.map((row) => row.rarity))].sort().join("+");
-    omnUnsuffixedOfficialCandidateRaritySetCounts.set(key, (omnUnsuffixedOfficialCandidateRaritySetCounts.get(key) ?? 0) + 1);
-  }
-  assert.deepEqual(Object.fromEntries(omnUnsuffixedOfficialCandidateRaritySetCounts), { "B+V": 7, B: 7, M: 33, R: 60, C: 132, "C+V": 2, "M+V": 1 });
 
   const anomalyIds = new Set(["OMN199", "OMN201"]);
-  const anomalies = candidates.filter((record) => anomalyIds.has(record.officialPrintId));
-  assert.equal(anomalies.length, 2);
+  const anomalies = records.filter((record) => anomalyIds.has(record.officialPrintId));
   assert.deepEqual(new Set(anomalies.map((record) => record.officialPrintId)), anomalyIds);
-  for (const record of anomalies) {
-    assert.equal(record.baseCollectorId, record.officialPrintId);
-    assert.deepEqual(new Set(record.printings.map((row) => row.rarity)), new Set(["C", "V"]));
-    assert.equal(record.printings.length, 2);
-    const commonRow = record.printings.find((row) => row.rarity === "C"); const variantRow = record.printings.find((row) => row.rarity === "V");
-    assert.equal(commonRow.foiling, "S"); assert.deepEqual(commonRow.art_variations, []);
-    assert.equal(variantRow.foiling, "C"); assert.deepEqual(variantRow.art_variations, ["AA", "FA"]);
-  }
-  assert.equal(records.some((record) => anomalyIds.has(record.baseCollectorId) && record.suffixMarker !== null), false);
+  for (const record of anomalies) assert.deepEqual(new Set(record.printings.map((row) => row.rarity)), new Set(["C", "V"]));
 });

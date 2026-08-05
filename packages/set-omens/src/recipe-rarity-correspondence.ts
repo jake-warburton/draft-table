@@ -26,8 +26,10 @@ export type OmensRecipeRarityCorrespondence = ReadonlyArray<Readonly<{
   /** Explicit one-way project/FaB domain projection. */
   fabRarity: FabNativeRecipeRarity;
   officialPrintId: string;
-  /** Exact, first-observed-order unique upstream row strings; no normalization or semantic renaming. */
+  /** One exact code per upstream printing row in source order; no normalization or semantic renaming. */
   exactUpstreamRarityStrings: ReadonlyArray<FabRarityCode>;
+  /** First-observed-order unique codes used only for correspondence classification. */
+  firstObservedUniqueUpstreamRarityStrings: ReadonlyArray<FabRarityCode>;
   observedCorrespondenceClass: "exact-common-C" | "pinned-common-C-V-anomaly" | "exact-rare-R" | "exact-majestic-M";
   /** Observation flag only; later draftability/treatment work must classify these identities. */
   requiresDraftabilityTreatmentClassification: boolean;
@@ -84,10 +86,11 @@ const reconcile = (
       owned.has(record) || record.printings.length === 0) fail();
     owned.add(record);
 
-    const rarityStrings: string[] = [];
+    const rarityStrings = record.printings.map((row) => row.rarity);
+    const uniqueRarityStrings: string[] = [];
     const seen = new Set<string>();
-    for (const row of record.printings) if (!seen.has(row.rarity)) { seen.add(row.rarity); rarityStrings.push(row.rarity); }
-    const key = [...rarityStrings].sort().join("\u0000");
+    for (const rarity of rarityStrings) if (!seen.has(rarity)) { seen.add(rarity); uniqueRarityStrings.push(rarity); }
+    const key = [...uniqueRarityStrings].sort().join("\u0000");
     const label = identity.recipeRarityLabel;
     const translation = translateOmensRecipeRarityAtFabSeam(label);
     const fabRarity = translation.fabRarity;
@@ -101,8 +104,10 @@ const reconcile = (
     else fail();
 
     const retainedRarityCodes = rarityStrings as FabRarityCode[];
+    const retainedUniqueRarityCodes = uniqueRarityStrings as FabRarityCode[];
     output.push(frozen({ recipeCollectorNumber: identity.recipeCollectorNumber, recipeRarityLabel: label, fabRarity,
-      officialPrintId: identity.officialPrintId, exactUpstreamRarityStrings: frozen(retainedRarityCodes), observedCorrespondenceClass,
+      officialPrintId: identity.officialPrintId, exactUpstreamRarityStrings: frozen(retainedRarityCodes),
+      firstObservedUniqueUpstreamRarityStrings: frozen(retainedUniqueRarityCodes), observedCorrespondenceClass,
       requiresDraftabilityTreatmentClassification }));
   }
 

@@ -49,22 +49,23 @@ const safe = (action) => assert.throws(action, (error) => {
 
 test("three exact correspondences and two pinned common anomalies retain recipe order and every exact code", () => {
   assert.deepEqual(reconcile(), [
-    { recipeCollectorNumber: "TST100", recipeRarityLabel: "common", fabRarity: "common", officialPrintId: "TST100", exactUpstreamRarityStrings: ["C"], observedCorrespondenceClass: "exact-common-C", requiresDraftabilityTreatmentClassification: false },
-    { recipeCollectorNumber: "TST101", recipeRarityLabel: "common", fabRarity: "common", officialPrintId: "TST101", exactUpstreamRarityStrings: ["C", "V"], observedCorrespondenceClass: "pinned-common-C-V-anomaly", requiresDraftabilityTreatmentClassification: true },
-    { recipeCollectorNumber: "TST102", recipeRarityLabel: "rare", fabRarity: "rare", officialPrintId: "TST102", exactUpstreamRarityStrings: ["R"], observedCorrespondenceClass: "exact-rare-R", requiresDraftabilityTreatmentClassification: false },
-    { recipeCollectorNumber: "TST103", recipeRarityLabel: "common", fabRarity: "common", officialPrintId: "TST103", exactUpstreamRarityStrings: ["C", "V"], observedCorrespondenceClass: "pinned-common-C-V-anomaly", requiresDraftabilityTreatmentClassification: true },
-    { recipeCollectorNumber: "TST104", recipeRarityLabel: "mythic", fabRarity: "majestic", officialPrintId: "TST104", exactUpstreamRarityStrings: ["M"], observedCorrespondenceClass: "exact-majestic-M", requiresDraftabilityTreatmentClassification: false }
+    { recipeCollectorNumber: "TST100", recipeRarityLabel: "common", fabRarity: "common", officialPrintId: "TST100", exactUpstreamRarityStrings: ["C", "C"], firstObservedUniqueUpstreamRarityStrings: ["C"], observedCorrespondenceClass: "exact-common-C", requiresDraftabilityTreatmentClassification: false },
+    { recipeCollectorNumber: "TST101", recipeRarityLabel: "common", fabRarity: "common", officialPrintId: "TST101", exactUpstreamRarityStrings: ["C", "V"], firstObservedUniqueUpstreamRarityStrings: ["C", "V"], observedCorrespondenceClass: "pinned-common-C-V-anomaly", requiresDraftabilityTreatmentClassification: true },
+    { recipeCollectorNumber: "TST102", recipeRarityLabel: "rare", fabRarity: "rare", officialPrintId: "TST102", exactUpstreamRarityStrings: ["R"], firstObservedUniqueUpstreamRarityStrings: ["R"], observedCorrespondenceClass: "exact-rare-R", requiresDraftabilityTreatmentClassification: false },
+    { recipeCollectorNumber: "TST103", recipeRarityLabel: "common", fabRarity: "common", officialPrintId: "TST103", exactUpstreamRarityStrings: ["C", "V"], firstObservedUniqueUpstreamRarityStrings: ["C", "V"], observedCorrespondenceClass: "pinned-common-C-V-anomaly", requiresDraftabilityTreatmentClassification: true },
+    { recipeCollectorNumber: "TST104", recipeRarityLabel: "mythic", fabRarity: "majestic", officialPrintId: "TST104", exactUpstreamRarityStrings: ["M"], firstObservedUniqueUpstreamRarityStrings: ["M"], observedCorrespondenceClass: "exact-majestic-M", requiresDraftabilityTreatmentClassification: false }
   ]);
 });
 
-test("multiple same-rarity printing rows collapse to one retained exact source string", () => {
-  assert.deepEqual(reconcile()[0].exactUpstreamRarityStrings, ["C"]);
+test("every printing row code and a separate first-observed unique code set are retained", () => {
+  assert.deepEqual(reconcile()[0].exactUpstreamRarityStrings, ["C", "C"]);
+  assert.deepEqual(reconcile()[0].firstObservedUniqueUpstreamRarityStrings, ["C"]);
 });
 
 test("output is deeply immutable, fresh, and copy-independent", () => {
   const first = reconcile(), second = reconcile(); assert.ok(Object.isFrozen(first)); assert.notEqual(first, second);
-  for (let index = 0; index < first.length; index++) { assert.ok(Object.isFrozen(first[index])); assert.ok(Object.isFrozen(first[index].exactUpstreamRarityStrings)); assert.notEqual(first[index], second[index]); assert.notEqual(first[index].exactUpstreamRarityStrings, second[index].exactUpstreamRarityStrings); }
-  assert.throws(() => first[0].exactUpstreamRarityStrings.push("V"), TypeError); assert.throws(() => { first[0].recipeRarityLabel = "rare"; }, TypeError);
+  for (let index = 0; index < first.length; index++) { assert.ok(Object.isFrozen(first[index])); assert.ok(Object.isFrozen(first[index].exactUpstreamRarityStrings)); assert.ok(Object.isFrozen(first[index].firstObservedUniqueUpstreamRarityStrings)); assert.notEqual(first[index], second[index]); assert.notEqual(first[index].exactUpstreamRarityStrings, second[index].exactUpstreamRarityStrings); assert.notEqual(first[index].firstObservedUniqueUpstreamRarityStrings, second[index].firstObservedUniqueUpstreamRarityStrings); }
+  assert.throws(() => first[0].exactUpstreamRarityStrings.push("V"), TypeError); assert.throws(() => first[0].firstObservedUniqueUpstreamRarityStrings.push("V"), TypeError); assert.throws(() => { first[0].recipeRarityLabel = "rare"; }, TypeError);
 });
 
 test("only both registered opaque reconciliation capabilities are accepted", () => {
@@ -96,9 +97,11 @@ test("zero rows, unsupported values, wrong pairs, normalization drift, mixed non
   for (const rarities of cases) { let records; try { records = official(rarities); } catch { continue; } safe(() => reconcile(identities(records), records)); }
 });
 
-test("pinned anomaly code sets are order-independent while retained strings preserve source order", () => {
-  const reversed = new Map(rarityById).set("TST101", ["V", "C"]); const records = official(reversed);
-  assert.deepEqual(reconcile(identities(records), records)[1].exactUpstreamRarityStrings, ["V", "C"]);
+test("pinned anomaly code sets are order-independent while both retained sequences preserve source order", () => {
+  const reversed = new Map(rarityById).set("TST101", ["V", "C", "V"]); const records = official(reversed);
+  const entry = reconcile(identities(records), records)[1];
+  assert.deepEqual(entry.exactUpstreamRarityStrings, ["V", "C", "V"]);
+  assert.deepEqual(entry.firstObservedUniqueUpstreamRarityStrings, ["V", "C"]);
 });
 
 test("changed anomaly ownership, a third mixed identity, and every aggregate redistribution fail", () => {
@@ -124,6 +127,10 @@ test("label to code mapping mutation fails its exact named contract", () => { co
 const consistencyContract = "row consistency rejects an unpinned common C V identity", consistencyMarker = "RECIPE_RARITY_ROW_CONSISTENCY_CONTRACT_EXECUTED";
 test(consistencyContract, async () => { console.log(consistencyMarker); const m = await loadMutationModule(), changed = new Map(rarityById); changed.set("TST100", ["C", "V"]); changed.set("TST101", ["C"]); const c = mutationCapabilities(m, changed); assert.throws(() => m.loaded.reconcileOmensRecipeRarityCorrespondenceForTest(c.identities, c.records, expected), m.loaded.OmensRecipeRarityCorrespondenceError, "UNPINNED_MIXED_ROWS_MUST_FAIL"); });
 test("row consistency mutation fails its exact named contract", () => { const original = requireSource(); const mutated = original.replace('const isPinnedAnomaly = (officialPrintId: string): boolean => anomalyIds.has(officialPrintId);', 'const isPinnedAnomaly = (_officialPrintId: string): boolean => true;'); assert.notEqual(mutated, original); mutationRun(mutated, consistencyContract, consistencyMarker, "UNPINNED_MIXED_ROWS_MUST_FAIL"); });
+
+const multiplicityContract = "retained rarity codes preserve every upstream printing row", multiplicityMarker = "RECIPE_RARITY_ROW_MULTIPLICITY_CONTRACT_EXECUTED";
+test(multiplicityContract, async () => { console.log(multiplicityMarker); const m = await loadMutationModule(), c = mutationCapabilities(m); const result = m.loaded.reconcileOmensRecipeRarityCorrespondenceForTest(c.identities, c.records, expected); assert.deepEqual(result[0].exactUpstreamRarityStrings, ["C", "C"], "EVERY_UPSTREAM_ROW_CODE_MUST_BE_RETAINED"); });
+test("row multiplicity mutation fails its exact named contract", () => { const original = requireSource(); const mutated = original.replace("const rarityStrings = record.printings.map((row) => row.rarity);", "const rarityStrings = [...new Set(record.printings.map((row) => row.rarity))];"); assert.notEqual(mutated, original); mutationRun(mutated, multiplicityContract, multiplicityMarker, "EVERY_UPSTREAM_ROW_CODE_MUST_BE_RETAINED"); });
 
 const scopeContract = "mapped candidate scoping ignores all unmapped rarity rows", scopeMarker = "RECIPE_RARITY_MAPPED_SCOPE_CONTRACT_EXECUTED";
 test(scopeContract, async () => { console.log(scopeMarker); const m = await loadMutationModule(), c = mutationCapabilities(m); assert.doesNotThrow(() => m.loaded.reconcileOmensRecipeRarityCorrespondenceForTest(c.identities, c.records, expected), "UNMAPPED_ROWS_MUST_REMAIN_OUTSIDE_RARITY_CORRESPONDENCE"); });
