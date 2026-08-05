@@ -69,6 +69,11 @@ import {
   compileOmensCollationWeightTables as compileCollationWeightTables,
   type OmensCollationWeightTables
 } from "./collation-weight-tables.ts";
+import {
+  OmensCollationWeightTicketSelectionError,
+  selectOmensCollationLayoutByTicket as selectLayoutByTicket,
+  selectOmensCollationPoolOfficialIdentityByTicket as selectPoolOfficialIdentityByTicket
+} from "./collation-weight-ticket-selection.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -83,6 +88,7 @@ export {
   OmensRecipePoolIdentityResolutionError,
   OmensRecipeLayoutPoolResolutionError,
   OmensCollationWeightTablesError,
+  OmensCollationWeightTicketSelectionError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -162,6 +168,16 @@ export const resolveOmensRecipeLayoutsToOfficialIdentityPools = (
 export const compileOmensCollationWeightTables = (
   ...inputs: [OmensRecipeLayoutOfficialIdentityPoolResolution, OmensRecipePoolOfficialIdentityResolution]
 ): OmensCollationWeightTables => compileCollationWeightTables(...inputs);
+
+/** Deterministically selects one capability-owned layout reference from an exact bounded layout ticket. */
+export const selectOmensCollationLayoutByTicket = (
+  ...inputs: [OmensCollationWeightTables, number]
+): OmensRecipeLayoutOfficialIdentityPoolResolution["layouts"][number] => selectLayoutByTicket(...inputs);
+
+/** Deterministically selects one capability-owned identity reference from one exact bounded pool ticket. */
+export const selectOmensCollationPoolOfficialIdentityByTicket = (
+  ...inputs: [OmensCollationWeightTables, OmensRecipePoolOfficialIdentityResolution[number], number]
+): OmensRecipePoolOfficialIdentityResolution[number]["entries"][number]["officialIdentity"] => selectPoolOfficialIdentityByTicket(...inputs);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (
