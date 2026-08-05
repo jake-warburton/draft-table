@@ -107,6 +107,82 @@ test("finite uint32 batches reject invalid, foreign, and extra inputs before any
   safe(() => mapUnsigned32SampleBatchToBoundedTicket(invalidTrailing, 1));
 });
 
+test("finite uint32 batches snapshot hostile array length and elements exactly once", () => {
+  let shrinkingLengthReads = 0;
+  const shrinkingElementReads = [0, 0];
+  const shrinkingTarget = [0, UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END];
+  let shrinkingFirstReads = 0;
+  Object.defineProperty(shrinkingTarget, 0, {
+    configurable: true,
+    get() {
+      shrinkingFirstReads++;
+      shrinkingTarget.length = 1;
+      return 0;
+    }
+  });
+  const shrinking = new Proxy(shrinkingTarget, {
+    get(target, property, receiver) {
+      if (property === "length") shrinkingLengthReads++;
+      if (property === "0" || property === "1") shrinkingElementReads[Number(property)]++;
+      return Reflect.get(target, property, receiver);
+    }
+  });
+  safe(() => mapUnsigned32SampleBatchToBoundedTicket(shrinking, 1));
+  assert.equal(shrinkingLengthReads, 1);
+  assert.deepEqual(shrinkingElementReads, [1, 1]);
+  assert.equal(shrinkingFirstReads, 1);
+
+  const getterReads = [0, 0];
+  const mutating = [12, 13];
+  Object.defineProperty(mutating, 0, {
+    configurable: true,
+    get() {
+      getterReads[0]++;
+      return 12;
+    }
+  });
+  Object.defineProperty(mutating, 1, {
+    configurable: true,
+    get() {
+      getterReads[1]++;
+      Object.defineProperty(mutating, 0, { configurable: true, value: retrySample(7), writable: true });
+      return 13;
+    }
+  });
+  assertAccepted(mapUnsigned32SampleBatchToBoundedTicket(mutating, 7), 5, 1);
+  assert.deepEqual(getterReads, [1, 1]);
+
+  let dynamicLengthReads = 0;
+  const dynamicElementReads = [0, 0];
+  const dynamic = new Proxy([retrySample(7), 12], {
+    get(target, property, receiver) {
+      if (property === "length") {
+        dynamicLengthReads++;
+        return dynamicLengthReads === 1 ? 2 : UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1;
+      }
+      if (property === "0" || property === "1") dynamicElementReads[Number(property)]++;
+      return Reflect.get(target, property, receiver);
+    }
+  });
+  assertAccepted(mapUnsigned32SampleBatchToBoundedTicket(dynamic, 7), 5, 2);
+  assert.equal(dynamicLengthReads, 1);
+  assert.deepEqual(dynamicElementReads, [1, 1]);
+
+  const invalidLength = new Proxy([], {
+    get(target, property, receiver) {
+      if (property === "length") return UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
+      return Reflect.get(target, property, receiver);
+    }
+  });
+  safe(() => mapUnsigned32SampleBatchToBoundedTicket(invalidLength, 1));
+  safe(() => mapUnsigned32SampleBatchToBoundedTicket(new Proxy([], {
+    get() { throw new Error("length trap"); }
+  }), 1));
+  const throwingElement = [0];
+  Object.defineProperty(throwingElement, 0, { get() { throw new Error("element trap"); } });
+  safe(() => mapUnsigned32SampleBatchToBoundedTicket(throwingElement, 1));
+});
+
 test("finite uint32 batch results are deeply immutable, deterministic, and independent of caller copies", () => {
   const samples = [UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1, 12];
   const first = mapUnsigned32SampleBatchToBoundedTicket(samples, 7);

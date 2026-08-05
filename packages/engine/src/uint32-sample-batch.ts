@@ -27,14 +27,13 @@ export const mapUnsigned32SampleBatchToBoundedTicket = (
   try {
     if (inputs.length !== 2 || !Array.isArray(inputs[0]) || !isAcceptedTicketBound(inputs[1])) return fail();
     const suppliedSamples = inputs[0] as readonly unknown[];
-    if (!Number.isFinite(suppliedSamples.length) || !Number.isSafeInteger(suppliedSamples.length)) return fail();
+    const sampleCount = suppliedSamples.length;
+    if (!Number.isSafeInteger(sampleCount) || sampleCount < 0 || sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
 
-    const samples: number[] = [];
-    for (let index = 0; index < suppliedSamples.length; index++) {
-      const sample = suppliedSamples[index];
-      if (!isUint32Sample(sample)) return fail();
-      samples.push(sample);
-    }
+    const sampleSnapshot: unknown[] = [];
+    for (let index = 0; index < sampleCount; index++) sampleSnapshot.push(suppliedSamples[index]);
+    if (!sampleSnapshot.every(isUint32Sample)) return fail();
+    const samples = sampleSnapshot as number[];
 
     for (let index = 0; index < samples.length; index++) {
       const mapping = mapUnsigned32SampleToBoundedTicket(samples[index], inputs[1]);
