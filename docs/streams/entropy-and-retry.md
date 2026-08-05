@@ -74,4 +74,3 @@ npm run size
 - PCG is deterministic rather than cryptographically secure and may permit state reconstruction from outputs. Do not treat it as an implicit competitive-multiplayer secrecy guarantee or use it where players can choose or learn authoritative seeds before hidden outcomes are fixed.
 - Returning every retry sample makes diagnostics exact but uses memory proportional to an uncapped retry run.
 - Browser/Worker targets must preserve `bigint` and standard uint32 shift semantics; replacing the arithmetic with floating-point math breaks replay.
-- Package-root export and consumer boundary registration remain an integration step as noted above.
