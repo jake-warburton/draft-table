@@ -21,6 +21,10 @@ const variables = ["OMENS_RECIPE_EVIDENCE_PATH", "FAB_CARD_SOURCE_EVIDENCE_PATH"
 const available = variables.every((variable) => Boolean(process.env[variable]));
 export const recipeRarityAcceptanceContractName = "four checksum-verified caller-held sources establish the accepted recipe rarity correspondence";
 export const recipeRarityAcceptanceMarker = "RECIPE_RARITY_CORRESPONDENCE_CONTRACT_EXECUTED";
+const MAPPED_SOURCE_ORDER_RARITY_CODE_SEQUENCE_COUNTS = Object.freeze({ "C,C": 117, "R,R": 59, "M,M": 15, C: 15, "C,V": 2, R: 1 });
+const MAPPED_SOURCE_ORDER_RARITY_CODE_SEQUENCE_IDENTITY_TOTAL = 209;
+const MAPPED_SOURCE_ORDER_RARITY_CODE_SEQUENCE_REPEATED_CODE_IDENTITY_TOTAL = 191;
+const MAPPED_FIRST_OBSERVED_UNIQUE_RARITY_CODE_SET_COUNTS = Object.freeze({ C: 132, R: 60, M: 15, "C,V": 2 });
 
 test(recipeRarityAcceptanceContractName, { skip: !available ? "four-source recipe rarity acceptance did not run; use npm run test:recipe-rarity-evidence" : false }, () => {
   const recipeBytes = readFileSync(process.env.OMENS_RECIPE_EVIDENCE_PATH);
@@ -39,7 +43,17 @@ test(recipeRarityAcceptanceContractName, { skip: !available ? "four-source recip
   const identities = reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities(parseVerifiedOmensCustomCards(verifiedRecipe), official);
   const correspondence = reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings(identities, official);
 
-  assert.equal(correspondence.length, 209);
+  assert.equal(correspondence.length, MAPPED_SOURCE_ORDER_RARITY_CODE_SEQUENCE_IDENTITY_TOTAL);
+  const mappedSourceOrderRarityCodeSequenceCounts = Object.fromEntries([...correspondence.reduce((counts, entry) => {
+    const key = entry.sourceOrderUpstreamRarityCodeSequence.join(","); return counts.set(key, (counts.get(key) ?? 0) + 1);
+  }, new Map()).entries()].sort(([left], [right]) => left.localeCompare(right)));
+  const mappedFirstObservedUniqueRarityCodeSetCounts = Object.fromEntries([...correspondence.reduce((counts, entry) => {
+    const key = [...entry.firstObservedUniqueUpstreamRarityCodeSet].sort().join(","); return counts.set(key, (counts.get(key) ?? 0) + 1);
+  }, new Map()).entries()].sort(([left], [right]) => left.localeCompare(right)));
+  assert.deepEqual(mappedSourceOrderRarityCodeSequenceCounts, MAPPED_SOURCE_ORDER_RARITY_CODE_SEQUENCE_COUNTS);
+  assert.deepEqual(mappedFirstObservedUniqueRarityCodeSetCounts, MAPPED_FIRST_OBSERVED_UNIQUE_RARITY_CODE_SET_COUNTS);
+  assert.equal(correspondence.filter((entry) => entry.sourceOrderUpstreamRarityCodeSequence.length > entry.firstObservedUniqueUpstreamRarityCodeSet.length).length, MAPPED_SOURCE_ORDER_RARITY_CODE_SEQUENCE_REPEATED_CODE_IDENTITY_TOTAL);
+  assert.equal(MAPPED_SOURCE_ORDER_RARITY_CODE_SEQUENCE_COUNTS["C,C"] + MAPPED_SOURCE_ORDER_RARITY_CODE_SEQUENCE_COUNTS.C, MAPPED_FIRST_OBSERVED_UNIQUE_RARITY_CODE_SET_COUNTS.C);
   assert.equal(correspondence.filter((entry) => entry.recipeRarityLabel === "mythic").length, 15);
   assert.equal(correspondence.filter((entry) => entry.recipeRarityLabel === "majestic").length, 0);
   assert.equal(correspondence.filter((entry) => entry.fabRarity === "majestic").length, 15);
@@ -57,7 +71,7 @@ test(recipeRarityAcceptanceContractName, { skip: !available ? "four-source recip
   assert.equal(correspondence.filter((entry) => entry.observedCorrespondenceClass === "exact-majestic-M" && entry.recipeRarityLabel === "mythic" && entry.fabRarity === "majestic").length, 15);
   const anomalies = correspondence.filter((entry) => entry.requiresDraftabilityTreatmentClassification);
   assert.deepEqual(new Set(anomalies.map((entry) => entry.officialPrintId)), new Set(["OMN199", "OMN201"]));
-  assert.ok(anomalies.every((entry) => entry.recipeRarityLabel === "common" && entry.firstObservedUniqueUpstreamRarityStrings.length === 2 && new Set(entry.firstObservedUniqueUpstreamRarityStrings).has("C") && new Set(entry.firstObservedUniqueUpstreamRarityStrings).has("V")));
-  assert.ok(correspondence.filter((entry) => !entry.requiresDraftabilityTreatmentClassification).every((entry) => entry.firstObservedUniqueUpstreamRarityStrings.length === 1));
+  assert.ok(anomalies.every((entry) => entry.recipeRarityLabel === "common" && entry.sourceOrderUpstreamRarityCodeSequence.join(",") === "C,V" && entry.firstObservedUniqueUpstreamRarityCodeSet.join(",") === "C,V"));
+  assert.ok(correspondence.filter((entry) => !entry.requiresDraftabilityTreatmentClassification).every((entry) => entry.firstObservedUniqueUpstreamRarityCodeSet.length === 1));
   console.log(recipeRarityAcceptanceMarker);
 });

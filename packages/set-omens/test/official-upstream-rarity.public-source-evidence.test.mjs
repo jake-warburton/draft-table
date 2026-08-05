@@ -22,13 +22,20 @@ const IAR_OFFICIAL_BASE_RARITY_ROW_COUNTS = Object.freeze({ V: 11 });
 const IAR_OFFICIAL_BASE_RARITY_ROW_TOTAL = 11;
 const ALL_OFFICIAL_RETAINED_RARITY_ROW_COUNTS = Object.freeze({ C: 251, R: 119, M: 68, V: 29, B: 14, L: 10, F: 2 });
 const ALL_OFFICIAL_RETAINED_RARITY_ROW_TOTAL = 493;
+const OMN_UNSUFFIXED_OFFICIAL_CANDIDATE_SOURCE_ORDER_RARITY_CODE_SEQUENCE_COUNTS = Object.freeze({
+  "B,V,V": 6, B: 7, "M,M": 31, "R,R": 59, "C,C": 117, R: 1, C: 15, "C,V": 2, "B,V,V,V": 1, M: 2, "M,V": 1
+});
+const OMN_UNSUFFIXED_OFFICIAL_CANDIDATE_SOURCE_ORDER_RARITY_CODE_SEQUENCE_TOTAL = 242;
+const OMN_UNSUFFIXED_OFFICIAL_CANDIDATE_FIRST_OBSERVED_UNIQUE_RARITY_CODE_SET_COUNTS = Object.freeze({
+  "B,V": 7, B: 7, M: 33, R: 60, C: 132, "C,V": 2, "M,V": 1
+});
 
 const cardPath = process.env.FAB_CARD_SOURCE_EVIDENCE_PATH;
 const schemaPath = process.env.FAB_CARD_SCHEMA_EVIDENCE_PATH;
 const cardVaultPath = process.env.FAB_CARD_VAULT_EVIDENCE_PATH;
 const available = Boolean(cardPath && schemaPath && cardVaultPath);
 
-test("checksum-pinned public sources establish rarity aggregates and exact anomaly rarity sets", {
+test("checksum-pinned public sources establish all-upstream rows, OMN/all-official retained rows, and OMN unsuffixed candidate sequence/set aggregates", {
   skip: !available ? "public source acceptance did not run; set all three evidence paths or use npm run test:public-source-evidence" : false
 }, () => {
   const cardBytes = readFileSync(cardPath), schemaBytes = readFileSync(schemaPath), cardVaultBytes = readFileSync(cardVaultPath);
@@ -58,8 +65,19 @@ test("checksum-pinned public sources establish rarity aggregates and exact anoma
   }
   assert.deepEqual(Object.keys(IAR_OFFICIAL_BASE_RARITY_ROW_COUNTS), ["V"]);
 
+  const omnUnsuffixedOfficialCandidates = records.filter((record) => record.sourceSetMarker === "OMN" && record.suffixMarker === null);
+  const omnUnsuffixedOfficialCandidateSourceOrderRarityCodeSequenceCounts = Object.fromEntries([...omnUnsuffixedOfficialCandidates.reduce((counts, record) => {
+    const key = record.printings.map((row) => row.rarity).join(","); return counts.set(key, (counts.get(key) ?? 0) + 1);
+  }, new Map()).entries()].sort(([left], [right]) => left.localeCompare(right)));
+  const omnUnsuffixedOfficialCandidateFirstObservedUniqueRarityCodeSetCounts = Object.fromEntries([...omnUnsuffixedOfficialCandidates.reduce((counts, record) => {
+    const key = [...new Set(record.printings.map((row) => row.rarity))].sort().join(","); return counts.set(key, (counts.get(key) ?? 0) + 1);
+  }, new Map()).entries()].sort(([left], [right]) => left.localeCompare(right)));
+  assert.equal(omnUnsuffixedOfficialCandidates.length, OMN_UNSUFFIXED_OFFICIAL_CANDIDATE_SOURCE_ORDER_RARITY_CODE_SEQUENCE_TOTAL);
+  assert.deepEqual(omnUnsuffixedOfficialCandidateSourceOrderRarityCodeSequenceCounts, OMN_UNSUFFIXED_OFFICIAL_CANDIDATE_SOURCE_ORDER_RARITY_CODE_SEQUENCE_COUNTS);
+  assert.deepEqual(omnUnsuffixedOfficialCandidateFirstObservedUniqueRarityCodeSetCounts, OMN_UNSUFFIXED_OFFICIAL_CANDIDATE_FIRST_OBSERVED_UNIQUE_RARITY_CODE_SET_COUNTS);
+
   const anomalyIds = new Set(["OMN199", "OMN201"]);
   const anomalies = records.filter((record) => anomalyIds.has(record.officialPrintId));
   assert.deepEqual(new Set(anomalies.map((record) => record.officialPrintId)), anomalyIds);
-  for (const record of anomalies) assert.deepEqual(new Set(record.printings.map((row) => row.rarity)), new Set(["C", "V"]));
+  for (const record of anomalies) assert.deepEqual(record.printings.map((row) => row.rarity), ["C", "V"]);
 });
