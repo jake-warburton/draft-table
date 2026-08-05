@@ -53,6 +53,15 @@ test("the bundle-size report measures only completed built output and rejects mi
   assert.doesNotMatch(completedOutput.stdout, new RegExp(`Client bundle: ${sourceBytes} bytes`));
   assert.match(completedOutput.stdout, /Server bundle: 0 bytes \(not yet emitted; boundary typechecked only\)/);
 
+  writeFileSync(
+    fromRoot("apps/web/dist/index.html"),
+    `${readFileSync(fromRoot("apps/web/dist/index.html"), "utf8")}${"x".repeat(2049 - builtBytes)}`
+  );
+  const overCeilingOutput = runSizeReport();
+  assert.notEqual(overCeilingOutput.status, 0);
+  assert.match(overCeilingOutput.stdout, /Client bundle: 2049 bytes/);
+  assert.match(overCeilingOutput.stderr, /Client bundle exceeds 2048-byte ceiling\./);
+
   rmSync(fromRoot("apps/web/dist/styles.css"));
   const missingOutput = runSizeReport();
   assert.notEqual(missingOutput.status, 0);
