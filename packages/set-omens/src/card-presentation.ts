@@ -11,6 +11,8 @@ import {
 const defineProperty = Object.defineProperty;
 const freeze = Object.freeze;
 const arrayIncludes = Function.prototype.call.bind(Array.prototype.includes) as (values: readonly unknown[], value: unknown) => boolean;
+const arrayFind = Function.prototype.call.bind(Array.prototype.find) as <Value>(values: readonly Value[], predicate: (value: Value) => boolean) => Value | undefined;
+const arrayFilter = Function.prototype.call.bind(Array.prototype.filter) as <Value>(values: readonly Value[], predicate: (value: Value) => boolean) => Value[];
 const weakSetAdd = Function.prototype.call.bind(WeakSet.prototype.add) as (set: WeakSet<object>, value: object) => WeakSet<object>;
 const weakSetHas = Function.prototype.call.bind(WeakSet.prototype.has) as (set: WeakSet<object>, value: object) => boolean;
 const presentationCapabilities = new WeakSet<object>();
@@ -85,10 +87,10 @@ export const projectOmensOfficialCardPresentation = (
     const records = readOfficialUpstreamIdReconciliationForSuffixFoiling(reconciliation);
     const projectedFaces = readOfficialCardVaultFaceProjectionForMultiplicityReconciliation(faces);
     if (!arrayIncludes(records, identity) || !arrayIncludes(identity.printings, printing) || !Number.isInteger(faceLayoutPosition)) fail();
-    const faceEntry = projectedFaces.find((entry) => entry.print_id === identity.officialPrintId);
+    const faceEntry = arrayFind(projectedFaces, (entry) => entry.print_id === identity.officialPrintId);
     if (faceEntry === undefined) return fail();
-    const face = faceEntry.faces.find((entry) => entry.layout_position === faceLayoutPosition);
-    if (face === undefined || faceEntry.faces.filter((entry) => entry.layout_position === faceLayoutPosition).length !== 1) return fail();
+    const face = arrayFind(faceEntry.faces, (entry) => entry.layout_position === faceLayoutPosition);
+    if (face === undefined || arrayFilter(faceEntry.faces, (entry) => entry.layout_position === faceLayoutPosition).length !== 1) return fail();
     const output = freeze({
       officialPrintId: identity.officialPrintId,
       baseCollectorId: identity.baseCollectorId,

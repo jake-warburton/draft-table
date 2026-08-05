@@ -95,6 +95,20 @@ test(intrinsicContractName, async () => {
     projected = presentation.projectOmensOfficialCardPresentation(capabilities.reconciliation, capabilities.faces, identity, printing, 10);
   } catch (error) { includesError = error; } finally { Object.defineProperty(Array.prototype, "includes", includesDescriptor); }
   assert.equal(includesError, undefined, "BOUND_ARRAY_INCLUDES_MUST_SURVIVE_CALL_TIME_POISON");
+  const findDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, "find");
+  let findError;
+  try {
+    Object.defineProperty(Array.prototype, "find", { configurable: true, writable: true, value: () => { throw new Error("poisoned find"); } });
+    presentation.projectOmensOfficialCardPresentation(capabilities.reconciliation, capabilities.faces, identity, printing, 10);
+  } catch (error) { findError = error; } finally { Object.defineProperty(Array.prototype, "find", findDescriptor); }
+  assert.equal(findError, undefined, "BOUND_ARRAY_FIND_MUST_SURVIVE_CALL_TIME_POISON");
+  const filterDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, "filter");
+  let filterError;
+  try {
+    Object.defineProperty(Array.prototype, "filter", { configurable: true, writable: true, value: () => { throw new Error("poisoned filter"); } });
+    presentation.projectOmensOfficialCardPresentation(capabilities.reconciliation, capabilities.faces, identity, printing, 10);
+  } catch (error) { filterError = error; } finally { Object.defineProperty(Array.prototype, "filter", filterDescriptor); }
+  assert.equal(filterError, undefined, "BOUND_ARRAY_FILTER_MUST_SURVIVE_CALL_TIME_POISON");
   const weakSetHasDescriptor = Object.getOwnPropertyDescriptor(WeakSet.prototype, "has");
   let read, weakSetError;
   try {
@@ -114,6 +128,18 @@ test("call-time intrinsic lookup mutations fail the named card-presentation boun
       "const arrayIncludes = Function.prototype.call.bind(Array.prototype.includes) as (values: readonly unknown[], value: unknown) => boolean;",
       "const arrayIncludes = ((values: readonly unknown[], value: unknown) => values.includes(value)) as (values: readonly unknown[], value: unknown) => boolean;",
       "BOUND_ARRAY_INCLUDES_MUST_SURVIVE_CALL_TIME_POISON"
+    ],
+    [
+      "array-find",
+      "const arrayFind = Function.prototype.call.bind(Array.prototype.find) as <Value>(values: readonly Value[], predicate: (value: Value) => boolean) => Value | undefined;",
+      "const arrayFind = (<Value>(values: readonly Value[], predicate: (value: Value) => boolean) => values.find(predicate)) as <Value>(values: readonly Value[], predicate: (value: Value) => boolean) => Value | undefined;",
+      "BOUND_ARRAY_FIND_MUST_SURVIVE_CALL_TIME_POISON"
+    ],
+    [
+      "array-filter",
+      "const arrayFilter = Function.prototype.call.bind(Array.prototype.filter) as <Value>(values: readonly Value[], predicate: (value: Value) => boolean) => Value[];",
+      "const arrayFilter = (<Value>(values: readonly Value[], predicate: (value: Value) => boolean) => values.filter(predicate)) as <Value>(values: readonly Value[], predicate: (value: Value) => boolean) => Value[];",
+      "BOUND_ARRAY_FILTER_MUST_SURVIVE_CALL_TIME_POISON"
     ],
     [
       "weak-set-has",
