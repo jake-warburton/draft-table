@@ -92,6 +92,7 @@ test("canonical package isolation cannot race deletion of a noncanonical mutatio
 test("tracked semantic mutation probers allocate outside the repository and never derive source-adjacent output paths", () => {
   const testDirectory = join(packageDirectory, "test");
   const expectedProbers = Object.freeze([
+    "card-presentation.test.mjs",
     "card-vault-face-projection.test.mjs",
     "card-vault-official-membership.test.mjs",
     "collation-weight-tables.test.mjs",
