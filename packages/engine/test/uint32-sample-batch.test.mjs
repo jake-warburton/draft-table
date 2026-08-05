@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import {
@@ -213,44 +213,11 @@ test("finite uint32 batch results are deeply immutable, deterministic, and indep
 
 const mutationModuleKey = "DRAFT_TABLE_TEST_UINT32_SAMPLE_BATCH_MODULE";
 const sourcePath = new URL("../src/uint32-sample-batch.ts", import.meta.url);
-const exactTestNamePattern = (name) => `^${name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`;
-const withCanonicalSnapshot = (action) => {
-  let directory;
-  try {
-    directory = mkdtempSync(join(tmpdir(), "draft-table-uint32-sample-batch-mutation-"));
-    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
-    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
-    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
-      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true },
-      include: ["*.ts"]
-    }));
-    return action(directory);
-  } finally {
-    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
-  }
-};
-const loadMutationModule = () => import(process.env[mutationModuleKey] ?? sourcePath.href);
-const runMutation = (mutated, contractName, marker, failure) => withCanonicalSnapshot((directory) => {
-  const mutationPath = join(directory, "uint32-sample-batch.ts");
-  writeFileSync(mutationPath, mutated);
-  const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
-  assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
-  const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
-  delete environment.NODE_TEST_CONTEXT;
-  const result = spawnSync(process.execPath, [
-    "--experimental-strip-types", "--test", "--test-name-pattern", exactTestNamePattern(contractName), fileURLToPath(import.meta.url)
-  ], { encoding: "utf8", env: environment });
-  const lines = result.stdout.split(/\r?\n/u);
-  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
-  assert.equal(lines.filter((line) => line === `# ${marker}`).length, 1);
-  assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === contractName).length, 1);
-  assert.equal(lines.filter((line) => line.includes(failure)).length, 1);
-});
 
 const hostileProxyContract = "finite batch snapshots hostile Proxy length for bounded consumption";
 test(hostileProxyContract, async () => {
   console.log("FINITE_BATCH_HOSTILE_PROXY_CONTRACT_EXECUTED");
-  const mapping = await loadMutationModule();
+  const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
   let lengthReads = 0;
   const elementReads = new Map();
   const samples = new Proxy([], {
@@ -272,68 +239,179 @@ test(hostileProxyContract, async () => {
   assert.deepEqual(Object.fromEntries(elementReads), { 0: 1, 1: 1 }, "HOSTILE_PROXY_MUST_READ_ONLY_CAPTURED_ELEMENTS");
 });
 test("hostile-Proxy length semantic mutation fails its exact named contract", () => {
+  const before = "index < sampleCount";
+  const after = "index < suppliedSamples.length";
   const original = readFileSync(sourcePath, "utf8");
-  const mutated = original.replace(
-    "index < sampleCount",
-    "index < suppliedSamples.length"
-  );
-  assert.notEqual(mutated, original);
-  runMutation(mutated, hostileProxyContract, "FINITE_BATCH_HOSTILE_PROXY_CONTRACT_EXECUTED", "HOSTILE_PROXY_LENGTH_MUST_BE_READ_ONCE");
+  assert.equal(original.split(before).length - 1, 1);
+  const mutated = original.replace(before, after);
+  assert.equal(mutated.split(after).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(after) - Buffer.byteLength(before));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-uint32-sample-batch-hostile-proxy-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "uint32-sample-batch.ts");
+    writeFileSync(mutationPath, mutated);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", `^${hostileProxyContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_HOSTILE_PROXY_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === hostileProxyContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("HOSTILE_PROXY_LENGTH_MUST_BE_READ_ONCE")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
 });
 
 const retryFallbackContract = "finite batch retry does not fallback to ticket zero";
 test(retryFallbackContract, async () => {
   console.log("FINITE_BATCH_RETRY_CONTRACT_EXECUTED");
-  const mapping = await loadMutationModule();
+  const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
   assert.deepEqual(mapping.mapUnsigned32SampleBatchToBoundedTicket([UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1, 12], 7), { state: "accepted", ticket: 5, consumedSamples: 2 }, "RETRY_MUST_CONTINUE_TO_NEXT_SUPPLIED_SAMPLE");
 });
 test("retry-fallback semantic mutation fails its exact named contract", () => {
+  const before = "if (mapping.state === \"retry\") continue;";
+  const after = "if (mapping.state === \"retry\") return frozen({ state: \"accepted\", ticket: 0, consumedSamples: index + 1 });";
   const original = readFileSync(sourcePath, "utf8");
-  const mutated = original.replace(
-    "if (mapping.state === \"retry\") continue;",
-    "if (mapping.state === \"retry\") return frozen({ state: \"accepted\", ticket: 0, consumedSamples: index + 1 });"
-  );
-  assert.notEqual(mutated, original);
-  runMutation(mutated, retryFallbackContract, "FINITE_BATCH_RETRY_CONTRACT_EXECUTED", "RETRY_MUST_CONTINUE_TO_NEXT_SUPPLIED_SAMPLE");
+  assert.equal(original.split(before).length - 1, 1);
+  const mutated = original.replace(before, after);
+  assert.equal(mutated.split(after).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(after) - Buffer.byteLength(before));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-uint32-sample-batch-retry-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "uint32-sample-batch.ts");
+    writeFileSync(mutationPath, mutated);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", `^${retryFallbackContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_RETRY_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === retryFallbackContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("RETRY_MUST_CONTINUE_TO_NEXT_SUPPLIED_SAMPLE")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
 });
 
 const firstAcceptanceContract = "finite batch stops at first acceptance";
 test(firstAcceptanceContract, async () => {
   console.log("FINITE_BATCH_FIRST_ACCEPTANCE_CONTRACT_EXECUTED");
-  const mapping = await loadMutationModule();
+  const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
   assert.deepEqual(mapping.mapUnsigned32SampleBatchToBoundedTicket([12, 13], 7), { state: "accepted", ticket: 5, consumedSamples: 1 }, "FIRST_ACCEPTANCE_MUST_STOP_SELECTION");
 });
 test("first-acceptance semantic mutation fails its exact named contract", () => {
+  const before = "if (mapping.state === \"accepted\") return frozen({\n        state: \"accepted\", ticket: mapping.ticket, consumedSamples: index + 1\n      });";
+  const after = "if (mapping.state === \"accepted\") {\n        frozen({\n          state: \"accepted\", ticket: mapping.ticket, consumedSamples: index + 1\n        });\n        continue;\n      }";
   const original = readFileSync(sourcePath, "utf8");
-  const mutated = original.replace(
-    "if (mapping.state === \"accepted\") return frozen({\n        state: \"accepted\", ticket: mapping.ticket, consumedSamples: index + 1\n      });",
-    "if (mapping.state === \"accepted\") {\n        frozen({\n          state: \"accepted\", ticket: mapping.ticket, consumedSamples: index + 1\n        });\n        continue;\n      }"
-  );
-  assert.notEqual(mutated, original);
-  runMutation(mutated, firstAcceptanceContract, "FINITE_BATCH_FIRST_ACCEPTANCE_CONTRACT_EXECUTED", "FIRST_ACCEPTANCE_MUST_STOP_SELECTION");
+  assert.equal(original.split(before).length - 1, 1);
+  const mutated = original.replace(before, after);
+  assert.equal(mutated.split(after).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(after) - Buffer.byteLength(before));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-uint32-sample-batch-first-acceptance-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "uint32-sample-batch.ts");
+    writeFileSync(mutationPath, mutated);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", `^${firstAcceptanceContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_FIRST_ACCEPTANCE_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === firstAcceptanceContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("FIRST_ACCEPTANCE_MUST_STOP_SELECTION")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
 });
 
 const consumedCountContract = "finite batch reports exact consumed count";
 test(consumedCountContract, async () => {
   console.log("FINITE_BATCH_CONSUMED_COUNT_CONTRACT_EXECUTED");
-  const mapping = await loadMutationModule();
+  const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
   assert.deepEqual(mapping.mapUnsigned32SampleBatchToBoundedTicket([UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1, 12], 7), { state: "accepted", ticket: 5, consumedSamples: 2 }, "CONSUMED_COUNT_MUST_BE_ONE_BASED");
 });
 test("consumed-count semantic mutation fails its exact named contract", () => {
+  const before = "consumedSamples: index + 1";
+  const after = "consumedSamples: index";
   const original = readFileSync(sourcePath, "utf8");
-  const mutated = original.replace(
-    "consumedSamples: index + 1",
-    "consumedSamples: index"
-  );
-  assert.notEqual(mutated, original);
-  runMutation(mutated, consumedCountContract, "FINITE_BATCH_CONSUMED_COUNT_CONTRACT_EXECUTED", "CONSUMED_COUNT_MUST_BE_ONE_BASED");
-});
-
-test("mutation snapshots are file-local OS-temp canonical copies and always clean", () => {
-  let snapshot;
-  withCanonicalSnapshot((directory) => { snapshot = directory; assert.ok(directory.startsWith(tmpdir())); });
-  assert.equal(existsSync(snapshot), false);
-  let failed;
-  assert.throws(() => withCanonicalSnapshot((directory) => { failed = directory; throw new Error("body"); }));
-  assert.equal(existsSync(failed), false);
+  assert.equal(original.split(before).length - 1, 1);
+  const mutated = original.replace(before, after);
+  assert.equal(mutated.split(after).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(after) - Buffer.byteLength(before));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-uint32-sample-batch-consumed-count-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "uint32-sample-batch.ts");
+    writeFileSync(mutationPath, mutated);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", `^${consumedCountContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_CONSUMED_COUNT_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === consumedCountContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("CONSUMED_COUNT_MUST_BE_ONE_BASED")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
 });
