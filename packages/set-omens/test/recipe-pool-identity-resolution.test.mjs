@@ -12,7 +12,7 @@ import { parseOmensLayoutsFromTrustedBytes } from "../src/layouts.ts";
 import { reconcileOfficialUpstreamIdRecordsForTest } from "../src/official-upstream-id-reconciliation.ts";
 import { completeOmensRecipePoolsForTest, parseOmensPoolsFromTrustedBytes } from "../src/pools.ts";
 import { reconcileOmensRecipeOfficialIdentityRecordsForTest } from "../src/recipe-official-identity-reconciliation.ts";
-import { OmensRecipePoolIdentityResolutionError, resolveOmensRecipePoolsToDraftableOfficialIdentitiesForTest } from "../src/recipe-pool-identity-resolution.ts";
+import { OmensRecipePoolIdentityResolutionError, resolveOmensRecipePoolsToDraftableOfficialIdentitiesForTest, resolveOmensRecipePoolsWithSyntheticEligibilityForTest } from "../src/recipe-pool-identity-resolution.ts";
 
 const settings = JSON.stringify({ showSlots: true, withReplacement: false, cardBack: "https://cards.invalid/back.png" });
 const card = (name, collector_number) => ({ name, collector_number, mana_cost: "2", rarity: "common", type: "action", image_uris: { en: "https://cards.invalid/a.png" } });
@@ -200,22 +200,20 @@ test("collector-first semantic mutation fails its exact named contract", () => {
   });
 });
 
-const draftableContract = "only exact draftable eligibility facts can enter resolved recipe pools", draftableMarker = "RECIPE_POOL_DRAFTABLE_ONLY_CONTRACT_EXECUTED";
+const draftableContract = "every resolved pool entry requires exact draftable eligibility", draftableMarker = "RECIPE_POOL_DRAFTABLE_GUARD_CONTRACT_EXECUTED";
 test(draftableContract, async () => {
   console.log(draftableMarker); const m = await loadMutationModules(); const parts = mutationCapabilities(m, [card("Draftable Owner", "OMN100")], [["Wizard", [[1, "Draftable Owner"]]]], [
     { officialPrintId: "IAR200-MV", baseCollectorId: "IAR200", sourceSet: "IAR", suffixMarker: "MV" },
     { officialPrintId: "OMN102", baseCollectorId: "OMN102", sourceSet: "OMN", suffixMarker: null },
     { officialPrintId: "OMN100", baseCollectorId: "OMN100", sourceSet: "OMN", suffixMarker: null }
   ], new Map([["OMN100", "Draftable Owner"], ["OMN102", "Open"], ["IAR200", "Excluded"]]));
-  const result = m.resolution.resolveOmensRecipePoolsToDraftableOfficialIdentitiesForTest(parts.pools, parts.identities, parts.eligibility);
-  assert.deepEqual(result[0].entries[0].officialIdentity, { baseCollectorId: "OMN100", cardUniqueId: "mutation-card-2" }, "ONLY_DRAFTABLE_EXACT_IDENTITY_MAY_ENTER_POOL");
+  for (const state of ["excluded", "unclassified"]) {
+    assert.throws(() => m.resolution.resolveOmensRecipePoolsWithSyntheticEligibilityForTest(parts.pools, parts.identities, parts.eligibility, state), m.resolution.OmensRecipePoolIdentityResolutionError, "NON_DRAFTABLE_ELIGIBILITY_MUST_BE_REJECTED");
+  }
 });
-test("draftable-only eligibility semantic mutation fails its exact named contract", () => {
+test("draftable eligibility guard semantic mutation fails its exact named contract", () => {
   const original = readFileSync(sourcePath, "utf8");
-  const mutated = original
-    .replace("eligibilityByPrint.get(identity.officialPrintId) ?? fail()", "eligibility.find((fact) => fact.draftEligibility !== \"draftable\") ?? fail()")
-    .replace("if (draftFact.officialPrintId !== identity.officialPrintId || draftFact.baseCollectorId !== identity.officialBaseCollectorId ||\n        draftFact.officialCardUniqueId !== identity.officialCardUniqueId || draftFact.draftEligibility !== \"draftable\") fail();", "if (false) fail();")
-    .replace("baseCollectorId: identity.officialBaseCollectorId,\n        cardUniqueId: identity.officialCardUniqueId", "baseCollectorId: draftFact.baseCollectorId,\n        cardUniqueId: draftFact.officialCardUniqueId");
+  const mutated = original.replace("if (draftFact.officialPrintId !== identity.officialPrintId || draftFact.baseCollectorId !== identity.officialBaseCollectorId ||\n        draftFact.officialCardUniqueId !== identity.officialCardUniqueId || draftFact.draftEligibility !== \"draftable\") fail();", "if (false) fail();");
   assert.notEqual(mutated, original);
   withCanonicalSnapshot((directory) => {
     const path = join(directory, "recipe-pool-identity-resolution.ts"); writeFileSync(path, mutated);
@@ -225,7 +223,7 @@ test("draftable-only eligibility semantic mutation fails its exact named contrac
     assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
     assert.equal(lines.filter((line) => line === `# ${draftableMarker}`).length, 1);
     assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(draftableContract)).length, 1);
-    assert.equal(lines.filter((line) => line.includes("ONLY_DRAFTABLE_EXACT_IDENTITY_MAY_ENTER_POOL")).length, 1);
+    assert.equal(lines.filter((line) => line.includes("NON_DRAFTABLE_ELIGIBILITY_MUST_BE_REJECTED")).length, 1);
   });
 });
 
