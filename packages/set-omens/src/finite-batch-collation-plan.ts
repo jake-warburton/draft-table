@@ -121,13 +121,13 @@ const compose = (
 export const initializeOmensPackCollationPlanFromUnsigned32SampleBatch = (
   ...inputs: [OmensCollationWeightTables, readonly number[]]
 ): OmensFiniteBatchCollationPlanInitialization => {
-  if (inputs.length !== 2 || !isArray(inputs[1])) return fail();
   try {
-    const sampleCount = inputs[1].length;
+    if (inputs.length !== 2 || !isArray(inputs[1])) return fail();
+    const samples = inputs[1], sampleCount = samples.length;
     if (!isSafeInteger(sampleCount) || sampleCount < 0 ||
       sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
     return compose(
-      inputs[0], inputs[1], sampleCount,
+      inputs[0], samples, sampleCount,
       mapUnsigned32SampleBatchToBoundedTicket, selectOmensCollationLayoutByTicket
     );
   } catch { return fail(); }
@@ -137,11 +137,11 @@ export const initializeOmensPackCollationPlanFromUnsigned32SampleBatch = (
 export const initializeOmensPackCollationPlanFromUnsigned32SampleBatchForTest = (
   ...inputs: [OmensCollationWeightTables, readonly number[], BatchMapper]
 ): OmensFiniteBatchCollationPlanInitialization => {
-  if (inputs.length !== 3 || !isArray(inputs[1]) || typeof inputs[2] !== "function") return fail();
   try {
-    const sampleCount = inputs[1].length;
+    if (inputs.length !== 3 || !isArray(inputs[1]) || typeof inputs[2] !== "function") return fail();
+    const samples = inputs[1], sampleCount = samples.length;
     if (!isSafeInteger(sampleCount) || sampleCount < 0 ||
       sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
-    return compose(inputs[0], inputs[1], sampleCount, inputs[2], selectOmensCollationLayoutByTicket);
+    return compose(inputs[0], samples, sampleCount, inputs[2], selectOmensCollationLayoutByTicket);
   } catch { return fail(); }
 };
