@@ -45,13 +45,19 @@ const EXPECTED_LAYOUT_COUNT = 228;
 const EXPECTED_LAYOUT_TOTAL_WEIGHT = 460800;
 const EXPECTED_POOL_COUNT = 11;
 const collationWeightTableCapabilities = new WeakSet<object>();
+const freeze: typeof Object.freeze = Object.freeze;
+const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
+const maximumSafeInteger = Number.MAX_SAFE_INTEGER;
+const weakSetHas = Function.prototype.call.bind(WeakSet.prototype.has) as (set: WeakSet<object>, value: object) => boolean;
+const arraySome = Function.prototype.call.bind(Array.prototype.some) as <Value>(array: readonly Value[], predicate: (value: Value) => boolean) => boolean;
+const arrayFind = Function.prototype.call.bind(Array.prototype.find) as <Value>(array: readonly Value[], predicate: (value: Value) => boolean) => Value | undefined;
 const fail = (): never => { throw new OmensCollationWeightTablesError(); };
-const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
+const frozen = <Value>(value: Value): Readonly<Value> => freeze(value);
 
 const nextExclusiveEnd = (prior: number, weight: number): number => {
-  if (!Number.isSafeInteger(prior) || prior < 0 || !Number.isSafeInteger(weight) || weight <= 0 || prior > Number.MAX_SAFE_INTEGER - weight) fail();
+  if (!isSafeInteger(prior) || prior < 0 || !isSafeInteger(weight) || weight <= 0 || prior > maximumSafeInteger - weight) fail();
   const next = prior + weight;
-  if (!Number.isSafeInteger(next) || next <= prior || next <= 0) fail();
+  if (!isSafeInteger(next) || next <= prior || next <= 0) fail();
   return next;
 };
 
@@ -87,7 +93,7 @@ const compile = (
     if (poolReferences.has(pool)) fail();
     poolReferences.add(pool);
     const poolTotalWeight = readOmensRecipePoolOfficialIdentityResolutionPoolTotalWeightForCollationWeightCompilation(poolCapability, pool);
-    if (!Number.isSafeInteger(poolTotalWeight) || poolTotalWeight <= 0) fail();
+    if (!isSafeInteger(poolTotalWeight) || poolTotalWeight <= 0) fail();
     let prior = 0;
     const officialIdentityChoices: OmensCollationWeightTables["poolTables"][number]["officialIdentityChoices"][number][] = [];
     for (const entry of pool.entries) {
@@ -119,7 +125,7 @@ export const readOmensCollationLayoutWeightTableForTicketSelection = (
   scopedTotal: number;
   choices: OmensCollationWeightTables["layoutChoices"];
 }> => {
-  if (!collationWeightTableCapabilities.has(tables)) fail();
+  if (!weakSetHas(collationWeightTableCapabilities, tables)) fail();
   return frozen({ scopedTotal: tables.layoutTotalWeight, choices: tables.layoutChoices });
 };
 
@@ -127,7 +133,7 @@ export const readOmensCollationLayoutWeightTableForTicketSelection = (
 export const readOmensCollationLayoutWeightTotalForSampleSelection = (
   tables: OmensCollationWeightTables
 ): number => {
-  if (!collationWeightTableCapabilities.has(tables)) fail();
+  if (!weakSetHas(collationWeightTableCapabilities, tables)) fail();
   return tables.layoutTotalWeight;
 };
 
@@ -135,12 +141,12 @@ export const readOmensCollationLayoutWeightTotalForSampleSelection = (
 export const isOmensCollationLayoutRegisteredForPlanInitialization = (
   tables: OmensCollationWeightTables,
   layoutReference: OmensRecipeLayoutOfficialIdentityPoolResolution["layouts"][number]
-): boolean => collationWeightTableCapabilities.has(tables) && tables.layoutChoices.some((choice) => choice.layoutReference === layoutReference);
+): boolean => weakSetHas(collationWeightTableCapabilities, tables) && arraySome(tables.layoutChoices, (choice) => choice.layoutReference === layoutReference);
 
 /** Narrow reader for all exact registered pool tables consumed only by pack-local draw-state initialization. */
 export const readOmensCollationPoolWeightTablesForPackLocalDrawState = (
   tables: OmensCollationWeightTables
-): OmensCollationWeightTables["poolTables"] => collationWeightTableCapabilities.has(tables) ? tables.poolTables : fail();
+): OmensCollationWeightTables["poolTables"] => weakSetHas(collationWeightTableCapabilities, tables) ? tables.poolTables : fail();
 
 /** Narrow reader for one exact registered named pool table consumed only by bounded-ticket selection. */
 export const readOmensCollationPoolWeightTableForTicketSelection = (
@@ -150,8 +156,8 @@ export const readOmensCollationPoolWeightTableForTicketSelection = (
   scopedTotal: number;
   choices: OmensCollationWeightTables["poolTables"][number]["officialIdentityChoices"];
 }> => {
-  if (!collationWeightTableCapabilities.has(tables)) fail();
-  const table = tables.poolTables.find((candidate) => candidate.poolReference === poolReference);
+  if (!weakSetHas(collationWeightTableCapabilities, tables)) fail();
+  const table = arrayFind(tables.poolTables, (candidate) => candidate.poolReference === poolReference);
   if (table === undefined) return fail();
   return frozen({ scopedTotal: table.poolTotalWeight, choices: table.officialIdentityChoices });
 };
@@ -161,8 +167,8 @@ export const readOmensCollationPoolWeightTotalForSampleSelection = (
   tables: OmensCollationWeightTables,
   poolReference: OmensRecipePoolOfficialIdentityResolution[number]
 ): number => {
-  if (!collationWeightTableCapabilities.has(tables)) fail();
-  const table = tables.poolTables.find((candidate) => candidate.poolReference === poolReference);
+  if (!weakSetHas(collationWeightTableCapabilities, tables)) fail();
+  const table = arrayFind(tables.poolTables, (candidate) => candidate.poolReference === poolReference);
   if (table === undefined) return fail();
   return table.poolTotalWeight;
 };

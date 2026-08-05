@@ -21,26 +21,31 @@ export class OmensCollationWeightTicketSelectionError extends Error {
   }
 }
 
+const arrayIsArray: typeof Array.isArray = Array.isArray;
+const isFrozen: typeof Object.isFrozen = Object.isFrozen;
+const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
+const floor: typeof Math.floor = Math.floor;
 const fail = (): never => { throw new OmensCollationWeightTicketSelectionError(); };
 
 type LayoutChoice = OmensCollationWeightTables["layoutChoices"][number];
 type PoolChoice = OmensCollationWeightTables["poolTables"][number]["officialIdentityChoices"][number];
 
 const validTicket = (ticket: unknown, total: unknown): ticket is number =>
-  typeof ticket === "number" && Number.isSafeInteger(ticket) && ticket >= 0 &&
-  typeof total === "number" && Number.isSafeInteger(total) && total > 0 && ticket < total;
+  typeof ticket === "number" && isSafeInteger(ticket) && ticket >= 0 &&
+  typeof total === "number" && isSafeInteger(total) && total > 0 && ticket < total;
 
 const validateChoices = <Choice extends Readonly<{ weight: number; cumulativeExclusiveEnd: number }>>(
   choices: unknown,
   total: unknown
 ): choices is ReadonlyArray<Choice> => {
-  if (!Array.isArray(choices) || choices.length === 0 || !Object.isFrozen(choices) ||
-    typeof total !== "number" || !Number.isSafeInteger(total) || total <= 0) return false;
+  if (!arrayIsArray(choices) || choices.length === 0 || !isFrozen(choices) ||
+    typeof total !== "number" || !isSafeInteger(total) || total <= 0) return false;
   let priorEnd = 0;
-  for (const choice of choices) {
-    if (typeof choice !== "object" || choice === null || !Object.isFrozen(choice) ||
-      !Number.isSafeInteger(choice.weight) || choice.weight <= 0 ||
-      !Number.isSafeInteger(choice.cumulativeExclusiveEnd) || choice.cumulativeExclusiveEnd <= priorEnd ||
+  for (let index = 0; index < choices.length; index++) {
+    const choice = choices[index];
+    if (typeof choice !== "object" || choice === null || !isFrozen(choice) ||
+      !isSafeInteger(choice.weight) || choice.weight <= 0 ||
+      !isSafeInteger(choice.cumulativeExclusiveEnd) || choice.cumulativeExclusiveEnd <= priorEnd ||
       choice.cumulativeExclusiveEnd !== priorEnd + choice.weight) return false;
     priorEnd = choice.cumulativeExclusiveEnd;
   }
@@ -60,7 +65,7 @@ const choiceForTicket = <Choice extends Readonly<{ weight: number; cumulativeExc
   let lower = 0;
   let upper = choices.length;
   while (lower < upper) {
-    const middle = lower + Math.floor((upper - lower) / 2);
+    const middle = lower + floor((upper - lower) / 2);
     if (choices[middle].cumulativeExclusiveEnd > boundedTicket) upper = middle;
     else lower = middle + 1;
   }
@@ -76,7 +81,7 @@ export const selectOmensCollationLayoutByTicket = (
   try {
     const table = readOmensCollationLayoutWeightTableForTicketSelection(inputs[0]);
     const choice = choiceForTicket<LayoutChoice>(table.choices, table.scopedTotal, inputs[1]);
-    if (!Object.isFrozen(choice.layoutReference)) return fail();
+    if (!isFrozen(choice.layoutReference)) return fail();
     return choice.layoutReference;
   } catch (error) {
     if (error instanceof OmensCollationWeightTicketSelectionError) throw error;
@@ -92,7 +97,7 @@ export const selectOmensCollationPoolOfficialIdentityByTicket = (
   try {
     const table = readOmensCollationPoolWeightTableForTicketSelection(inputs[0], inputs[1]);
     const choice = choiceForTicket<PoolChoice>(table.choices, table.scopedTotal, inputs[2]);
-    if (!Object.isFrozen(choice.officialIdentityReference)) return fail();
+    if (!isFrozen(choice.officialIdentityReference)) return fail();
     return choice.officialIdentityReference;
   } catch (error) {
     if (error instanceof OmensCollationWeightTicketSelectionError) throw error;

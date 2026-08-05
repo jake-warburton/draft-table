@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const canonicalSourceModules = Object.freeze([
-  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "collation-sample-selection.ts", "collation-weight-tables.ts", "collation-weight-ticket-selection.ts", "custom-cards.ts", "descriptor.ts", "draft-eligibility-classification.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pack-collation-plan.ts", "pack-local-pool-draw-state.ts", "pack-local-pool-sample-draw-transition.ts", "pack-local-pool-sample-selection.ts", "pack-local-pool-ticket-selection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "recipe-layout-pool-resolution.ts", "recipe-official-identity-reconciliation.ts", "recipe-pool-identity-resolution.ts", "recipe-rarity-correspondence.ts", "recipe-rarity-domain.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
+  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "collation-sample-selection.ts", "collation-weight-tables.ts", "collation-weight-ticket-selection.ts", "custom-cards.ts", "descriptor.ts", "draft-eligibility-classification.ts", "finite-batch-collation-plan.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pack-collation-plan.ts", "pack-local-pool-draw-state.ts", "pack-local-pool-sample-draw-transition.ts", "pack-local-pool-sample-selection.ts", "pack-local-pool-ticket-selection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "recipe-layout-pool-resolution.ts", "recipe-official-identity-reconciliation.ts", "recipe-pool-identity-resolution.ts", "recipe-rarity-correspondence.ts", "recipe-rarity-domain.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
 ]);
 
 const copyCanonicalPackage = (directory, sourceDirectory = packageDirectory, copyModule = copyFileSync) => {
@@ -98,6 +98,7 @@ test("tracked semantic mutation probers allocate outside the repository and neve
     "collation-sample-selection.test.mjs",
     "card-vault-print-id-forms.test.mjs",
     "draft-eligibility-classification.test.mjs",
+    "finite-batch-collation-plan-intrinsic-mutations.test.mjs",
     "official-face-printing-multiplicity-reconciliation.test.mjs",
     "official-suffix-foiling-classification.test.mjs",
     "official-upstream-id-reconciliation.test.mjs",
