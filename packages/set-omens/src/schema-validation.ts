@@ -42,6 +42,11 @@ import {
   type OmensRecipeOfficialIdentityReconciliation
 } from "./recipe-official-identity-reconciliation.ts";
 import type { OmensRecipeCardReference } from "./custom-cards.ts";
+import {
+  OmensRecipeRarityCorrespondenceError,
+  reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings as reconcileRecipeRarities,
+  type OmensRecipeRarityCorrespondence
+} from "./recipe-rarity-correspondence.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -51,12 +56,14 @@ export {
   CardVaultFaceProjectionError,
   OfficialFacePrintingMultiplicityReconciliationError,
   OmensRecipeOfficialIdentityReconciliationError,
+  OmensRecipeRarityCorrespondenceError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
   type OfficialCardVaultFaceProjection,
   type OfficialFacePrintingMultiplicityReconciliation,
   type OmensRecipeOfficialIdentityReconciliation,
+  type OmensRecipeRarityCorrespondence,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -99,6 +106,12 @@ export const reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities = (
   recipe: ReadonlyArray<OmensRecipeCardReference>,
   official: OfficialUpstreamIdReconciliation
 ): OmensRecipeOfficialIdentityReconciliation => reconcileRecipeIdentities(recipe, official);
+
+/** Build-time-only observed recipe-label/upstream-row rarity correspondence for mapped identities only. */
+export const reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings = (
+  identities: OmensRecipeOfficialIdentityReconciliation,
+  official: OfficialUpstreamIdReconciliation
+): OmensRecipeRarityCorrespondence => reconcileRecipeRarities(identities, official);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (

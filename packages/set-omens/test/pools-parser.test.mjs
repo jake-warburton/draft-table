@@ -13,6 +13,7 @@ import {
   validateOmensRecipePoolsAggregate,
   validateOmensRecipeReferences
 } from "../src/pools.ts";
+import { translateOmensRecipeRarityAtFabSeam } from "../src/recipe-rarity-domain.ts";
 
 const privateEvidencePath = process.env.OMENS_RECIPE_EVIDENCE_PATH;
 const settings = JSON.stringify({
@@ -274,11 +275,11 @@ test("accepts the pinned normal partition and overlapping Rainbow Foil subsets",
   assert.equal(validateOmensRecipeReferences(fixture.layouts, fixture.pools, fixture.cards), undefined);
 });
 
-test("enforces each pinned pool's recipe rarity independently by name", () => {
+test("enforces each pinned pool's FaB domain rarity independently by name", () => {
   const expectedRarities = {
     Wizard: "common", Illusionist: "common", Runeblade: "common", Lightning: "common",
-    Generic: "common", Equipment: "common", Rare: "rare", Majestic: "mythic",
-    Rfcommon: "common", RFRare: "rare", RFMajestic: "mythic"
+    Generic: "common", Equipment: "common", Rare: "rare", Majestic: "majestic",
+    Rfcommon: "common", RFRare: "rare", RFMajestic: "majestic"
   };
   const cases = [
     ["Wizard", (fixture) => { fixture.cards[0].rarity = "rare"; }],
@@ -293,7 +294,7 @@ test("enforces each pinned pool's recipe rarity independently by name", () => {
     mutate(fixture);
     const cardsByName = new Map(fixture.cards.map((card) => [card.name, card]));
     const mismatchedPools = fixture.pools.pools
-      .filter((candidate) => candidate.entries.some((entry) => cardsByName.get(entry.reference).rarity !== expectedRarities[candidate.name]))
+      .filter((candidate) => candidate.entries.some((entry) => translateOmensRecipeRarityAtFabSeam(cardsByName.get(entry.reference).rarity).fabRarity !== expectedRarities[candidate.name]))
       .map(({ name }) => name);
     assert.deepEqual(mismatchedPools, [pool]);
     expectReferenceError(() => validateOmensRecipeReferences(fixture.layouts, fixture.pools, fixture.cards));

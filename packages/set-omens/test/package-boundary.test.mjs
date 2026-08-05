@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const canonicalSourceModules = Object.freeze([
-  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "custom-cards.ts", "descriptor.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "recipe-official-identity-reconciliation.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
+  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "custom-cards.ts", "descriptor.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "recipe-official-identity-reconciliation.ts", "recipe-rarity-correspondence.ts", "recipe-rarity-domain.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
 ]);
 
 const copyCanonicalPackage = (directory, sourceDirectory = packageDirectory, copyModule = copyFileSync) => {
@@ -100,6 +100,8 @@ test("tracked semantic mutation probers allocate outside the repository and neve
     "official-upstream-id-reconciliation.test.mjs",
     "omn-source-projection.test.mjs",
     "recipe-official-identity-reconciliation.test.mjs",
+    "recipe-rarity-correspondence.test.mjs",
+    "recipe-rarity-domain.test.mjs",
     "public-source-schema-validation.test.mjs"
   ]);
   const testSources = new Map(readdirSync(testDirectory).filter((file) => file.endsWith(".test.mjs")).map((file) => [file, readFileSync(join(testDirectory, file), "utf8")]));
@@ -122,10 +124,10 @@ test("external consumers can import the supported Omens package root without bui
 });
 
 test("external build-time consumers can import only the schema-validation subpath when dependencies are installed", () => {
-  const result = runConsumer('import { FabCardSourceSchemaValidationError, OmensRecipeOfficialIdentityReconciliationError, OmnSourceProjectionError, projectSchemaValidatedFabEnglishCardDataForOmn, reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities, validateFabEnglishCardDataAgainstSchema } from "@draft-table/set-omens/schema-validation";\nconsole.log(typeof FabCardSourceSchemaValidationError, typeof OmensRecipeOfficialIdentityReconciliationError, typeof OmnSourceProjectionError, typeof projectSchemaValidatedFabEnglishCardDataForOmn, typeof reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities, typeof validateFabEnglishCardDataAgainstSchema);');
+  const result = runConsumer('import { FabCardSourceSchemaValidationError, OmensRecipeOfficialIdentityReconciliationError, OmensRecipeRarityCorrespondenceError, OmnSourceProjectionError, projectSchemaValidatedFabEnglishCardDataForOmn, reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities, reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings, validateFabEnglishCardDataAgainstSchema } from "@draft-table/set-omens/schema-validation";\nconsole.log(typeof FabCardSourceSchemaValidationError, typeof OmensRecipeOfficialIdentityReconciliationError, typeof OmensRecipeRarityCorrespondenceError, typeof OmnSourceProjectionError, typeof projectSchemaValidatedFabEnglishCardDataForOmn, typeof reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities, typeof reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings, typeof validateFabEnglishCardDataAgainstSchema);');
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "function function function function function function");
+  assert.equal(result.stdout.trim(), "function function function function function function function function");
 });
 
 test("external consumers cannot import Omens internal source modules or the raw parser", () => {

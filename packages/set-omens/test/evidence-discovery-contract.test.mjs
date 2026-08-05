@@ -13,7 +13,8 @@ import test from "node:test";
 import {
   discoverEvidenceTests,
   discoverPublicSourceEvidenceTests,
-  discoverRecipeIdentityEvidenceTests
+  discoverRecipeIdentityEvidenceTests,
+  discoverRecipeRarityEvidenceTests
 } from "./evidence-discovery.mjs";
 
 const syntheticFiles = [
@@ -21,6 +22,7 @@ const syntheticFiles = [
   "package-boundary.test.mjs",
   "public-source-checksum-gate.public-source-evidence.test.mjs",
   "recipe-identity-reconciliation.recipe-identity-evidence.test.mjs",
+  "recipe-rarity-correspondence.recipe-rarity-evidence.test.mjs",
   "topic-about-public-source.test.mjs",
   "synthetic-contract.test.mjs"
 ];
@@ -87,6 +89,12 @@ test("public evidence discovery selects only explicitly gated tests", () => {
 test("recipe identity evidence discovery selects only its separate four-source gate", () => {
   assert.deepEqual(discoverRecipeIdentityEvidenceTests(syntheticFiles), [
     "recipe-identity-reconciliation.recipe-identity-evidence.test.mjs"
+  ]);
+});
+
+test("recipe rarity evidence discovery selects only its separate four-source gate", () => {
+  assert.deepEqual(discoverRecipeRarityEvidenceTests(syntheticFiles), [
+    "recipe-rarity-correspondence.recipe-rarity-evidence.test.mjs"
   ]);
 });
 

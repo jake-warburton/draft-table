@@ -50,6 +50,8 @@ type ExpectedAggregate = Readonly<{
   unmappedMv: number;
 }>;
 
+const reconciliationCapabilities = new WeakSet<object>();
+
 const acceptedAggregate: ExpectedAggregate = Object.freeze({
   recipeEntries: 209,
   officialEntries: 260,
@@ -144,7 +146,9 @@ const reconcile = (
     mapped.length + unmapped.length !== official.length || partitionIds.length !== official.length ||
     new Set(partitionIds).size !== official.length || ownedDerivedNames.size !== mapped.length) fail();
 
-  return frozen({ mapped: frozen(mapped), unmapped: frozen(unmapped) });
+  const capability = frozen({ mapped: frozen(mapped), unmapped: frozen(unmapped) });
+  reconciliationCapabilities.add(capability);
+  return capability;
 };
 
 /** Package-internal fictional seam for capability-bound identity contracts. */
@@ -160,6 +164,11 @@ export const reconcileOmensRecipeOfficialIdentityRecordsForTest = (
     return fail();
   }
 };
+
+/** Reads only the exact completed identity reconciliation for the following rarity slice. */
+export const readOmensRecipeOfficialIdentityReconciliationForRarityCorrespondence = (
+  reconciliation: OmensRecipeOfficialIdentityReconciliation
+): OmensRecipeOfficialIdentityReconciliation => reconciliationCapabilities.has(reconciliation) ? reconciliation : fail();
 
 /** Build-time-only exact identity membership reconciliation over both opaque capabilities. */
 export const reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities = (

@@ -1,4 +1,5 @@
 import { parseOmensSettingsFromTrustedBytes } from "./settings.ts";
+import type { OmensRecipeRarityLabel } from "./recipe-rarity-domain.ts";
 
 const UTF8_BOM = new Uint8Array([0xef, 0xbb, 0xbf]);
 const SECTION_HEADER = /^\[[A-Za-z][A-Za-z0-9]*\]$/;
@@ -30,7 +31,7 @@ export class OmensRecipeCustomCardsError extends Error {
 export type OmensRecipeCardReference = Readonly<{
   name: string;
   collectorNumber: string;
-  rarity: "common" | "rare" | "mythic";
+  rarity: OmensRecipeRarityLabel;
 }>;
 
 type OmensRecipeRarity = OmensRecipeCardReference["rarity"];
@@ -165,11 +166,12 @@ const toReference = (value: unknown): OmensRecipeCardReference => {
     !isNormalizedText(card.collector_number) ||
     !isNormalizedText(card.mana_cost) ||
     !isNormalizedText(card.type) ||
-    !isNormalizedText(card.rarity) || !ALLOWED_RARITIES.has(card.rarity) ||
+    !isNormalizedText(card.rarity) ||
     card.image_uris === null || Array.isArray(card.image_uris) || typeof card.image_uris !== "object") {
     return invalidCustomCards();
   }
 
+  if (!ALLOWED_RARITIES.has(card.rarity)) return invalidCustomCards();
   const imageUris = card.image_uris as Record<string, unknown>;
   if (!hasExactlyKeys(imageUris, EXPECTED_IMAGE_URI_KEYS) || !isHttpsUrl(imageUris.en)) return invalidCustomCards();
 

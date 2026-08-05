@@ -1,5 +1,6 @@
 import { parseOmensLayoutsFromTrustedBytes, type OmensLayouts } from "./layouts.ts";
 import type { OmensRecipeCardReference } from "./custom-cards.ts";
+import { translateOmensRecipeRarityAtFabSeam, type FabNativeRecipeRarity } from "./recipe-rarity-domain.ts";
 
 const UTF8_BOM = new Uint8Array([0xef, 0xbb, 0xbf]);
 const SECTION_HEADER = /^\[([A-Za-z][A-Za-z0-9]*)\]$/;
@@ -37,10 +38,10 @@ const OMENS_POOL_AGGREGATES: Readonly<Record<string, readonly [number, number]>>
 const NORMAL_POOL_NAMES = new Set(["Wizard", "Illusionist", "Runeblade", "Lightning", "Generic", "Equipment", "Rare", "Majestic"]);
 const RF_POOL_NAMES = new Set(["Rfcommon", "RFRare", "RFMajestic"]);
 const PINNED_POOL_NAMES = new Set([...NORMAL_POOL_NAMES, ...RF_POOL_NAMES]);
-const POOL_RARITIES: Readonly<Record<string, OmensRecipeCardReference["rarity"]>> = Object.freeze({
+const POOL_RARITIES: Readonly<Record<string, FabNativeRecipeRarity>> = Object.freeze({
   Wizard: "common", Illusionist: "common", Runeblade: "common", Lightning: "common",
-  Generic: "common", Equipment: "common", Rare: "rare", Majestic: "mythic",
-  Rfcommon: "common", RFRare: "rare", RFMajestic: "mythic"
+  Generic: "common", Equipment: "common", Rare: "rare", Majestic: "majestic",
+  Rfcommon: "common", RFRare: "rare", RFMajestic: "majestic"
 });
 
 const invalidPools = (): never => {
@@ -78,7 +79,7 @@ export const validateOmensRecipeReferences = (
       const card = cardsByName.get(entry.reference);
       if (card === undefined) return invalidPools();
       const expectedRarity = POOL_RARITIES[pool.name];
-      if (pinnedPools && expectedRarity !== undefined && card.rarity !== expectedRarity) return invalidPools();
+      if (pinnedPools && expectedRarity !== undefined && translateOmensRecipeRarityAtFabSeam(card.rarity).fabRarity !== expectedRarity) return invalidPools();
     }
   }
   if (pinnedPools) {
