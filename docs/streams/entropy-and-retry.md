@@ -14,7 +14,7 @@ For an old state `s` and uint32 domain `d`:
 
 Initialization follows canonical PCG seeding exactly: begin at state zero, perform one state transition with the domain-derived increment, add the seed modulo `2^64`, then perform a second state transition. Output is taken from the old state before its transition. The published PCG seed/domain vector `(42, 54)` is pinned in tests, beginning `a15c02b7, 7b47f409, ba1d3330, 83d2f293, bfa4784b, cbed606e`.
 
-This is a deterministic replay generator, not a cryptographic random source. Changing any constant, initialization step, bit operation, serialization rule, or output timing requires a new algorithm version rather than silently changing v1.
+PCG is authorized here only as a deterministic replay generator; its security limitations are recorded under [integration risks](#integration-risks). Changing any constant, initialization step, bit operation, serialization rule, or output timing requires a new algorithm version rather than silently changing v1.
 
 ## Seed, domain, state, and replay contract
 
@@ -34,9 +34,11 @@ The frozen accepted result records the bound, every consumed sample in source or
 
 Invalid state, bound, or arity fails with the same stable value-free source error. The existing mapper implementations and tests remain unchanged.
 
-## API wiring still owed
+## API wiring and shared-document reconciliation still owed
 
 The new module is intentionally not re-exported from `packages/engine/src/index.ts` in this stream's file-disjoint implementation. Integration must add the additive package-root export for `deterministic-uint32-source.ts` and update package-boundary expectations before external consumers can import these APIs from `@draft-table/engine`.
+
+The shared status and scope descriptions in `README.md`, `AGENTS.md`, `docs/architecture.md`, `docs/implementation-plan.md`, `docs/rules-and-collation.md`, and `docs/testing.md` intentionally remain at their pre-burst state for coordinated reconciliation after this isolated stream lands. The captain decision filed in `docs/risks-and-decisions.md` also still excludes random-source ownership and retry loops; reconcile that authorization before package-root or production integration. This stream does not decide production source ownership, stream/domain allocation, seed custody, secrecy controls, or server/runtime wiring.
 
 ## Validation
 
@@ -69,7 +71,7 @@ npm run size
 
 - Replay data must retain the exact algorithm-version string, domain, and state; recording only a human seed label is insufficient.
 - Domain allocation is caller-owned. Reusing a seed/domain pair intentionally reproduces one stream, while changing call or bound order intentionally changes all following state.
-- PCG is deterministic rather than cryptographically secure. Do not use it where players can choose or learn authoritative seeds before hidden outcomes are fixed.
+- PCG is deterministic rather than cryptographically secure and may permit state reconstruction from outputs. Do not treat it as an implicit competitive-multiplayer secrecy guarantee or use it where players can choose or learn authoritative seeds before hidden outcomes are fixed.
 - Returning every retry sample makes diagnostics exact but uses memory proportional to an uncapped retry run.
 - Browser/Worker targets must preserve `bigint` and standard uint32 shift semantics; replacing the arithmetic with floating-point math breaks replay.
 - Package-root export and consumer boundary registration remain an integration step as noted above.
