@@ -44,6 +44,7 @@ export type OmensCollationWeightTables = Readonly<{
 const EXPECTED_LAYOUT_COUNT = 228;
 const EXPECTED_LAYOUT_TOTAL_WEIGHT = 460800;
 const EXPECTED_POOL_COUNT = 11;
+const collationWeightTableCapabilities = new WeakSet<object>();
 const fail = (): never => { throw new OmensCollationWeightTablesError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
 
@@ -97,7 +98,9 @@ const compile = (
     poolTables.push(frozen({ poolReference: pool, poolTotalWeight, officialIdentityChoices: frozen(officialIdentityChoices) }));
   }
   if (poolTables.length !== EXPECTED_POOL_COUNT) fail();
-  return frozen({ layoutTotalWeight, layoutChoices: frozen(layoutChoices), poolTables: frozen(poolTables) });
+  const capability = frozen({ layoutTotalWeight, layoutChoices: frozen(layoutChoices), poolTables: frozen(poolTables) });
+  collationWeightTableCapabilities.add(capability);
+  return capability;
 };
 
 /** Package-internal compact fictional seam; accepts no aggregate, identity, or selection override. */
@@ -107,6 +110,31 @@ export const compileOmensCollationWeightTablesForTest = (
   if (inputs.length !== 2) return fail();
   try { return compile(inputs[0], inputs[1]); }
   catch (error) { if (error instanceof OmensCollationWeightTablesError) throw error; return fail(); }
+};
+
+/** Narrow reader for the registered layout table consumed only by bounded-ticket selection. */
+export const readOmensCollationLayoutWeightTableForTicketSelection = (
+  tables: OmensCollationWeightTables
+): Readonly<{
+  scopedTotal: number;
+  choices: OmensCollationWeightTables["layoutChoices"];
+}> => {
+  if (!collationWeightTableCapabilities.has(tables)) fail();
+  return frozen({ scopedTotal: tables.layoutTotalWeight, choices: tables.layoutChoices });
+};
+
+/** Narrow reader for one exact registered named pool table consumed only by bounded-ticket selection. */
+export const readOmensCollationPoolWeightTableForTicketSelection = (
+  tables: OmensCollationWeightTables,
+  poolReference: OmensRecipePoolOfficialIdentityResolution[number]
+): Readonly<{
+  scopedTotal: number;
+  choices: OmensCollationWeightTables["poolTables"][number]["officialIdentityChoices"];
+}> => {
+  if (!collationWeightTableCapabilities.has(tables)) fail();
+  const table = tables.poolTables.find((candidate) => candidate.poolReference === poolReference);
+  if (table === undefined) return fail();
+  return frozen({ scopedTotal: table.poolTotalWeight, choices: table.officialIdentityChoices });
 };
 
 /** Build-time-only compilation of exact source-order integer cumulative-weight tables; no draw is performed. */

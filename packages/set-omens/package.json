@@ -19,7 +19,8 @@
     "test:draft-eligibility-evidence": "node test/draft-eligibility-evidence-command.mjs",
     "test:recipe-pool-identity-evidence": "node test/recipe-pool-identity-evidence-command.mjs",
     "test:recipe-layout-pool-resolution-evidence": "node test/recipe-layout-pool-resolution-evidence-command.mjs",
-    "test:collation-weight-tables-evidence": "node test/collation-weight-tables-evidence-command.mjs"
+    "test:collation-weight-tables-evidence": "node test/collation-weight-tables-evidence-command.mjs",
+    "test:collation-weighted-selection-evidence": "node test/collation-weight-ticket-selection-evidence-command.mjs"
   },
   "devDependencies": {
     "ajv": "8.20.0",
