@@ -131,6 +131,12 @@ export const readOmensCollationLayoutWeightTotalForSampleSelection = (
   return tables.layoutTotalWeight;
 };
 
+/** Narrow ownership check consumed only by selected pack-collation-plan initialization. */
+export const isOmensCollationLayoutRegisteredForPlanInitialization = (
+  tables: OmensCollationWeightTables,
+  layoutReference: OmensRecipeLayoutOfficialIdentityPoolResolution["layouts"][number]
+): boolean => collationWeightTableCapabilities.has(tables) && tables.layoutChoices.some((choice) => choice.layoutReference === layoutReference);
+
 /** Narrow reader for all exact registered pool tables consumed only by pack-local draw-state initialization. */
 export const readOmensCollationPoolWeightTablesForPackLocalDrawState = (
   tables: OmensCollationWeightTables
