@@ -38,7 +38,7 @@ Every pick and lifecycle intent binds to the exact current round and pick. Pick 
 
 ## Provisional barrier and passing
 
-`pickCard` queues a provisional card. It does not remove or reveal the card, change a pool, increment `totalPicks`, pass a pack, or advance a counter. The same occupant may replace that seat's provisional choice with a different card while the barrier remains open; replaying the identical queued choice is rejected as a duplicate. Other seats' choices remain independent of arrival order.
+`pickCard` queues a provisional card. It does not remove or reveal the card, change a pool, increment `totalPicks`, pass a pack, or advance a counter. The same occupant may replace that seat's provisional choice with a different card while the barrier remains open; replaying the identical queued choice is an idempotent same-state no-op and cannot create a duplicate commit. Other seats' choices remain independent of arrival order.
 
 `revealBarrier` succeeds only when all seats have a valid provisional choice. It then clears all provisional choices and, in one immutable transition, removes each selected card exactly once, appends it to each seat's chronological pool, increments committed picks, and passes or opens the next round. If that pass leaves one card in each pack, the same transition passes and automatically appends each sole final card to its receiving seat before advancing; no provisional choice or pick interval is created for it. There is no partially revealed state.
 
