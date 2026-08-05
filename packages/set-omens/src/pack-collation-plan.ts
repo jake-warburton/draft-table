@@ -64,19 +64,14 @@ const validateSelectedPlan = (
     !Object.isFrozen(tables.poolTables) || tables.poolTables.length !== EXPECTED_POOL_COUNT ||
     !Object.isFrozen(layoutReference) || !Object.isFrozen(layoutReference.slots) ||
     layoutReference.slots.length !== EXPECTED_POSITION_COUNT) fail();
-  const compiledLayout = tables.layoutChoices.find((choice) => choice.layoutReference === layoutReference)?.layoutReference;
-  if (compiledLayout === undefined) return fail();
-  const compiledSlots = compiledLayout.slots;
-  if (compiledSlots.length !== EXPECTED_POSITION_COUNT) fail();
+  // Identity membership is established here; downstream compiled-layout self-comparison is meaningless.
+  if (tables.layoutChoices.find((choice) => choice.layoutReference === layoutReference) === undefined) return fail();
   const poolTablesByReference = new Map(tables.poolTables.map((table) => [table.poolReference, table]));
   if (poolTablesByReference.size !== EXPECTED_POOL_COUNT) fail();
   const requiredByPool = new Map<OmensCollationWeightTables["poolTables"][number]["poolReference"], number>();
   if (!layoutReference.slots.every((position, index) => {
     const poolTable = poolTablesByReference.get(position.resolvedPool);
-    const compiledPosition = compiledSlots[index];
-    if (position !== compiledPosition || !Object.isFrozen(position) || position.position !== index + 1 ||
-      position.resolvedPool !== compiledPosition.resolvedPool ||
-      position.recipeStructuralRole !== compiledPosition.recipeStructuralRole ||
+    if (!Object.isFrozen(position) || position.position !== index + 1 ||
       position.recipeStructuralRole !== expectedRoles[index] || poolTable === undefined) return false;
     requiredByPool.set(position.resolvedPool, (requiredByPool.get(position.resolvedPool) ?? 0) + 1);
     return true;
