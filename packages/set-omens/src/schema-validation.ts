@@ -74,6 +74,13 @@ import {
   selectOmensCollationLayoutByTicket as selectLayoutByTicket,
   selectOmensCollationPoolOfficialIdentityByTicket as selectPoolOfficialIdentityByTicket
 } from "./collation-weight-ticket-selection.ts";
+import {
+  OmensCollationSampleSelectionError,
+  selectOmensCollationLayoutFromOneUnsigned32Sample as selectLayoutFromOneSample,
+  selectOmensCollationPoolOfficialIdentityFromOneUnsigned32Sample as selectPoolOfficialIdentityFromOneSample,
+  type OmensCollationLayoutSampleSelection,
+  type OmensCollationPoolSampleSelection
+} from "./collation-sample-selection.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -89,6 +96,7 @@ export {
   OmensRecipeLayoutPoolResolutionError,
   OmensCollationWeightTablesError,
   OmensCollationWeightTicketSelectionError,
+  OmensCollationSampleSelectionError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -100,6 +108,8 @@ export {
   type OmensRecipePoolOfficialIdentityResolution,
   type OmensRecipeLayoutOfficialIdentityPoolResolution,
   type OmensCollationWeightTables,
+  type OmensCollationLayoutSampleSelection,
+  type OmensCollationPoolSampleSelection,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -178,6 +188,16 @@ export const selectOmensCollationLayoutByTicket = (
 export const selectOmensCollationPoolOfficialIdentityByTicket = (
   ...inputs: [OmensCollationWeightTables, OmensRecipePoolOfficialIdentityResolution[number], number]
 ): OmensRecipePoolOfficialIdentityResolution[number]["entries"][number]["officialIdentity"] => selectPoolOfficialIdentityByTicket(...inputs);
+
+/** Composes exactly one uint32 sample to a capability-owned layout selection or explicit retry; it never retries. */
+export const selectOmensCollationLayoutFromOneUnsigned32Sample = (
+  ...inputs: [OmensCollationWeightTables, number]
+): OmensCollationLayoutSampleSelection => selectLayoutFromOneSample(...inputs);
+
+/** Composes exactly one uint32 sample to one capability-owned pool identity selection or explicit retry; it never retries. */
+export const selectOmensCollationPoolOfficialIdentityFromOneUnsigned32Sample = (
+  ...inputs: [OmensCollationWeightTables, OmensRecipePoolOfficialIdentityResolution[number], number]
+): OmensCollationPoolSampleSelection => selectPoolOfficialIdentityFromOneSample(...inputs);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (

@@ -37,10 +37,10 @@ const staticGraph = (entrypoint) => {
   return { visited, external };
 };
 
-test("the root static import graph excludes Draft-04 schema validation and Ajv", () => {
+test("the root static import graph excludes the engine and Draft-04 schema dependencies", () => {
   const graph = staticGraph(resolve(sourceDirectory, "index.ts"));
   const modules = [...graph.visited].map((path) => path.replace(`${sourceDirectory}/`, ""));
 
   assert.ok(!modules.includes("public-source-schema-validation.ts"), modules.join("\n"));
-  assert.ok(![...graph.external].some((specifier) => specifier === "ajv" || specifier === "ajv-draft-04"), [...graph.external].join("\n"));
+  assert.ok(![...graph.external].some((specifier) => specifier === "@draft-table/engine" || specifier === "ajv" || specifier === "ajv-draft-04"), [...graph.external].join("\n"));
 });

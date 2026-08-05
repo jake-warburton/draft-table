@@ -18,7 +18,8 @@ import {
   discoverDraftEligibilityEvidenceTests,
   discoverRecipePoolIdentityEvidenceTests,
   discoverRecipeLayoutPoolResolutionEvidenceTests,
-  discoverCollationWeightTablesEvidenceTests
+  discoverCollationWeightTablesEvidenceTests,
+  discoverCollationSampleSelectionEvidenceTests
 } from "./evidence-discovery.mjs";
 
 const syntheticFiles = [
@@ -31,6 +32,7 @@ const syntheticFiles = [
   "recipe-pool-identity-resolution.recipe-pool-identity-evidence.test.mjs",
   "recipe-layout-pool-resolution.recipe-layout-pool-resolution-evidence.test.mjs",
   "collation-weight-tables.collation-weight-tables-evidence.test.mjs",
+  "collation-sample-selection.collation-sample-selection-evidence.test.mjs",
   "topic-about-public-source.test.mjs",
   "synthetic-contract.test.mjs"
 ];
@@ -127,6 +129,12 @@ test("recipe layout pool resolution evidence discovery selects only its separate
 test("collation weight tables evidence discovery selects only its separate four-source gate", () => {
   assert.deepEqual(discoverCollationWeightTablesEvidenceTests(syntheticFiles), [
     "collation-weight-tables.collation-weight-tables-evidence.test.mjs"
+  ]);
+});
+
+test("collation sample selection evidence discovery selects only its separate four-source gate", () => {
+  assert.deepEqual(discoverCollationSampleSelectionEvidenceTests(syntheticFiles), [
+    "collation-sample-selection.collation-sample-selection-evidence.test.mjs"
   ]);
 });
 

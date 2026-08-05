@@ -123,6 +123,14 @@ export const readOmensCollationLayoutWeightTableForTicketSelection = (
   return frozen({ scopedTotal: tables.layoutTotalWeight, choices: tables.layoutChoices });
 };
 
+/** Narrow reader for the registered layout total consumed only by one-sample composition. */
+export const readOmensCollationLayoutWeightTotalForSampleSelection = (
+  tables: OmensCollationWeightTables
+): number => {
+  if (!collationWeightTableCapabilities.has(tables)) fail();
+  return tables.layoutTotalWeight;
+};
+
 /** Narrow reader for one exact registered named pool table consumed only by bounded-ticket selection. */
 export const readOmensCollationPoolWeightTableForTicketSelection = (
   tables: OmensCollationWeightTables,
@@ -135,6 +143,17 @@ export const readOmensCollationPoolWeightTableForTicketSelection = (
   const table = tables.poolTables.find((candidate) => candidate.poolReference === poolReference);
   if (table === undefined) return fail();
   return frozen({ scopedTotal: table.poolTotalWeight, choices: table.officialIdentityChoices });
+};
+
+/** Narrow reader for one exact registered named pool total consumed only by one-sample composition. */
+export const readOmensCollationPoolWeightTotalForSampleSelection = (
+  tables: OmensCollationWeightTables,
+  poolReference: OmensRecipePoolOfficialIdentityResolution[number]
+): number => {
+  if (!collationWeightTableCapabilities.has(tables)) fail();
+  const table = tables.poolTables.find((candidate) => candidate.poolReference === poolReference);
+  if (table === undefined) return fail();
+  return table.poolTotalWeight;
 };
 
 /** Build-time-only compilation of exact source-order integer cumulative-weight tables; no draw is performed. */
