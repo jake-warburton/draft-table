@@ -17,6 +17,10 @@ import {
   resolveOmensRecipeLayoutsToOfficialIdentityPools, resolveOmensRecipePoolsToDraftableOfficialIdentities,
   validateFabEnglishCardDataAgainstSchema
 } from "../src/schema-validation.ts";
+import {
+  OmensPackLocalPoolSampleDrawTransitionError,
+  drawOmensPackLocalPoolOfficialIdentityFromOneUnsigned32SampleForTest
+} from "../src/pack-local-pool-sample-draw-transition.ts";
 
 const variables = ["OMENS_RECIPE_EVIDENCE_PATH", "FAB_CARD_SOURCE_EVIDENCE_PATH", "FAB_CARD_SCHEMA_EVIDENCE_PATH", "FAB_CARD_VAULT_EVIDENCE_PATH"];
 const available = variables.every((variable) => Boolean(process.env[variable]));
@@ -49,6 +53,11 @@ test(packLocalPoolSampleDrawTransitionAcceptanceContractName, { skip: !available
   verifyCardVaultOmensProductBytes(cardVaultBytes);
   const documents = validateVerifiedFabCardSourceDocuments(verifiedCard, verifiedSchema), official = reconcileOfficialCardVaultMembershipWithSchemaValidatedFabCardData(validateCardVaultOmensOfficialMembership(cardVaultBytes), validateFabEnglishCardDataAgainstSchema(documents.card, documents.schema)), identities = reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities(parseVerifiedOmensCustomCards(recipe), official), eligibility = classifyOmensOfficialDraftEligibility(identities, official), resolvedPools = resolveOmensRecipePoolsToDraftableOfficialIdentities(parseVerifiedOmensPools(recipe), identities, eligibility), tables = compileOmensCollationWeightTables(resolveOmensRecipeLayoutsToOfficialIdentityPools(parseVerifiedOmensLayouts(recipe), resolvedPools), resolvedPools), initial = initializeOmensPackLocalPoolDrawState(tables);
   assertPackLocalInitialProjectionMatchesCompiledTables(tables, initial); assert.equal(initial.poolStates.length, 11);
+  assert.throws(
+    () => drawOmensPackLocalPoolOfficialIdentityFromOneUnsigned32SampleForTest(initial, initial.poolStates[0].poolReference, 0, () => initial),
+    (error) => error instanceof OmensPackLocalPoolSampleDrawTransitionError && error.code === "OMENS_PACK_LOCAL_POOL_SAMPLE_DRAW_TRANSITION_FAILED" && error.message === "Omens one-sample pack local pool draw transition failed.",
+    "ANTI_NOOP_GUARD_MUST_FAIL_BEFORE_SELECTED_RESULT_ESCAPES"
+  );
   let crossPoolOverlapCount = 0;
   for (let poolIndex = 0; poolIndex < initial.poolStates.length; poolIndex++) {
     const sourcePool = initial.poolStates[poolIndex]; assertEveryTicketAndRetry(initial, poolIndex);
