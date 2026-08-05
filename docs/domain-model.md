@@ -57,7 +57,7 @@ Versioned community recipe data, not engine code branches:
 - source filename, byte length, SHA-256, and provenance/evidence status (`captain-approved-community`, never `official`);
 - strict format/version flags, including `withReplacement=false`;
 - 228 weighted 14-card layout definitions and total layout weight 460,800;
-- named candidate pools with card identity/treatment mappings and positive integer internal weights;
+- named candidate pools with resolved card identities, positive integer internal weights, and later-reviewed treatment mappings;
 - exact pool counts/totals, six layout-outcome coefficients, and derived-probability fixtures in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe);
 - post-removal invariant (`14`, with 11C + 1R + 1R/M + 1RF).
 
