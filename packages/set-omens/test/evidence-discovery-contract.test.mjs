@@ -20,7 +20,8 @@ import {
   discoverRecipeLayoutPoolResolutionEvidenceTests,
   discoverCollationWeightTablesEvidenceTests,
   discoverCollationSampleSelectionEvidenceTests,
-  discoverPackLocalPoolTicketSelectionEvidenceTests
+  discoverPackLocalPoolTicketSelectionEvidenceTests,
+  discoverPackLocalPoolSampleSelectionEvidenceTests
 } from "./evidence-discovery.mjs";
 
 const syntheticFiles = [
@@ -35,6 +36,7 @@ const syntheticFiles = [
   "collation-weight-tables.collation-weight-tables-evidence.test.mjs",
   "collation-sample-selection.collation-sample-selection-evidence.test.mjs",
   "pack-local-pool-ticket-selection.pack-local-pool-ticket-selection-evidence.test.mjs",
+  "pack-local-pool-sample-selection.pack-local-pool-sample-selection-evidence.test.mjs",
   "topic-about-public-source.test.mjs",
   "synthetic-contract.test.mjs"
 ];
@@ -143,6 +145,12 @@ test("collation sample selection evidence discovery selects only its separate fo
 test("pack-local ticket selection evidence discovery selects only its separate four-source gate", () => {
   assert.deepEqual(discoverPackLocalPoolTicketSelectionEvidenceTests(syntheticFiles), [
     "pack-local-pool-ticket-selection.pack-local-pool-ticket-selection-evidence.test.mjs"
+  ]);
+});
+
+test("pack-local sample selection evidence discovery selects only its separate four-source gate", () => {
+  assert.deepEqual(discoverPackLocalPoolSampleSelectionEvidenceTests(syntheticFiles), [
+    "pack-local-pool-sample-selection.pack-local-pool-sample-selection-evidence.test.mjs"
   ]);
 });
 

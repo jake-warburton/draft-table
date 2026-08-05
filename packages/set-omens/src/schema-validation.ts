@@ -91,6 +91,11 @@ import {
   OmensPackLocalPoolTicketSelectionError,
   selectOmensPackLocalPoolOfficialIdentityByTicket as selectPackLocalPoolOfficialIdentityByTicket
 } from "./pack-local-pool-ticket-selection.ts";
+import {
+  OmensPackLocalPoolSampleSelectionError,
+  selectOmensPackLocalPoolOfficialIdentityFromOneUnsigned32Sample as selectPackLocalPoolOfficialIdentityFromOneSample,
+  type OmensPackLocalPoolSampleSelection
+} from "./pack-local-pool-sample-selection.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -109,6 +114,7 @@ export {
   OmensCollationSampleSelectionError,
   OmensPackLocalPoolDrawStateError,
   OmensPackLocalPoolTicketSelectionError,
+  OmensPackLocalPoolSampleSelectionError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -123,6 +129,7 @@ export {
   type OmensCollationLayoutSampleSelection,
   type OmensCollationPoolSampleSelection,
   type OmensPackLocalPoolDrawState,
+  type OmensPackLocalPoolSampleSelection,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -234,6 +241,15 @@ export const selectOmensPackLocalPoolOfficialIdentityByTicket = (
     number
   ]
 ): OmensRecipePoolOfficialIdentityResolution[number]["entries"][number]["officialIdentity"] => selectPackLocalPoolOfficialIdentityByTicket(...inputs);
+
+/** Composes exactly one uint32 sample to a current pack-local pool identity selection or explicit retry; it never removes or retries. */
+export const selectOmensPackLocalPoolOfficialIdentityFromOneUnsigned32Sample = (
+  ...inputs: [
+    OmensPackLocalPoolDrawState,
+    OmensRecipePoolOfficialIdentityResolution[number],
+    number
+  ]
+): OmensPackLocalPoolSampleSelection => selectPackLocalPoolOfficialIdentityFromOneSample(...inputs);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (
