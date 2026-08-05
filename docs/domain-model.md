@@ -1,11 +1,11 @@
 # Domain and data model
 
-This is a planning-level logical model. Names may become TypeScript types later, but this document is not a production schema. Evidence IDs resolve in the [research source register](research.md#source-register).
+This is a planning-level logical model. Names may become TypeScript types later, but this document is not a production schema. `packages/draft` already implements a dependency-free pure immutable/serializable product-neutral transition machine; this document remains the product integration model. Evidence IDs resolve in the [research source register](research.md#source-register).
 
 ## Design rules
 
 1. The draft engine is pure and platform-independent: no Cloudflare, browser, network, wall-clock, storage, or Web Crypto imports.
-2. All non-determinism enters as explicit `Clock` values and a `RandomSource`.
+2. All non-determinism enters as explicit `Clock` values and caller-owned random input; the existing draft runtime creates, seeds, stores, and imports no generator.
 3. Card identity, physical printing/treatment, and physical instance are different concepts.
 4. The room owns authority; clients receive role-projected views, never the canonical room object.
 5. Build only the Omens boundary now. A future set is data, recipe, and evidence—not a new engine hierarchy.
@@ -216,13 +216,13 @@ No arbitrary text, chat, pick event, or queued card identity. Retain a bounded c
 
 ## Randomness contract
 
-The engine accepts named random streams with unbiased `nextInt(upperExclusive)`:
+The product integration must accept named random streams with unbiased `nextInt(upperExclusive)`:
 
 - `seat-order`
 - `pack-collation`
 - `deadline-fallback`
 
-Tests supply fixed seeds and can serialize stream state. Production obtains at least 256 bits from server-side Web Crypto at start, derives independent streams with a documented domain separator, stores state atomically with room transitions, and never accepts a client seed. Production seed/state is not exposed during a draft. Replays are a non-goal.
+The existing deterministic PCG helper supports replay and known-answer tests, but is non-cryptographic and may be state-reconstructable from observed output. It is not a multiplayer unpredictability guarantee. Tests may supply fixed seeds and serialize state. Production source selection, cryptographic requirements, seed custody, and stream separation remain a later architecture decision; client seeds are never accepted.
 
 Uniform timeout fallback uses rejection sampling or an equivalent unbiased bounded-index algorithm. A random choice is recorded only as the resulting instance ID, not as user-visible RNG internals.
 

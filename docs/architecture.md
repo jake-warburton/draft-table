@@ -29,10 +29,11 @@ Use one SQLite-backed Durable Object per short room code. Free Workers supports 
 
 The approved npm-workspaces TypeScript scaffold now establishes these boundaries:
 
-- `packages/engine`: pure deterministic draft/collation/state transitions, the one-sample uint32 rejection mapper, and the finite caller-supplied uint32 batch mapper; zero platform dependencies. The build-time set importer composes these primitives with its opaque collation capabilities. Caller entropy ownership, generation, reseeding, infinite retry policy, set/layout/pool composition, plan transitions, pack construction, and runtime behavior remain outside these primitives.
+- `packages/engine`: pure deterministic collation primitives plus an internal replay-only PCG source and bounded retry transcript; zero platform dependencies. PCG is non-cryptographic and not a multiplayer-unpredictability guarantee. The build-time set importer composes opaque capabilities into complete finite-batch 14-position pack construction; callers retain entropy ownership. Production stream separation, seed custody, and any cryptographic source remain a later architecture decision.
 - `packages/contracts`: protocol/domain view contracts and boundary validation.
-- `packages/set-omens`: Omens-specific build-time source verification, strict recipe parsing, aggregate validation, source reconciliation, collation capability handling, import, and reviewed versioned snapshots. Its normal root is runtime-safe; source validation, reconciliation, classification, collation, and projection tooling is available only through the explicit build-time `@draft-table/set-omens/schema-validation` subpath.
-- `apps/web`: static browser client.
+- `packages/set-omens`: Omens-specific build-time source verification, strict recipe parsing, aggregate validation, reconciliation, capability-bound 14-position pack construction, and reviewed versioned snapshots. Its normal root is runtime-safe; source validation, reconciliation, collation, construction, and presentation tooling is available only through the explicit build-time `@draft-table/set-omens/schema-validation` subpath. Presentation remains source-attributed and build-time-only.
+- `packages/draft`: dependency-free pure immutable/serializable draft transition state machine; adapter authority, timing, and entropy remain outside it.
+- `apps/web`: readable static fixture-only playable shell, pending engine/set-omens integration.
 - `apps/server`: thin Worker router and Durable Object adapter.
 
 The [README](../README.md) owns the current implementation scope. Keep the server plain rather than adding a general web framework. Select a small client rendering approach only after a bundle/accessibility spike; do not let a framework enter engine/contracts.
