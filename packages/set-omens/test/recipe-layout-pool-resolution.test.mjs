@@ -14,26 +14,27 @@ import { reconcileOfficialUpstreamIdRecordsForTest } from "../src/official-upstr
 import { completeOmensRecipePoolsForTest, parseOmensPoolsFromTrustedBytes } from "../src/pools.ts";
 import { reconcileOmensRecipeOfficialIdentityRecordsForTest } from "../src/recipe-official-identity-reconciliation.ts";
 import { resolveOmensRecipePoolsToDraftableOfficialIdentitiesForTest } from "../src/recipe-pool-identity-resolution.ts";
-import { OmensRecipeLayoutPoolResolutionError, resolveOmensRecipeLayoutsToOfficialIdentityPoolsForTest } from "../src/recipe-layout-pool-resolution.ts";
+import { OmensRecipeLayoutPoolResolutionError, resolveOmensRecipeLayoutsToOfficialIdentityPoolsForTest, validateOmensRecipeStructuralOutcomeCountsForTest } from "../src/recipe-layout-pool-resolution.ts";
 
 const settings = JSON.stringify({ showSlots: true, withReplacement: false, cardBack: "https://cards.invalid/back.png" });
-const card = (name, collector_number) => ({ name, collector_number, mana_cost: "2", rarity: "common", type: "action", image_uris: { en: "https://cards.invalid/a.png" } });
-const recipeBytes = (prefix = "First") => Buffer.from(`\ufeff[Settings]\r\n${settings}\r\n[CustomCards]\r\n${JSON.stringify([card(`${prefix} Owner`, "OMN100"), card(`${prefix} Other`, "OMN101")])}\r\n[Layouts]\r\n\t- ${prefix} Layout (17)\r\n\t\t2 Wizard\r\n\t\t1 Generic\r\n\t\t11 Rfcommon\r\n[Wizard]\r\n3 ${prefix} Owner\r\n[Generic]\r\n5 ${prefix} Other\r\n[Rfcommon]\r\n7 ${prefix} Owner`, "utf8");
+const card = (name, collector_number, rarity = "common") => ({ name, collector_number, mana_cost: "2", rarity, type: "action", image_uris: { en: "https://cards.invalid/a.png" } });
+const recipeBytes = (prefix = "First") => Buffer.from(`\ufeff[Settings]\r\n${settings}\r\n[CustomCards]\r\n${JSON.stringify([card(`${prefix} Owner`, "OMN100"), card(`${prefix} Equipment`, "OMN101"), card(`${prefix} Rare`, "OMN102", "rare")])}\r\n[Layouts]\r\n\t- ${prefix} Layout (17)\r\n\t\t10 Wizard\r\n\t\t1 Equipment\r\n\t\t2 Rare\r\n\t\t1 Rfcommon\r\n[Wizard]\r\n3 ${prefix} Owner\r\n[Equipment]\r\n5 ${prefix} Equipment\r\n[Rare]\r\n11 ${prefix} Rare\r\n[Rfcommon]\r\n7 ${prefix} Owner`, "utf8");
 const forms = Object.freeze([
   Object.freeze({ officialPrintId: "OMN100", baseCollectorId: "OMN100", sourceSet: "OMN", suffixMarker: null }),
   Object.freeze({ officialPrintId: "OMN101", baseCollectorId: "OMN101", sourceSet: "OMN", suffixMarker: null }),
+  Object.freeze({ officialPrintId: "OMN102", baseCollectorId: "OMN102", sourceSet: "OMN", suffixMarker: null }),
   Object.freeze({ officialPrintId: "IAR200-MV", baseCollectorId: "IAR200", sourceSet: "IAR", suffixMarker: "MV" })
 ]);
 const capabilities = (prefix = "First", modules = { custom: { completeOmensRecipeCustomCardsAggregateForTest, parseOmensCustomCardsFromTrustedBytes }, eligibility: { classifyOmensDraftEligibilityForTest }, layouts: { parseOmensLayoutsFromTrustedBytes }, upstream: { reconcileOfficialUpstreamIdRecordsForTest }, pools: { completeOmensRecipePoolsForTest, parseOmensPoolsFromTrustedBytes }, identity: { reconcileOmensRecipeOfficialIdentityRecordsForTest }, poolResolution: { resolveOmensRecipePoolsToDraftableOfficialIdentitiesForTest } }) => {
   const bytes = recipeBytes(prefix);
-  const cards = modules.custom.completeOmensRecipeCustomCardsAggregateForTest(modules.custom.parseOmensCustomCardsFromTrustedBytes(bytes), { common: 2, rare: 0, mythic: 0 });
+  const cards = modules.custom.completeOmensRecipeCustomCardsAggregateForTest(modules.custom.parseOmensCustomCardsFromTrustedBytes(bytes), { common: 2, rare: 1, mythic: 0 });
   const layouts = modules.layouts.parseOmensLayoutsFromTrustedBytes(bytes);
   const pools = modules.pools.completeOmensRecipePoolsForTest(modules.pools.parseOmensPoolsFromTrustedBytes(bytes), layouts, cards);
-  const names = new Map([["OMN100", `${prefix} Owner`], ["OMN101", `${prefix} Other`], ["IAR200", "Excluded"]]);
+  const names = new Map([["OMN100", `${prefix} Owner`], ["OMN101", `${prefix} Equipment`], ["OMN102", `${prefix} Rare`], ["IAR200", "Excluded"]]);
   const source = forms.map((form, index) => ({ unique_id: `${prefix}-card-${index}`, name: names.get(form.baseCollectorId), pitch: "", printings: [{ unique_id: `${prefix}-printing-${index}`, set_printing_unique_id: `${prefix}-set-${form.sourceSet}`, id: form.baseCollectorId, set_id: form.sourceSet, edition: "standard", foiling: "standard", rarity: "C", expansion_slot: false, image_url: "https://images.invalid/a.png", art_variations: [] }] }));
-  const official = modules.upstream.reconcileOfficialUpstreamIdRecordsForTest(forms, source, { entries: 3, omnEntries: 2, iarEntries: 1, omnPrintings: 2, iarPrintings: 1 });
-  const identities = modules.identity.reconcileOmensRecipeOfficialIdentityRecordsForTest(cards, official, { recipeEntries: 2, officialEntries: 3, candidateEntries: 2, mappedEntries: 2, unmappedEntries: 1, unmappedOmn: 0, unmappedIar: 1, unmappedUnsuffixed: 0, unmappedRf: 0, unmappedCf: 0, unmappedMv: 1 });
-  const eligibility = modules.eligibility.classifyOmensDraftEligibilityForTest(identities, official, { officialEntries: 3, mappedEntries: 2, mappedIarEntries: 0, excludedEntries: 1, excludedIarEntries: 1, excludedNonIarEntries: 0, unclassifiedEntries: 0, unclassifiedOmnEntries: 0, unclassifiedIarEntries: 0, unclassifiedUnsuffixed: 0, unclassifiedRf: 0, unclassifiedCf: 0, unclassifiedMv: 0 });
+  const official = modules.upstream.reconcileOfficialUpstreamIdRecordsForTest(forms, source, { entries: 4, omnEntries: 3, iarEntries: 1, omnPrintings: 3, iarPrintings: 1 });
+  const identities = modules.identity.reconcileOmensRecipeOfficialIdentityRecordsForTest(cards, official, { recipeEntries: 3, officialEntries: 4, candidateEntries: 3, mappedEntries: 3, unmappedEntries: 1, unmappedOmn: 0, unmappedIar: 1, unmappedUnsuffixed: 0, unmappedRf: 0, unmappedCf: 0, unmappedMv: 1 });
+  const eligibility = modules.eligibility.classifyOmensDraftEligibilityForTest(identities, official, { officialEntries: 4, mappedEntries: 3, mappedIarEntries: 0, excludedEntries: 1, excludedIarEntries: 1, excludedNonIarEntries: 0, unclassifiedEntries: 0, unclassifiedOmnEntries: 0, unclassifiedIarEntries: 0, unclassifiedUnsuffixed: 0, unclassifiedRf: 0, unclassifiedCf: 0, unclassifiedMv: 0 });
   const resolvedPools = modules.poolResolution.resolveOmensRecipePoolsToDraftableOfficialIdentitiesForTest(pools, identities, eligibility);
   return { layouts, resolvedPools };
 };
@@ -48,7 +49,8 @@ const safe = (action) => assert.throws(action, (error) => {
   return true;
 });
 
-const expectedLabels = ["Wizard", "Wizard", "Generic", ...Array(11).fill("Rfcommon")];
+const expectedLabels = [...Array(10).fill("Wizard"), "Equipment", "Rare", "Rare", "Rfcommon"];
+const expectedRoles = [...Array(11).fill("common-rarity"), "fixed-rare", "rare-or-majestic", "rainbow-foil"];
 
 test("exact layout and slot order retain repeated source pool references as stable capability-owned pools", () => {
   const parts = capabilities();
@@ -59,6 +61,11 @@ test("exact layout and slot order retain repeated source pool references as stab
   assert.equal(result.layouts[0].weight, 17);
   assert.deepEqual(result.layouts[0].slots.map((slot) => slot.position), Array.from({ length: 14 }, (_, index) => index + 1));
   assert.deepEqual(result.layouts[0].slots.map((slot) => slot.sourcePoolLabel), expectedLabels);
+  assert.deepEqual(result.layouts[0].slots.map((slot) => slot.recipeStructuralRole), expectedRoles);
+  assert.equal(result.layouts[0].slots[10].sourcePoolLabel, "Equipment");
+  assert.equal(result.layouts[0].slots[10].recipeStructuralRole, "common-rarity");
+  assert.equal(result.layouts[0].slots[11].resolvedPool, result.layouts[0].slots[12].resolvedPool);
+  assert.notEqual(result.layouts[0].slots[11].recipeStructuralRole, result.layouts[0].slots[12].recipeStructuralRole);
   const poolsByLabel = new Map(parts.resolvedPools.map((pool) => [pool.sourcePoolLabel, pool]));
   assert.equal(result.layouts[0].slots.every((slot) => slot.resolvedPool === poolsByLabel.get(slot.sourcePoolLabel)), true);
   assert.equal(result.layouts[0].slots[0].resolvedPool, result.layouts[0].slots[1].resolvedPool);
@@ -84,10 +91,10 @@ test("forged, copied, missing, duplicate and foreign capability ownership fails 
 
 test("unknown, case, spacing and NFC-drifted references cannot be completed", () => {
   for (const change of [
-    (bytes) => Buffer.from(bytes.toString("utf8").replace("\t\t1 Generic", "\t\t1 generic"), "utf8"),
-    (bytes) => Buffer.from(bytes.toString("utf8").replace("\t\t1 Generic", "\t\t1  Generic"), "utf8"),
-    (bytes) => Buffer.from(bytes.toString("utf8").replace("\t\t1 Generic", "\t\t1 Ge\u0301neric"), "utf8"),
-    (bytes) => Buffer.from(bytes.toString("utf8").replace("\t\t1 Generic", "\t\t1 Missing"), "utf8")
+    (bytes) => Buffer.from(bytes.toString("utf8").replace("\t\t1 Equipment", "\t\t1 equipment"), "utf8"),
+    (bytes) => Buffer.from(bytes.toString("utf8").replace("\t\t1 Equipment", "\t\t1  Equipment"), "utf8"),
+    (bytes) => Buffer.from(bytes.toString("utf8").replace("\t\t1 Equipment", "\t\t1 E\u0301quipment"), "utf8"),
+    (bytes) => Buffer.from(bytes.toString("utf8").replace("\t\t1 Equipment", "\t\t1 Missing"), "utf8")
   ]) {
     const bytes = change(recipeBytes());
     assert.throws(() => {
@@ -152,8 +159,45 @@ test("slot multiplicity and order semantic mutation fails its exact named contra
   const mutated = original
     .replace("for (const sourceSlot of layout.slots)", "for (const sourceSlot of [...layout.slots].reverse())")
     .replace("repetition < sourceSlot.count", "repetition < 1")
-    .replace("if (slots.length !== 14) fail();", "if (false) fail();");
+    .replace("if (slots.length !== 14 || commonCount !== 11 || rareCount < 1 || rareCount + majesticCount !== 2 ||\n      rainbowCount !== 1 || (rareCount === 2 && majesticCount !== 0) || (rareCount === 1 && majesticCount !== 1)) fail();", "if (false) fail();");
   assert.notEqual(mutated, original); runMutation(mutated, slotsContract, slotsMarker, "EXACT_SLOT_MULTIPLICITY_AND_ORDER_MUST_BE_RETAINED");
+});
+
+const rolesContract = "recipe-structural roles derive only from resolved rarity and category ownership", rolesMarker = "RECIPE_LAYOUT_STRUCTURAL_ROLES_CONTRACT_EXECUTED";
+test(rolesContract, async () => {
+  console.log(rolesMarker); const m = await loadMutationModules(); let result;
+  assert.doesNotThrow(() => { result = m.resolution.resolveOmensRecipeLayoutsToOfficialIdentityPoolsForTest(...Object.values(capabilities("First", m))); }, "EXACT_RECIPE_STRUCTURAL_ROLES_MUST_BE_RETAINED");
+  assert.deepEqual(result.layouts[0].slots.map((slot) => slot.recipeStructuralRole), expectedRoles, "EXACT_RECIPE_STRUCTURAL_ROLES_MUST_BE_RETAINED");
+});
+test("pool-name-based recipe-structural role mutation fails its exact named contract", () => {
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace('pool.recipePoolCategory === "normal" && pool.fabRarity === "common"', 'sourceSlot.pool !== "Equipment" && pool.recipePoolCategory === "normal" && pool.fabRarity === "common"');
+  assert.notEqual(mutated, original); runMutation(mutated, rolesContract, rolesMarker, "EXACT_RECIPE_STRUCTURAL_ROLES_MUST_BE_RETAINED");
+});
+test("recipe-structural role erasure and swap mutations fail their exact named contract", () => {
+  const original = readFileSync(sourcePath, "utf8");
+  for (const mutated of [
+    original.replace(", recipeStructuralRole, resolvedPool: pool", ", resolvedPool: pool"),
+    original.replace('rareCount === 1 ? "fixed-rare" : "rare-or-majestic"', 'rareCount === 1 ? "rare-or-majestic" : "fixed-rare"')
+  ]) {
+    assert.notEqual(mutated, original); runMutation(mutated, rolesContract, rolesMarker, "EXACT_RECIPE_STRUCTURAL_ROLES_MUST_BE_RETAINED");
+  }
+});
+
+const outcomesContract = "recipe-structural rare-or-majestic outcomes retain the exact 114 to 114 distribution", outcomesMarker = "RECIPE_LAYOUT_STRUCTURAL_OUTCOMES_CONTRACT_EXECUTED";
+test(outcomesContract, async () => {
+  console.log(outcomesMarker); const m = await loadMutationModules();
+  assert.doesNotThrow(() => m.resolution.validateOmensRecipeStructuralOutcomeCountsForTest(228, 114, 114));
+  assert.throws(() => m.resolution.validateOmensRecipeStructuralOutcomeCountsForTest(228, 113, 115), m.resolution.OmensRecipeLayoutPoolResolutionError, "EXACT_RECIPE_STRUCTURAL_OUTCOME_DISTRIBUTION_MUST_BE_RETAINED");
+});
+test("recipe-structural 114-to-114 redistribution mutation fails its exact named contract", () => {
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace("if (layoutCount === 228 && (rareSecondOutcomes !== 114 || majesticSecondOutcomes !== 114)) fail();", "if (false) fail();");
+  assert.notEqual(mutated, original); runMutation(mutated, outcomesContract, outcomesMarker, "EXACT_RECIPE_STRUCTURAL_OUTCOME_DISTRIBUTION_MUST_BE_RETAINED");
+});
+test("recipe-structural outcome aggregate rejects redistribution", () => {
+  assert.doesNotThrow(() => validateOmensRecipeStructuralOutcomeCountsForTest(228, 114, 114));
+  safe(() => validateOmensRecipeStructuralOutcomeCountsForTest(228, 115, 113));
 });
 
 const capabilityContract = "layout resolution accepts only its opaque completed layout capability", capabilityMarker = "RECIPE_LAYOUT_CAPABILITY_ONLY_CONTRACT_EXECUTED";

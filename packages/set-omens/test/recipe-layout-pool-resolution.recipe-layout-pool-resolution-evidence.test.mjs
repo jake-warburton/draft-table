@@ -52,6 +52,7 @@ test(recipeLayoutPoolResolutionAcceptanceContractName, { skip: !available ? "fou
   assert.deepEqual(resolved.layouts.map(({ id, weight }) => ({ id, weight })), sourceLayouts.layouts.map(({ id, weight }) => ({ id, weight })));
   const poolsByLabel = new Map(resolvedPools.map((pool) => [pool.sourcePoolLabel, pool]));
   const usedPools = new Set();
+  let rareStructuralOutcomes = 0, majesticStructuralOutcomes = 0;
   for (let index = 0; index < resolved.layouts.length; index++) {
     const source = sourceLayouts.layouts[index], layout = resolved.layouts[index];
     const expandedLabels = source.slots.flatMap((slot) => Array(slot.count).fill(slot.pool));
@@ -60,12 +61,20 @@ test(recipeLayoutPoolResolutionAcceptanceContractName, { skip: !available ? "fou
     assert.deepEqual(layout.slots.map((slot) => slot.sourcePoolLabel), expandedLabels);
     assert.equal(layout.slots.every((slot) => slot.resolvedPool === poolsByLabel.get(slot.sourcePoolLabel)), true);
     for (const slot of layout.slots) usedPools.add(slot.resolvedPool);
-    const normalCommon = layout.slots.filter((slot) => slot.resolvedPool.recipePoolCategory === "normal" && slot.resolvedPool.fabRarity === "common").length;
-    const normalRare = layout.slots.filter((slot) => slot.resolvedPool.recipePoolCategory === "normal" && slot.resolvedPool.fabRarity === "rare").length;
-    const normalMajestic = layout.slots.filter((slot) => slot.resolvedPool.recipePoolCategory === "normal" && slot.resolvedPool.fabRarity === "majestic").length;
-    const rainbow = layout.slots.filter((slot) => slot.resolvedPool.recipePoolCategory === "rainbow-foil");
-    assert.equal(normalCommon, 11); assert.equal(normalRare + normalMajestic, 2); assert.equal(normalRare >= 1, true); assert.equal(rainbow.length, 1);
+    const roles = Object.groupBy(layout.slots, (slot) => slot.recipeStructuralRole);
+    assert.equal(roles["common-rarity"]?.length, 11);
+    assert.equal(roles["fixed-rare"]?.length, 1);
+    assert.equal(roles["rare-or-majestic"]?.length, 1);
+    assert.equal(roles["rainbow-foil"]?.length, 1);
+    assert.equal(roles["common-rarity"].every((slot) => slot.resolvedPool.recipePoolCategory === "normal" && slot.resolvedPool.fabRarity === "common"), true);
+    assert.equal(roles["fixed-rare"][0].resolvedPool.recipePoolCategory, "normal");
+    assert.equal(roles["fixed-rare"][0].resolvedPool.fabRarity, "rare");
+    assert.equal(roles["rainbow-foil"][0].resolvedPool.recipePoolCategory, "rainbow-foil");
+    if (roles["rare-or-majestic"][0].resolvedPool.fabRarity === "rare") rareStructuralOutcomes++;
+    else { assert.equal(roles["rare-or-majestic"][0].resolvedPool.fabRarity, "majestic"); majesticStructuralOutcomes++; }
   }
+  assert.equal(rareStructuralOutcomes, 114);
+  assert.equal(majesticStructuralOutcomes, 114);
   assert.equal(usedPools.size, resolvedPools.length);
   assert.equal([...usedPools].every((pool) => resolvedPools.includes(pool)), true);
   for (let offset = 0; offset < resolved.layouts.length; offset += 6) {
