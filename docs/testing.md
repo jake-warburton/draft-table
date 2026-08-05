@@ -43,7 +43,7 @@ Additional future test layers (tool choice finalized when each layer is introduc
 | Rear exclusion | Exactly positions 15/16 removed atomically; no fabricated rear card identity; no rear marker can enter projection/pool/fallback/export; every known Basic/token/expansion/L/F/V/CF/other extra treatment remains classified with reason metadata. |
 | Visible collation | Exactly 14 from one validated weighted layout; 11 standard C + 1 standard R + 1 standard R/M + 1 legal RF; normal-slot M/RF draftable; integer weighted selection reaches every eligible outcome and no ineligible one; repeated same-pool draws obey no-replacement. |
 | Correlations | The checksum-pinned layout correlation/weight model is reproduced exactly; unknown/partial recipe refuses generation; no test or product copy calls it an official print-run model. |
-| Random bounds | `nextInt(n)` always `0..n-1`; rejection path; no modulo bias for crafted source; uniform fallback over remaining instances. |
+| Random bounds | One exact uint32 sample maps to an immutable accepted ticket in `[0,n)` or explicit retry through rejection sampling; exhaustive analogous-domain preimage checks prove no modulo bias. Random-source ownership, retry loops, seeded state, and fallback remain later layers. |
 | Pack count | For N=2..8, pre-generate `3N` packs, `48N` physical positions (`42N` card instances + `6N` rear markers), and `42N` visible card instances. |
 | Pass direction | N=2..8; pack 1 left, pack 2 right, pack 3 left; origin/current-holder mapping; no pack duplication/loss. |
 | Pool conservation | At completion every seat has 42 instances; union equals all visible instances; intersections empty; rear set disjoint. |
