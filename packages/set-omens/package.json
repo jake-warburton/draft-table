@@ -24,7 +24,8 @@
     "test:collation-sample-selection-evidence": "node test/collation-sample-selection-evidence-command.mjs",
     "test:pack-local-pool-draw-state-evidence": "node test/pack-local-pool-draw-state-evidence-command.mjs",
     "test:pack-local-pool-ticket-selection-evidence": "node test/pack-local-pool-ticket-selection-evidence-command.mjs",
-    "test:pack-local-pool-sample-selection-evidence": "node test/pack-local-pool-sample-selection-evidence-command.mjs"
+    "test:pack-local-pool-sample-selection-evidence": "node test/pack-local-pool-sample-selection-evidence-command.mjs",
+    "test:pack-local-pool-sample-draw-transition-evidence": "node test/pack-local-pool-sample-draw-transition-evidence-command.mjs"
   },
   "dependencies": {
     "@draft-table/engine": "0.0.0"
