@@ -1,16 +1,30 @@
 /** The exclusive end of the exact unsigned-32-bit sample domain: [0, 2^32). */
 export const UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END = 4_294_967_296;
 
+const defineProperty: typeof Object.defineProperty = Object.defineProperty;
+const freeze: typeof Object.freeze = Object.freeze;
+
 /** Stable, value-free failure for one-sample unsigned-32-bit ticket mapping. */
 export class UnbiasedUint32TicketMappingError extends Error {
-  readonly code = "UNBIASED_UINT_TICKET_MAPPING_FAILED";
+  declare readonly code: "UNBIASED_UINT_TICKET_MAPPING_FAILED";
 
   constructor() {
     super("Unbiased uint32 ticket mapping failed.");
-    this.name = "UnbiasedUint32TicketMappingError";
-    this.stack = `${this.name}: ${this.message}`;
+    // Assignment consults the prototype chain; defineProperty does not.
+    defineProperty(this, "code", {
+      value: "UNBIASED_UINT_TICKET_MAPPING_FAILED", writable: true, enumerable: true, configurable: true
+    });
+    defineProperty(this, "name", {
+      value: "UnbiasedUint32TicketMappingError", writable: true, enumerable: true, configurable: true
+    });
+    defineProperty(this, "stack", {
+      value: `${this.name}: ${this.message}`, writable: true, enumerable: false, configurable: true
+    });
   }
 }
+
+freeze(UnbiasedUint32TicketMappingError.prototype);
+freeze(UnbiasedUint32TicketMappingError);
 
 /** One accepted result maps a sample in [0, acceptedSampleExclusiveEnd) to a ticket in [0, ticketBound). */
 export type AcceptedBoundedTicketMapping = Readonly<{
@@ -39,7 +53,6 @@ export type RetryBoundedTicketMapping = Readonly<{
 /** One deeply immutable result for a caller-controlled one-sample bounded-ticket attempt. */
 export type BoundedTicketMapping = AcceptedBoundedTicketMapping | RetryBoundedTicketMapping;
 
-const freeze: typeof Object.freeze = Object.freeze;
 const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
 const maximumSafeInteger = Number.MAX_SAFE_INTEGER;
 const fail = (): never => { throw new UnbiasedUint32TicketMappingError(); };

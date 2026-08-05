@@ -40,8 +40,9 @@ const ownFrozenDataValue = (mapping: object, property: string): unknown => {
 const validateMapping = (mapping: unknown, sample: number, ticketBound: number): ValidatedMapping => {
   if (typeof mapping !== "object" || mapping === null) return fail();
   const state = ownFrozenDataValue(mapping, "state");
-  const expectedPropertyCount = state === "accepted" ? 6 : state === "retry" ? 5 : 0;
-  if (expectedPropertyCount === 0 || ownKeys(mapping).length !== expectedPropertyCount ||
+  if (state !== "accepted" && state !== "retry") return fail();
+  const expectedPropertyCount = state === "accepted" ? 6 : 5;
+  if (ownKeys(mapping).length !== expectedPropertyCount ||
     ownFrozenDataValue(mapping, "sample") !== sample ||
     ownFrozenDataValue(mapping, "ticketBound") !== ticketBound ||
     ownFrozenDataValue(mapping, "sampleDomainExclusiveEnd") !== UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
