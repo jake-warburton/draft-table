@@ -245,7 +245,9 @@ None of the evidence commands commits or configures its input files. Keep the ev
 
 Pull requests and pushes to `main` install with `npm ci` and run every quality command listed above. The root `npm run size` contract reports completed `apps/web/dist` bytes and rejects missing output; it has no client-size ceiling or size gate. The server boundary is not emitted yet and reports as zero bytes.
 
-Open `apps/web/dist/index.html` in a browser after `npm run build`. The accessible, dependency-free static page provides a deterministic two-seat walkthrough using invented fixtures only; reload resets it. It is fixture-only and awaits engine/`set-omens` integration.
+Open `apps/web/dist/index.html` in a browser after `npm run build`. The accessible, dependency-free static page uses only synthetic `Fixture A` through `Fixture I` cards: three deterministic invented packs for each of two fixture seats. Each native card button click or standard Enter/Space activation records one card in the ordered pool, removes that pack, and advances; captured pack indices reject stale/repeated activation, six selections complete the walkthrough, focus moves to the live completion status, and reload resets it. Labelled regions/lists, high-contrast focus, a one-column phone layout, and reduced-motion behavior are retained.
+
+Readable sources remain `apps/web/index.html`, `main.js`, and `styles.css`. The deterministic build emits uncommitted `dist/index.html` with application script inlined and copies `dist/styles.css`; tests cover repeatable output and cleanup. `npm run size` measures only those completed artifacts, rejects either missing artifact, and intentionally imposes no client ceiling or size gate. The removed 2,048-byte cap had forced accessibility and responsive declarations out and must not return. The shell has no card evidence, engine/set runtime, entropy, networking, authentication, multiplayer authority, or real product treatments. It is fixture-only and awaits a reviewed engine/`set-omens` runtime boundary; real playability must expose 14 visible cards from a conceptual 16-position pack after removing two opaque rear markers.
 
 ## Planning documents
 

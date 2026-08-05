@@ -214,6 +214,16 @@ Pause is an overlay on `picking` or `review`, not a separate phase that loses th
 
 No arbitrary text, chat, pick event, or queued card identity. Retain a bounded count (recommended 100) and delete with the room.
 
+## Implemented pure draft runtime
+
+`@draft-table/draft` is the dependency-free, platform-independent sequencing authority; it performs no collation, card evaluation, I/O, entropy generation, or engine/set import. Its product-neutral setup accepts 2–8 stable human/bot seats and exactly three equal-pack rounds. Cards have unique physical `instanceId` values plus reusable `cardId` values; seat, occupant, pack, and instance IDs are validated for uniqueness, and caller setup is copied and frozen.
+
+`createDraft` returns an immutable, serializable `DraftState` containing stable seat/presence records, current round/pick/L-R-L direction, in-flight and unopened packs, provisional picks, canonical pending seats, chronological pools, connected occupants' legal choices, and committed-pick count. Every action binds the current round and pick; picks additionally bind occupant, seat, pack, and card instance. `DraftRuleError` rejection leaves the input unchanged.
+
+`pickCard` queues or replaces a provisional choice without removing or revealing a card; replaying the same choice returns the same state. `revealBarrier` requires one valid choice per seat, then atomically clears the barrier, moves one card per seat, passes the packs, and advances. When one card remains after that commit, the same transition passes and automatically awards the final card without another pick interval. Round exhaustion opens the next round, and round three exhaustion yields a terminal state with no packs, choices, pending seats, or unopened rounds. Left passes index `i` to `i + 1`, right to `i - 1`, modulo seat count.
+
+Disconnect/reconnect preserves occupancy and queued choice. Vacancy atomically clears both occupant and provisional choice; replacement inherits the stable seat, pack, pool, and future packs but never the old choice. Vacant and disconnected seats remain in the pass ring and receive timeout fallback. `resolveTimeout` first validates exact fallback coverage for every and only unqueued seat, consuming zero entropy on any invalid batch, then preserves queued choices and uses unbiased rejection sampling over the caller's local `nextUint32()` source for missing choices. The package never creates, seeds, stores, or imports that source. Bots receive only current phase metadata and their abstract local pack; the deterministic first-card policy and replacements queue through ordinary pick validation and never commit the barrier. Adapter authentication, clocks/deadlines, unopened-pack secrecy, role projection, persistence, and entropy custody remain integration responsibilities.
+
 ## Randomness contract
 
 The product integration must accept named random streams with unbiased `nextInt(upperExclusive)`:
@@ -222,7 +232,15 @@ The product integration must accept named random streams with unbiased `nextInt(
 - `pack-collation`
 - `deadline-fallback`
 
-The existing deterministic PCG helper supports replay and known-answer tests, but is non-cryptographic and may be state-reconstructable from observed output. It is not a multiplayer unpredictability guarantee. Tests may supply fixed seeds and serialize state. Production source selection, cryptographic requirements, seed custody, and stream separation remain a later architecture decision; client seeds are never accepted.
+### Replay PCG contract
+
+`pcg-xsh-rr-64-32-v1` identifies PCG XSH RR with 64-bit state, 32-bit output, exact `bigint` arithmetic, multiplier `6364136223846793005`, and modulo-`2^64` transitions. For old state `s` and uint32 domain `d`, the odd increment is `(d << 1) | 1`; output rotates `((((s >> 18) xor s) >> 27) mod 2^32)` right by `s >> 59` before advancing state. Canonical seeding starts at zero, advances once with the domain increment, adds the seed modulo `2^64`, then advances again. Output always comes from the old state. The `(42, 54)` known-answer sequence begins `a15c02b7, 7b47f409, ba1d3330, 83d2f293, bfa4784b, cbed606e`; changing constants, seeding, shifts, serialization, or output timing requires a new algorithm version.
+
+Seed and domain are exact uint32 integers (including zero); domain is replay metadata and a separation label, not a secret. Canonical state is the complete lowercase string `pcg-xsh-rr-64-32-v1:<16 state hex>:<8 domain hex>`. `generateDeterministicUint32Sample` returns a fresh frozen `{ sample, sourceState }`, never mutates its input, and preserves independent parent/sibling branches. Equal version/state and ordered calls reproduce equal uint32 samples; equal ordered bounds also reproduce byte-identical tickets, retry transcripts, and final state.
+
+`drawDeterministicBoundedTicket` accepts a canonical state and integer bound in `[1, 2^32]`. It generates one sample per attempt, delegates unchanged to `mapUnsigned32SampleBatchToBoundedTicket`, advances only to the returned state, retries an explicit `needs-sample` without a cap, and returns at the first acceptance. Its frozen result records bound, every consumed sample in order, exact consumed and retry counts, ticket, and final state; transcript memory is therefore proportional to retries. Invalid arity, state, seed/domain, sample, or bound fails with the stable value-free `DeterministicUint32SourceError`. The helper is internal rather than exported from `@draft-table/engine`'s package root.
+
+This PCG is replay-only, non-cryptographic, and may be state-reconstructable from observed output; it is not a multiplayer unpredictability guarantee. JavaScript/Worker/browser implementations must preserve `bigint` and uint32 shift semantics. Production source selection, cryptographic requirements, seed custody, and stable stream/domain allocation remain a later architecture decision; client seeds are never accepted.
 
 Uniform timeout fallback uses rejection sampling or an equivalent unbiased bounded-index algorithm. A random choice is recorded only as the resulting instance ID, not as user-visible RNG internals.
 
