@@ -43,10 +43,43 @@ export type OmensPackCollationPlanInitialization = Readonly<{
 type LayoutSelector = (tables: OmensCollationWeightTables, sample: number) => OmensCollationLayoutSampleSelection;
 type PoolStateInitializer = (tables: OmensCollationWeightTables) => OmensPackLocalPoolDrawState;
 
+const EXPECTED_POOL_COUNT = 11;
+const EXPECTED_POSITION_COUNT = 14;
 const planCapabilities = new WeakMap<object, PlanParts>();
 const fail = (): never => { throw new OmensPackCollationPlanInitializationError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
+const expectedRoles = frozen([
+  ...Array.from({ length: 11 }, () => "common-rarity" as const),
+  "fixed-rare" as const,
+  "rare-or-majestic" as const,
+  "rainbow-foil" as const
+]);
 const retry = (): Readonly<{ state: "retry" }> => frozen({ state: "retry" });
+
+const validateSelectedPlan = (
+  tables: OmensCollationWeightTables,
+  layoutReference: LayoutReference
+): void => {
+  if (!isOmensCollationLayoutRegisteredForPlanInitialization(tables, layoutReference) ||
+    !Object.isFrozen(tables.poolTables) || tables.poolTables.length !== EXPECTED_POOL_COUNT ||
+    !Object.isFrozen(layoutReference) || !Object.isFrozen(layoutReference.slots) ||
+    layoutReference.slots.length !== EXPECTED_POSITION_COUNT) fail();
+  const poolTablesByReference = new Map(tables.poolTables.map((table) => [table.poolReference, table]));
+  if (poolTablesByReference.size !== EXPECTED_POOL_COUNT) fail();
+  const requiredByPool = new Map<OmensCollationWeightTables["poolTables"][number]["poolReference"], number>();
+  if (!layoutReference.slots.every((position, index) => {
+    const poolTable = poolTablesByReference.get(position.resolvedPool);
+    if (!Object.isFrozen(position) || position.position !== index + 1 ||
+      position.recipeStructuralRole !== expectedRoles[index] || poolTable === undefined) return false;
+    requiredByPool.set(position.resolvedPool, (requiredByPool.get(position.resolvedPool) ?? 0) + 1);
+    return true;
+  })) fail();
+  if (![...requiredByPool].every(([poolReference, required]) => {
+    const poolTable = poolTablesByReference.get(poolReference);
+    return poolTable !== undefined && poolTable.poolTotalWeight > 0 &&
+      poolTable.officialIdentityChoices.length >= required;
+  })) fail();
+};
 
 const register = (
   tables: OmensCollationWeightTables,
@@ -69,6 +102,7 @@ const compose = (
 ): OmensPackCollationPlanInitialization => {
   const selection = selectLayout(tables, sample);
   if (selection.state === "retry") return retry();
+  validateSelectedPlan(tables, selection.layoutReference);
   const plan = register(tables, selection.layoutReference, initializePoolDrawState(tables));
   return frozen({ state: "selected", layoutReference: selection.layoutReference, plan });
 };

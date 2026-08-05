@@ -72,6 +72,23 @@ test("invalid copied foreign mixed malformed and override inputs fail without pa
   assert.deepEqual(first.tables, before);
 });
 
+const copiedLayoutWith = (layout, change) => Object.freeze({ ...layout, slots: Object.freeze(layout.slots.map((position, index) => Object.freeze(change(position, index)))) });
+const assertPlanRejectedBeforeInitialization = (tables, layoutReference, message) => {
+  let initialized = 0, captured;
+  safe(() => initializeOmensPackCollationPlanFromOneUnsigned32SampleForTest(tables, 0, () => Object.freeze({ state: "selected", layoutReference }), () => { initialized++; captured = initializeOmensPackLocalPoolDrawState(tables); return captured; }));
+  assert.equal(initialized, 0, message); assert.equal(captured, undefined, message);
+};
+
+test("entire selected plan fails before initialization for ownership pool role position and capacity defects", () => {
+  const first = fictionalCollationCapabilities(), second = fictionalCollationCapabilities(), layout = first.tables.layoutChoices[0].layoutReference;
+  assertPlanRejectedBeforeInitialization(first.tables, second.tables.layoutChoices[0].layoutReference, "INVALID_LAYOUT_OWNERSHIP_MUST_PRECEDE_INITIALIZATION");
+  assertPlanRejectedBeforeInitialization(first.tables, copiedLayoutWith(layout, (position, index) => index === 0 ? { ...position, resolvedPool: second.tables.poolTables[0].poolReference } : position), "FOREIGN_POOL_REFERENCE_MUST_PRECEDE_INITIALIZATION");
+  assertPlanRejectedBeforeInitialization(first.tables, copiedLayoutWith(layout, (position, index) => index === 0 ? { ...position, recipeStructuralRole: "fixed-rare" } : position), "ROLE_INCOHERENCE_MUST_PRECEDE_INITIALIZATION");
+  assertPlanRejectedBeforeInitialization(first.tables, copiedLayoutWith(layout, (position, index) => index === 0 ? { ...position, position: 2 } : position), "POSITION_INCOHERENCE_MUST_PRECEDE_INITIALIZATION");
+  const limitedPool = first.tables.poolTables.find((table) => table.officialIdentityChoices.length === 1).poolReference;
+  assertPlanRejectedBeforeInitialization(first.tables, copiedLayoutWith(layout, (position, index) => index < 3 ? { ...position, resolvedPool: limitedPool } : position), "INSUFFICIENT_POOL_CAPACITY_MUST_PRECEDE_INITIALIZATION");
+});
+
 test("plan initialization source owns no entropy retry loop draw removal slots treatments or pack construction", () => {
   const source = readFileSync(new URL("../src/pack-collation-plan.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /Math\.random|crypto|randomBytes|randomUUID|while\s*\(|for\s*\(|%|remove|treatment|rear|card instance|pack construction|console\.|process\./u);
@@ -98,5 +115,16 @@ test("plan foreign-state semantic mutation fails its exact named contract", () =
 const cursorContract = "pack collation plan cursor starts at zero", cursorMarker = "PACK_COLLATION_PLAN_CURSOR_CONTRACT_EXECUTED";
 test(cursorContract, async () => { console.log(cursorMarker); const { plan, capabilities } = await mutationModules(), result = plan.initializeOmensPackCollationPlanFromOneUnsigned32Sample(capabilities.tables, 0); assert.equal(plan.readOmensPackCollationPlanNextPositionForTransition(result.plan), 0, "INITIAL_CURSOR_MUST_BE_ZERO"); });
 test("plan cursor semantic mutation fails its exact named contract", () => { const original = readFileSync(sourcePath, "utf8"), mutated = original.replace("poolDrawState, nextPosition: 0", "poolDrawState, nextPosition: 1"); assert.notEqual(mutated, original); runMutation(mutated, cursorContract, cursorMarker, "INITIAL_CURSOR_MUST_BE_ZERO"); });
+
+const validationCases = Object.freeze([
+  Object.freeze({ name: "plan ownership validation precedes pool initialization", marker: "PLAN_OWNERSHIP_PREINITIALIZATION_CONTRACT_EXECUTED", failure: "INVALID_LAYOUT_OWNERSHIP_MUST_PRECEDE_INITIALIZATION", layout: (capabilities, foreign) => foreign.tables.layoutChoices[0].layoutReference }),
+  Object.freeze({ name: "plan pool-reference validation precedes pool initialization", marker: "PLAN_POOL_REFERENCE_PREINITIALIZATION_CONTRACT_EXECUTED", failure: "FOREIGN_POOL_REFERENCE_MUST_PRECEDE_INITIALIZATION", layout: (capabilities, foreign) => copiedLayoutWith(capabilities.tables.layoutChoices[0].layoutReference, (position, index) => index === 0 ? { ...position, resolvedPool: foreign.tables.poolTables[0].poolReference } : position) }),
+  Object.freeze({ name: "plan role-position validation precedes pool initialization", marker: "PLAN_ROLE_POSITION_PREINITIALIZATION_CONTRACT_EXECUTED", failure: "ROLE_INCOHERENCE_MUST_PRECEDE_INITIALIZATION", layout: (capabilities) => copiedLayoutWith(capabilities.tables.layoutChoices[0].layoutReference, (position, index) => index === 0 ? { ...position, recipeStructuralRole: "fixed-rare" } : position) }),
+  Object.freeze({ name: "plan pool-capacity validation precedes pool initialization", marker: "PLAN_POOL_CAPACITY_PREINITIALIZATION_CONTRACT_EXECUTED", failure: "INSUFFICIENT_POOL_CAPACITY_MUST_PRECEDE_INITIALIZATION", layout: (capabilities) => { const pool = capabilities.tables.poolTables.find((table) => table.officialIdentityChoices.length === 1).poolReference; return copiedLayoutWith(capabilities.tables.layoutChoices[0].layoutReference, (position, index) => index < 3 ? { ...position, resolvedPool: pool } : position); } })
+]);
+for (const contract of validationCases) {
+  test(contract.name, async () => { console.log(contract.marker); const { plan, capabilities } = await mutationModules(), foreign = fictionalCollationCapabilities(); let initialized = 0; assert.throws(() => plan.initializeOmensPackCollationPlanFromOneUnsigned32SampleForTest(capabilities.tables, 0, () => ({ state: "selected", layoutReference: contract.layout(capabilities, foreign) }), () => { initialized++; return initializeOmensPackLocalPoolDrawState(capabilities.tables); })); assert.equal(initialized, 0, contract.failure); });
+  test(`${contract.name} semantic mutation fails its exact named contract`, () => { const original = readFileSync(sourcePath, "utf8"), mutated = original.replace("  validateSelectedPlan(tables, selection.layoutReference);\n", ""); assert.notEqual(mutated, original); runMutation(mutated, contract.name, contract.marker, contract.failure); });
+}
 
 test("plan mutation snapshots are file-local OS-temp canonical copies and always clean", () => { let snapshot; withCanonicalSnapshot((directory) => { snapshot = directory; assert.ok(directory.startsWith(tmpdir())); assert.equal(directory.startsWith(`${resolvePath(fileURLToPath(new URL("../../..", import.meta.url)))}${sep}`), false); }); assert.equal(existsSync(snapshot), false); let failed; assert.throws(() => withCanonicalSnapshot((directory) => { failed = directory; throw new Error("body"); })); assert.equal(existsSync(failed), false); });
