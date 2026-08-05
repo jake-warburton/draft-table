@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { discoverRecipeLayoutPoolResolutionEvidenceTests } from "./evidence-discovery.mjs";
+import { exactTestNamePattern } from "./recipe-layout-pool-resolution-test-name.mjs";
 
 const variables = ["OMENS_RECIPE_EVIDENCE_PATH", "FAB_CARD_SOURCE_EVIDENCE_PATH", "FAB_CARD_SCHEMA_EVIDENCE_PATH", "FAB_CARD_VAULT_EVIDENCE_PATH"];
 const contractName = "four checksum-verified caller-held sources resolve all exact weighted layout slots through their capability-owned official-identity pools";
@@ -12,13 +13,14 @@ try { for (const variable of variables) { readFileSync(process.env[variable]); e
 const files = discoverRecipeLayoutPoolResolutionEvidenceTests(readdirSync("test")).map((file) => `test/${file}`);
 if (files.length !== 1) fail();
 const sanitized = () => { const environment = { ...process.env }; for (const variable of variables) delete environment[variable]; delete environment.NODE_TEST_CONTEXT; return environment; };
+const testArguments = ["--experimental-strip-types", "--test", "--test-name-pattern", exactTestNamePattern(contractName), ...files];
 const probe = spawnSync(process.execPath, ["--experimental-strip-types", "--test", ...files], { encoding: "utf8", env: sanitized(), stdio: ["ignore", "pipe", "pipe"] });
 if (probe.error || probe.status !== 0 || !/^# skipped 1$/m.test(probe.stdout) || probe.stdout.includes(marker)) fail();
 const childEnvironment = sanitized(); for (const variable of variables) childEnvironment[variable] = evidence.get(variable);
-const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", ...files], { encoding: "utf8", env: childEnvironment, stdio: ["ignore", "pipe", "pipe"] });
+const result = spawnSync(process.execPath, testArguments, { encoding: "utf8", env: childEnvironment, stdio: ["ignore", "pipe", "pipe"] });
 const lines = result.stdout.split(/\r?\n/);
 const exactMarker = lines.filter((line) => line === `# ${marker}`).length === 1;
-const exactContract = lines.filter((line) => /^ok \d+ - /.test(line) && line.endsWith(contractName)).length === 1;
+const exactContract = lines.filter((line) => /^ok \d+ - /.test(line) && line.replace(/^ok \d+ - /, "") === contractName).length === 1;
 const summaries = /^# tests 1$/m.test(result.stdout) && /^# pass 1$/m.test(result.stdout) && /^# fail 0$/m.test(result.stdout) && /^# skipped 0$/m.test(result.stdout);
 if (result.error || result.status !== 0 || !exactMarker || !exactContract || !summaries) fail();
 console.log("recipe layout pool resolution acceptance passed");

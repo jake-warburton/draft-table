@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
+import { exactTestNamePattern } from "./recipe-layout-pool-resolution-test-name.mjs";
 import { completeOmensRecipeCustomCardsAggregateForTest, parseOmensCustomCardsFromTrustedBytes } from "../src/custom-cards.ts";
 import { classifyOmensDraftEligibilityForTest } from "../src/draft-eligibility-classification.ts";
 import { parseOmensLayoutsFromTrustedBytes } from "../src/layouts.ts";
@@ -122,11 +123,11 @@ const loadMutationModules = async () => {
 const runMutation = (mutated, contractName, marker, failure) => withCanonicalSnapshot((directory) => {
   const path = join(directory, "recipe-layout-pool-resolution.ts"); writeFileSync(path, mutated);
   const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(path).href }; delete environment.NODE_TEST_CONTEXT;
-  const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${contractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
+  const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", exactTestNamePattern(contractName), fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
   const lines = result.stdout.split(/\r?\n/);
   assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
   assert.equal(lines.filter((line) => line === `# ${marker}`).length, 1);
-  assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.endsWith(contractName)).length, 1);
+  assert.equal(lines.filter((line) => /^not ok \d+ - /.test(line) && line.replace(/^not ok \d+ - /, "") === contractName).length, 1);
   assert.equal(lines.filter((line) => line.includes(failure)).length, 1);
 });
 

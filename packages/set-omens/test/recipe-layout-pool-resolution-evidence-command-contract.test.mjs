@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { exactTestNamePattern } from "./recipe-layout-pool-resolution-test-name.mjs";
 
 const runner = fileURLToPath(new URL("./recipe-layout-pool-resolution-evidence-command.mjs", import.meta.url));
 const variables = ["OMENS_RECIPE_EVIDENCE_PATH", "FAB_CARD_SOURCE_EVIDENCE_PATH", "FAB_CARD_SCHEMA_EVIDENCE_PATH", "FAB_CARD_VAULT_EVIDENCE_PATH"];
@@ -39,9 +40,26 @@ test("recipe layout pool resolution command rejects usage errors and arbitrary n
 test("recipe layout pool resolution command rejects skipped, nonexecuted, wrong-marker, unrelated-failure, and duplicate contracts", () => {
   rejected(run(`import test from "node:test"; test(${JSON.stringify(contractName)}, { skip: true }, () => {});`));
   rejected(run(`import test from "node:test"; test("wrong contract", () => console.log(${JSON.stringify(marker)}));`));
+  rejected(run(passing.replace(contractName, `prefix ${contractName}`)));
   rejected(run(passing.replace(marker, "WRONG_RECIPE_LAYOUT_POOL_RESOLUTION_MARKER")));
   rejected(run(`${passing}\ntest("unrelated failure", () => { throw new Error("unrelated"); });`));
   rejected(run(`${passing}\ntest(${JSON.stringify(contractName)}, () => console.log(${JSON.stringify(marker)}));`));
+});
+test("recipe layout pool resolution exact targeting escapes regex metacharacters", () => {
+  const directory = mkdtempSync(join(tmpdir(), "draft-table-recipe-layout-pool-pattern-"));
+  const fictionalName = "fictional [layout] (pool)+ contract?";
+  const path = join(directory, "pattern.test.mjs");
+  writeFileSync(path, `import test from "node:test"; test(${JSON.stringify(fictionalName)}, () => console.log("FICTIONAL_CONTRACT_EXECUTED")); test(${JSON.stringify(`prefix ${fictionalName}`)}, () => {});`);
+  try {
+    const environment = { ...process.env }; delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--test", "--test-name-pattern", exactTestNamePattern(fictionalName), path], { encoding: "utf8", env: environment });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /^# FICTIONAL_CONTRACT_EXECUTED$/m);
+    assert.match(result.stdout, /^# tests 1$/m);
+    assert.match(result.stdout, /^# pass 1$/m);
+    assert.match(result.stdout, /^# skipped 0$/m);
+    assert.doesNotMatch(result.stdout, /^ok \d+ - prefix /m);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 test("recipe layout pool resolution command sanitizes inherited context and prints only its exact success marker", () => {
   const result = run(); assert.equal(result.status, 0, result.stderr); assert.equal(result.stdout, "recipe layout pool resolution acceptance passed\n"); assert.equal(result.stderr, "");
