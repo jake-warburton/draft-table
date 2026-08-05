@@ -10,12 +10,15 @@ export type Unsigned32SampleBatchTicketResult = Readonly<
   | { state: "needs-sample"; consumedSamples: number }
 >;
 
+const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;
+const freezeResult: typeof Object.freeze = Object.freeze;
+const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
 const fail = (): never => { throw new UnbiasedUint32TicketMappingError(); };
-const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
+const frozen = <Value>(value: Value): Readonly<Value> => freezeResult(value);
 const isUint32Sample = (value: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value < UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
+  typeof value === "number" && isSafeInteger(value) && value >= 0 && value < UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
 const isAcceptedTicketBound = (value: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value >= 1 && value <= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
+  typeof value === "number" && isSafeInteger(value) && value >= 1 && value <= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
 
 /**
  * Consumes one finite batch of caller-owned uint32 samples in source order.
@@ -28,10 +31,14 @@ export const mapUnsigned32SampleBatchToBoundedTicket = (
     if (inputs.length !== 2 || !Array.isArray(inputs[0]) || !isAcceptedTicketBound(inputs[1])) return fail();
     const suppliedSamples = inputs[0] as readonly unknown[];
     const sampleCount = suppliedSamples.length;
-    if (!Number.isSafeInteger(sampleCount) || sampleCount < 0 || sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
+    if (!isSafeInteger(sampleCount) || sampleCount < 0 || sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
 
     const sampleSnapshot: unknown[] = [];
-    for (let index = 0; index < sampleCount; index++) sampleSnapshot[index] = suppliedSamples[index];
+    for (let index = 0; index < sampleCount; index++) {
+      defineOwnDataProperty(sampleSnapshot, index, {
+        value: suppliedSamples[index], writable: true, enumerable: true, configurable: true
+      });
+    }
     for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
       if (!isUint32Sample(sampleSnapshot[sampleIndex])) return fail();
     }

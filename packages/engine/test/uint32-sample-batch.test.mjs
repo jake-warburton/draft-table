@@ -154,6 +154,26 @@ test("finite uint32 batches snapshot hostile array length and elements exactly o
     Array.prototype.push = originalPush;
   }
 
+  const inheritedIndexDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, "1");
+  const inheritedIndexCorrupting = [0, UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END];
+  Object.defineProperty(inheritedIndexCorrupting, 0, {
+    configurable: true,
+    get() {
+      Object.defineProperty(Array.prototype, "1", {
+        configurable: true,
+        get() { return 0; },
+        set() {}
+      });
+      return 0;
+    }
+  });
+  try {
+    safe(() => mapUnsigned32SampleBatchToBoundedTicket(inheritedIndexCorrupting, 1));
+  } finally {
+    if (inheritedIndexDescriptor === undefined) delete Array.prototype[1];
+    else Object.defineProperty(Array.prototype, "1", inheritedIndexDescriptor);
+  }
+
   const getterReads = [0, 0];
   const mutating = [12, 13];
   Object.defineProperty(mutating, 0, {
@@ -231,6 +251,28 @@ test("finite uint32 batch results are deeply immutable, deterministic, and indep
   const retry = mapUnsigned32SampleBatchToBoundedTicket([UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1], UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1);
   assertNeedsSample(retry, 1);
   assert.throws(() => { retry.state = "accepted"; }, TypeError);
+
+  const originalFreeze = Object.freeze;
+  const acceptedSamples = [12];
+  const exhaustedSamples = [UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1];
+  Object.defineProperty(acceptedSamples, 0, {
+    get() {
+      Object.freeze = (value) => value;
+      return 12;
+    }
+  });
+  Object.defineProperty(exhaustedSamples, 0, {
+    get() {
+      Object.freeze = (value) => value;
+      return UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1;
+    }
+  });
+  try {
+    assertAccepted(mapUnsigned32SampleBatchToBoundedTicket(acceptedSamples, 7), 5, 1);
+    assertNeedsSample(mapUnsigned32SampleBatchToBoundedTicket(exhaustedSamples, UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1), 1);
+  } finally {
+    Object.freeze = originalFreeze;
+  }
 });
 
 const mutationModuleKey = "DRAFT_TABLE_TEST_UINT32_SAMPLE_BATCH_MODULE";
@@ -429,6 +471,144 @@ test("consumed-count semantic mutation fails its exact named contract", () => {
     assert.equal(lines.filter((line) => line === "# FINITE_BATCH_CONSUMED_COUNT_CONTRACT_EXECUTED").length, 1);
     assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === consumedCountContract).length, 1);
     assert.equal(lines.filter((line) => line.includes("CONSUMED_COUNT_MUST_BE_ONE_BASED")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
+});
+
+const ownSnapshotPropertyContract = "finite batch snapshots each caller value as an own data property";
+test(ownSnapshotPropertyContract, async () => {
+  console.log("FINITE_BATCH_OWN_SNAPSHOT_PROPERTY_CONTRACT_EXECUTED");
+  const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
+  const inheritedIndexDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, "1");
+  const samples = [0, UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END];
+  Object.defineProperty(samples, 0, {
+    configurable: true,
+    get() {
+      Object.defineProperty(Array.prototype, "1", {
+        configurable: true,
+        get() { return 0; },
+        set() {}
+      });
+      return 0;
+    }
+  });
+  try {
+    assert.throws(
+      () => mapping.mapUnsigned32SampleBatchToBoundedTicket(samples, 1),
+      (error) => error?.code === "UNBIASED_UINT_TICKET_MAPPING_FAILED",
+      "SNAPSHOT_INDEX_MUST_BE_OWN_DATA_PROPERTY"
+    );
+  } finally {
+    if (inheritedIndexDescriptor === undefined) delete Array.prototype[1];
+    else Object.defineProperty(Array.prototype, "1", inheritedIndexDescriptor);
+  }
+});
+test("own-snapshot-property semantic mutation fails its exact named contract", () => {
+  const before = "defineOwnDataProperty(sampleSnapshot, index, {\n        value: suppliedSamples[index], writable: true, enumerable: true, configurable: true\n      });";
+  const after = "sampleSnapshot[index] = suppliedSamples[index];";
+  const original = readFileSync(sourcePath, "utf8");
+  assert.equal(original.split(before).length - 1, 1);
+  const mutated = original.replace(before, after);
+  assert.equal(mutated.split(after).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(after) - Buffer.byteLength(before));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-uint32-sample-batch-own-property-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "uint32-sample-batch.ts");
+    writeFileSync(mutationPath, mutated);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", `^${ownSnapshotPropertyContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_OWN_SNAPSHOT_PROPERTY_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === ownSnapshotPropertyContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("SNAPSHOT_INDEX_MUST_BE_OWN_DATA_PROPERTY")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
+});
+
+const capturedFreezeContract = "finite batch result freezing survives caller accessor replacement";
+test(capturedFreezeContract, async () => {
+  console.log("FINITE_BATCH_CAPTURED_FREEZE_CONTRACT_EXECUTED");
+  const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
+  const originalFreeze = Object.freeze;
+  const acceptedSamples = [12];
+  const exhaustedSamples = [UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1];
+  Object.defineProperty(acceptedSamples, 0, {
+    get() {
+      Object.freeze = (value) => value;
+      return 12;
+    }
+  });
+  Object.defineProperty(exhaustedSamples, 0, {
+    get() {
+      Object.freeze = (value) => value;
+      return UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1;
+    }
+  });
+  let accepted;
+  let exhausted;
+  try {
+    accepted = mapping.mapUnsigned32SampleBatchToBoundedTicket(acceptedSamples, 7);
+    exhausted = mapping.mapUnsigned32SampleBatchToBoundedTicket(exhaustedSamples, UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1);
+  } finally {
+    Object.freeze = originalFreeze;
+  }
+  assert.equal(Object.isFrozen(accepted), true, "BATCH_RESULT_MUST_USE_CAPTURED_FREEZE");
+  assert.equal(Object.isFrozen(exhausted), true);
+});
+test("captured-freeze semantic mutation fails its exact named contract", () => {
+  const before = "freezeResult(value)";
+  const after = "Object.freeze(value)";
+  const original = readFileSync(sourcePath, "utf8");
+  assert.equal(original.split(before).length - 1, 1);
+  const mutated = original.replace(before, after);
+  assert.equal(mutated.split(after).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(after) - Buffer.byteLength(before));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-uint32-sample-batch-captured-freeze-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "uint32-sample-batch.ts");
+    writeFileSync(mutationPath, mutated);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", `^${capturedFreezeContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_CAPTURED_FREEZE_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === capturedFreezeContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("BATCH_RESULT_MUST_USE_CAPTURED_FREEZE")).length, 1);
   } catch (error) {
     testError = error;
   } finally {
