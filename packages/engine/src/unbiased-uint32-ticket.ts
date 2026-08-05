@@ -4,7 +4,7 @@ export const UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END = 4_294_967_296;
 const defineProperty: typeof Object.defineProperty = Object.defineProperty;
 const freeze: typeof Object.freeze = Object.freeze;
 
-/** Stable, value-free failure for one-sample unsigned-32-bit ticket mapping. */
+/** Stable, value-free failure for unsigned-32-bit ticket mapping. */
 export class UnbiasedUint32TicketMappingError extends Error {
   declare readonly code: "UNBIASED_UINT_TICKET_MAPPING_FAILED";
 

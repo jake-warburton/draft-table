@@ -289,7 +289,7 @@ test(capturedDefinePropertyContract, async () => {
   console.log("FINITE_BATCH_CAPTURED_DEFINE_PROPERTY_CONTRACT_EXECUTED");
   const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
   const originalDefineProperty = Object.defineProperty;
-  const samples = [7];
+  const samples = [7, 8];
   originalDefineProperty(samples, 0, {
     configurable: true,
     get() {
@@ -300,6 +300,8 @@ test(capturedDefinePropertyContract, async () => {
   let result;
   try {
     result = mapping.mapUnsigned32SampleBatchToBoundedTicket(samples, 10);
+  } catch (error) {
+    result = error;
   } finally {
     Object.defineProperty = originalDefineProperty;
   }
