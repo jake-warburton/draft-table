@@ -26,9 +26,8 @@ test("the browser shell identifies Draft Table as an unofficial walking skeleton
 
   assert.match(html, /<title>Draft Table<\/title>/);
   assert.match(html, /<h1>Draft Table<\/h1>/);
-  assert.match(html, /unofficial/i);
-  assert.match(html, /walking skeleton/i);
-  assert.match(html, /No playable draft behavior exists yet\./);
+  assert.match(html, /Playable with invented fixtures only/i);
+  assert.match(html, /engine\/set-omens integration comes later/i);
   assert.match(html, /<main[^>]*>/);
   assert.doesNotMatch(html, /hello world/i);
   assert.doesNotMatch(html, /main\.js/);
