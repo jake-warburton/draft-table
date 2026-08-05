@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { exactTestNamePattern } from "./recipe-layout-pool-resolution-test-name.mjs";
+import { assertPackLocalInitialProjectionMatchesCompiledTables } from "./pack-local-pool-draw-state-evidence-assertions.mjs";
 
 const runner = fileURLToPath(new URL("./pack-local-pool-draw-state-evidence-command.mjs", import.meta.url));
 const variables = ["OMENS_RECIPE_EVIDENCE_PATH", "FAB_CARD_SOURCE_EVIDENCE_PATH", "FAB_CARD_SCHEMA_EVIDENCE_PATH", "FAB_CARD_VAULT_EVIDENCE_PATH"];
@@ -43,6 +44,57 @@ test("pack-local draw-state command rejects usage errors nonexecution arbitrary 
   rejected(run(`${passing}\ntest(${JSON.stringify(contractName)}, () => console.log(${JSON.stringify(marker)}));`));
   rejected(run(passing.replace(`console.log(${JSON.stringify(marker)});`, `console.log(${JSON.stringify(marker)}); console.log(${JSON.stringify(marker)});`)));
 });
+const poolAggregates = [
+  ["Wizard", 24, 159], ["Illusionist", 24, 160], ["Runeblade", 24, 164], ["Lightning", 42, 227],
+  ["Generic", 6, 28], ["Equipment", 14, 148], ["Rare", 60, 120], ["Majestic", 15, 30],
+  ["Rfcommon", 105, 105], ["RFRare", 59, 59], ["RFMajestic", 7, 7]
+];
+const projectionFixture = () => {
+  const poolTables = poolAggregates.map(([sourcePoolLabel, count, total]) => {
+    const poolReference = { sourcePoolLabel }, base = Math.floor(total / count), remainder = total % count;
+    let cumulativeExclusiveEnd = 0;
+    const officialIdentityChoices = Array.from({ length: count }, (_, index) => {
+      const weight = base + (index < remainder ? 1 : 0); cumulativeExclusiveEnd += weight;
+      return { officialIdentityReference: { sourcePoolLabel, index }, weight, cumulativeExclusiveEnd };
+    });
+    return { poolReference, poolTotalWeight: total, officialIdentityChoices };
+  });
+  const poolStates = poolTables.map((table) => ({
+    poolReference: table.poolReference, poolTotalWeight: table.poolTotalWeight,
+    officialIdentityChoices: table.officialIdentityChoices.map((choice) => ({ ...choice }))
+  }));
+  return { tables: { poolTables }, initial: { poolStates } };
+};
+const recompile = (choices) => {
+  let cumulativeExclusiveEnd = 0;
+  return choices.map((choice) => ({ ...choice, cumulativeExclusiveEnd: cumulativeExclusiveEnd += choice.weight }));
+};
+
+test("pack-local evidence initialization rejects source-order and source-weight swaps with unchanged aggregates", () => {
+  const order = projectionFixture();
+  [order.initial.poolStates[0].officialIdentityChoices[0], order.initial.poolStates[0].officialIdentityChoices[1]] = [order.initial.poolStates[0].officialIdentityChoices[1], order.initial.poolStates[0].officialIdentityChoices[0]];
+  order.initial.poolStates[0].officialIdentityChoices = recompile(order.initial.poolStates[0].officialIdentityChoices);
+  assert.throws(() => assertPackLocalInitialProjectionMatchesCompiledTables(order.tables, order.initial));
+
+  const weights = projectionFixture(), choices = weights.initial.poolStates[0].officialIdentityChoices, last = choices.length - 1;
+  [choices[0].weight, choices[last].weight] = [choices[last].weight, choices[0].weight];
+  weights.initial.poolStates[0].officialIdentityChoices = recompile(choices);
+  assert.throws(() => assertPackLocalInitialProjectionMatchesCompiledTables(weights.tables, weights.initial));
+});
+
+test("pack-local evidence source comparison cannot be removed or delayed until after removals", () => {
+  const path = fileURLToPath(new URL("./pack-local-pool-draw-state.pack-local-pool-draw-state-evidence.test.mjs", import.meta.url));
+  const source = readFileSync(path, "utf8"), invocation = "  assertPackLocalInitialProjectionMatchesCompiledTables(tables, initial);", removal = "      const next = removeOmensPackLocalPoolOfficialIdentity";
+  const requiresPreRemovalComparison = (candidate) => {
+    assert.equal(candidate.split(invocation).length - 1, 1);
+    assert.ok(candidate.indexOf(invocation) < candidate.indexOf(removal));
+  };
+  requiresPreRemovalComparison(source);
+  assert.throws(() => requiresPreRemovalComparison(source.replace(invocation, "")));
+  const delayed = source.replace(invocation, "").replace("  assert.ok(crossPoolOverlapCount > 0);", `${invocation}\n  assert.ok(crossPoolOverlapCount > 0);`);
+  assert.throws(() => requiresPreRemovalComparison(delayed));
+});
+
 test("pack-local draw-state exact targeting escapes regex metacharacters", () => {
   const directory = mkdtempSync(join(tmpdir(), "draft-table-pack-local-pool-draw-state-pattern-")), fictionalName = "fictional [pack] (state)+ contract?", path = join(directory, "pattern.test.mjs");
   writeFileSync(path, `import test from "node:test"; test(${JSON.stringify(fictionalName)}, () => console.log("FICTIONAL_CONTRACT_EXECUTED")); test(${JSON.stringify(`prefix ${fictionalName}`)}, () => {});`);

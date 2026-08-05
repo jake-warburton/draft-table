@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { isDeepStrictEqual } from "node:util";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { assertPackLocalInitialProjectionMatchesCompiledTables } from "./pack-local-pool-draw-state-evidence-assertions.mjs";
 import {
   parseVerifiedOmensCustomCards,
   parseVerifiedOmensLayouts,
@@ -57,7 +58,7 @@ test(packLocalPoolDrawStateAcceptanceContractName, { skip: !available ? "four-so
   const tables = compileOmensCollationWeightTables(resolvedLayouts, resolvedPools);
   const initial = initializeOmensPackLocalPoolDrawState(tables);
 
-  assert.equal(initial.poolStates.length, 11);
+  assertPackLocalInitialProjectionMatchesCompiledTables(tables, initial);
   let crossPoolOverlapCount = 0;
   for (let poolIndex = 0; poolIndex < initial.poolStates.length; poolIndex++) {
     const sourcePool = initial.poolStates[poolIndex]; assertRecurrence(sourcePool);
