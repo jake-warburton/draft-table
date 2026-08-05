@@ -244,6 +244,77 @@ test("one-sample captured-freeze semantic mutation fails its exact named contrac
   assert.equal(directory === undefined ? false : existsSync(directory), false);
   if (testError !== undefined) throw testError;
 });
+const capturedErrorDefinePropertyContract = "one-sample mapper uses its captured defineProperty for stable errors";
+test(capturedErrorDefinePropertyContract, async () => {
+  console.log("ONE_SAMPLE_CAPTURED_DEFINE_PROPERTY_CONTRACT_EXECUTED");
+  const mapping = await import(process.env[mutationModuleKey] ?? `${sourcePath.href}?captured-error-define-property`);
+  const originalDefineProperty = Object.defineProperty;
+  let hostileCalls = 0;
+  let error;
+  try {
+    Object.defineProperty = (target) => { hostileCalls++; return target; };
+    try {
+      mapping.mapUnsigned32SampleToBoundedTicket(-1, 10);
+    } catch (caught) {
+      error = caught;
+    }
+  } finally {
+    Object.defineProperty = originalDefineProperty;
+  }
+  assert.equal(hostileCalls, 0, "CAPTURED_DEFINE_PROPERTY_MUST_AVOID_LIVE_INTRINSIC");
+  assert.ok(error instanceof mapping.UnbiasedUint32TicketMappingError, "CAPTURED_ERROR_MUST_REMAIN_INSTANCEOF");
+  assert.equal(Object.getOwnPropertyDescriptor(error, "code")?.value, "UNBIASED_UINT_TICKET_MAPPING_FAILED");
+  assert.equal(Object.getOwnPropertyDescriptor(error, "name")?.value, "UnbiasedUint32TicketMappingError");
+  assert.equal(Object.getOwnPropertyDescriptor(error, "message")?.value, "Unbiased uint32 ticket mapping failed.");
+  assert.equal(Object.getOwnPropertyDescriptor(error, "stack")?.value, "UnbiasedUint32TicketMappingError: Unbiased uint32 ticket mapping failed.");
+  assert.deepEqual(JSON.parse(JSON.stringify(error)), {
+    name: "UnbiasedUint32TicketMappingError",
+    code: "UNBIASED_UINT_TICKET_MAPPING_FAILED"
+  });
+});
+
+test("one-sample captured-defineProperty semantic mutation fails its exact named contract", () => {
+  const anchor = "defineProperty(this, \"code\", {";
+  const replacement = "Object.defineProperty(this, \"code\", {";
+  const original = readFileSync(sourcePath, "utf8");
+  assert.equal(original.split(anchor).length - 1, 1);
+  const mutated = original.replace(anchor, replacement);
+  assert.notEqual(mutated, original);
+  assert.equal(mutated.split(replacement).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(replacement) - Buffer.byteLength(anchor));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-unbiased-captured-define-property-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "unbiased-uint32-ticket.ts");
+    writeFileSync(mutationPath, mutated);
+    assert.equal(readdirSync(directory).filter((file) => file.endsWith(".ts")).length, readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts")).length);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", exactTestNamePattern(capturedErrorDefinePropertyContract), fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# ONE_SAMPLE_CAPTURED_DEFINE_PROPERTY_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === capturedErrorDefinePropertyContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("CAPTURED_DEFINE_PROPERTY_MUST_AVOID_LIVE_INTRINSIC")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
+});
+
 const ownErrorFieldsContract = "mapping errors define stable own fields despite inherited setters";
 test(ownErrorFieldsContract, async () => {
   console.log("ERROR_OWN_FIELDS_CONTRACT_EXECUTED");
