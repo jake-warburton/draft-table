@@ -14,6 +14,42 @@ const safeGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
 const safeDefineProperty = Object.defineProperty;
 const safeDeleteProperty = Reflect.deleteProperty;
 
+const definePropertyContract = "finite batch plan position captured Object.defineProperty preserves exact two-sample snapshot under index-zero poisoning", definePropertyMarker = "FINITE_BATCH_PLAN_POSITION_DEFINE_PROPERTY_CAPTURE_CONTRACT_EXECUTED";
+test(definePropertyContract, async () => {
+  console.log(definePropertyMarker);
+  const moduleUrl = process.env[moduleKey] ?? new URL("../src/finite-batch-plan-position-transition.ts", import.meta.url).href, directory = new URL("./", moduleUrl);
+  const [transition, finite, stateModule, selector, pack, custom, eligibility, layouts, upstream, pools, identity, layoutResolution, poolResolution, compiler] = await Promise.all([import(moduleUrl), import(new URL("finite-batch-collation-plan.ts", directory)), import(new URL("pack-local-pool-draw-state.ts", directory)), import(new URL("pack-local-pool-ticket-selection.ts", directory)), import(new URL("pack-collation-plan.ts", directory)), import(new URL("custom-cards.ts", directory)), import(new URL("draft-eligibility-classification.ts", directory)), import(new URL("layouts.ts", directory)), import(new URL("official-upstream-id-reconciliation.ts", directory)), import(new URL("pools.ts", directory)), import(new URL("recipe-official-identity-reconciliation.ts", directory)), import(new URL("recipe-layout-pool-resolution.ts", directory)), import(new URL("recipe-pool-identity-resolution.ts", directory)), import(new URL("collation-weight-tables.ts", directory))]);
+  const { tables } = fictionalCollationCapabilities({ ...custom, ...eligibility, ...layouts, ...upstream, ...pools, ...identity, ...layoutResolution, ...poolResolution, ...compiler }), initialized = finite.initializeOmensPackCollationPlanFromUnsigned32SampleBatch(tables, [0]); assert.equal(initialized.state, "selected");
+  const drawState = pack.readOmensPackCollationPlanPoolDrawStateForTransition(initialized.plan), poolReference = initialized.layoutReference.slots[0].resolvedPool, expectedIdentity = selector.selectOmensPackLocalPoolOfficialIdentityByTicket(drawState, poolReference, 0), priorDefinePropertyDescriptor = safeGetOwnPropertyDescriptor(globalThis.Object, "defineProperty"), caller = [7, 8];
+  let mapperCalls = 0, snapshotReference, snapshotLength, snapshotValues, snapshotDescriptors, result;
+  safeDefineProperty(caller, "0", { configurable: true, enumerable: true, get() {
+    safeDefineProperty(globalThis.Object, "defineProperty", { ...priorDefinePropertyDescriptor, value: (value) => value });
+    return 7;
+  } });
+  const mapper = (samples) => {
+    mapperCalls++;
+    snapshotReference = samples;
+    snapshotLength = samples.length;
+    snapshotValues = [samples[0], samples[1]];
+    snapshotDescriptors = [safeGetOwnPropertyDescriptor(samples, "0"), safeGetOwnPropertyDescriptor(samples, "1")];
+    return Object.freeze({ state: "accepted", ticket: 0, consumedSamples: 2 });
+  };
+  try {
+    assert.doesNotThrow(() => { result = transition.transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest(initialized.plan, caller, mapper, selector.selectOmensPackLocalPoolOfficialIdentityByTicket, stateModule.removeOmensPackLocalPoolOfficialIdentity, pack.registerOmensPackCollationPlanPositionTransition); }, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT");
+  } finally {
+    safeDefineProperty(globalThis.Object, "defineProperty", priorDefinePropertyDescriptor);
+  }
+  assert.deepEqual(safeGetOwnPropertyDescriptor(globalThis.Object, "defineProperty"), priorDefinePropertyDescriptor, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT");
+  assert.equal(mapperCalls, 1, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT"); assert.notEqual(snapshotReference, caller, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT");
+  assert.equal(snapshotLength, 2, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT"); assert.deepEqual(snapshotValues, [7, 8], "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT");
+  assert.deepEqual(snapshotDescriptors, [{ value: 7, writable: false, enumerable: true, configurable: false }, { value: 8, writable: false, enumerable: true, configurable: false }], "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT");
+  assert.equal(result.state, "selected", "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT"); assert.equal(result.consumedSamples, 2, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT"); assert.equal(result.officialIdentityReference, expectedIdentity, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT");
+});
+test("Object.defineProperty live-global wrapper mutation fails its exact named reachable contract in the owning suite", () => {
+  const sourcePath = new URL("../src/finite-batch-plan-position-transition.ts", import.meta.url), anchor = "const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;", replacement = "const defineOwnDataProperty = ((value: object, property: PropertyKey, descriptor: PropertyDescriptor) => globalThis.Object.defineProperty(value, property, descriptor)) as typeof Object.defineProperty;", original = readFileSync(sourcePath, "utf8"), mutated = original.replace(anchor, replacement); assert.equal(original.split(anchor).length - 1, 1, "DEFINE_PROPERTY_CAPTURE_ANCHOR_MUST_BE_UNIQUE"); assert.notEqual(Buffer.compare(Buffer.from(original), Buffer.from(mutated)), 0, "DEFINE_PROPERTY_CAPTURE_MUTATION_BYTES_MUST_CHANGE");
+  let snapshot; try { snapshot = mkdtempSync(join(tmpdir(), "draft-table-position-define-property-capture-")); const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url)); for (const file of readdirSync(sourceDirectory).filter((entry) => entry.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(snapshot, file)); symlinkSync(join(sourceDirectory, "../../../node_modules"), join(snapshot, "node_modules"), "dir"); writeFileSync(join(snapshot, "finite-batch-plan-position-transition.ts"), mutated); writeFileSync(join(snapshot, "tsconfig.json"), '{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"bundler","strict":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["*.ts"]}'); const checked = spawnSync(join(snapshot, "node_modules", ".bin", "tsc"), ["-p", join(snapshot, "tsconfig.json")], { encoding: "utf8" }); assert.equal(checked.status, 0, `${checked.stdout}\n${checked.stderr}`); const environment = { ...process.env, [moduleKey]: pathToFileURL(join(snapshot, "finite-batch-plan-position-transition.ts")).href }; delete environment.NODE_TEST_CONTEXT; const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${definePropertyContract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment }), lines = result.stdout.split(/\r?\n/u); assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`); assert.equal(lines.filter((line) => line === `# ${definePropertyMarker}`).length, 1); assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === definePropertyContract).length, 1); assert.equal(lines.filter((line) => line.includes("DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_EXACT_TWO_SAMPLE_SNAPSHOT")).length, 1); } finally { if (snapshot !== undefined) rmSync(snapshot, { recursive: true, force: true }); }
+});
+
 const needMoreContract = "finite batch plan position need-more cannot select remove or register", needMoreMarker = "FINITE_BATCH_PLAN_POSITION_NEED_MORE_CONTRACT_EXECUTED";
 test(needMoreContract, async () => {
   console.log(needMoreMarker);

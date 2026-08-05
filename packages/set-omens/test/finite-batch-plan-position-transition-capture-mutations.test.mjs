@@ -6,12 +6,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
-import { UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END, mapUnsigned32SampleBatchToBoundedTicket } from "@draft-table/engine";
 import { fictionalCollationCapabilities } from "./fictional-collation-capabilities.mjs";
 
-// Task-module capture inventory: Array.isArray is proved in the owning mutation suite and
-// Object.freeze by its existing hardened-output cross-attack (captain-measured live swap).
-// This file independently proves Object.defineProperty, Object.getOwnPropertyDescriptor,
+// Task-module capture inventory: Array.isArray and Object.defineProperty are proved in the
+// owning mutation suite, and Object.freeze by its existing hardened-output cross-attack
+// (captain-measured live swap). This file independently proves Object.getOwnPropertyDescriptor,
 // Reflect.ownKeys, Object.isFrozen, Number.isSafeInteger, and the one shared captured
 // WeakSet has/add pair used by both independent freshness sets. WeakSet construction and
 // Function.call/bind are completed during module evaluation, before any exported call or
@@ -21,45 +20,6 @@ const safeDefineProperty = Object.defineProperty;
 const safeGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
 const safeWeakSetHas = Function.prototype.call.bind(WeakSet.prototype.has);
 const safeWeakSetAdd = Function.prototype.call.bind(WeakSet.prototype.add);
-
-const definePropertyContract = "finite batch plan position captured Object.defineProperty preserves a later snapshot own write after index-zero poisoning", definePropertyMarker = "FINITE_BATCH_PLAN_POSITION_DEFINE_PROPERTY_CAPTURE_CONTRACT_EXECUTED";
-test(definePropertyContract, async () => {
-  console.log(definePropertyMarker);
-  const moduleUrl = process.env[moduleKey] ?? new URL("../src/finite-batch-plan-position-transition.ts", import.meta.url).href, directory = new URL("./", moduleUrl);
-  const [transition, finite, stateModule, selector, pack, custom, eligibility, layouts, upstream, pools, identity, layoutResolution, poolResolution, compiler] = await Promise.all([import(moduleUrl), import(new URL("finite-batch-collation-plan.ts", directory)), import(new URL("pack-local-pool-draw-state.ts", directory)), import(new URL("pack-local-pool-ticket-selection.ts", directory)), import(new URL("pack-collation-plan.ts", directory)), import(new URL("custom-cards.ts", directory)), import(new URL("draft-eligibility-classification.ts", directory)), import(new URL("layouts.ts", directory)), import(new URL("official-upstream-id-reconciliation.ts", directory)), import(new URL("pools.ts", directory)), import(new URL("recipe-official-identity-reconciliation.ts", directory)), import(new URL("recipe-layout-pool-resolution.ts", directory)), import(new URL("recipe-pool-identity-resolution.ts", directory)), import(new URL("collation-weight-tables.ts", directory))]);
-  const { tables } = fictionalCollationCapabilities({ ...custom, ...eligibility, ...layouts, ...upstream, ...pools, ...identity, ...layoutResolution, ...poolResolution, ...compiler }), initialized = finite.initializeOmensPackCollationPlanFromUnsigned32SampleBatch(tables, [0]); assert.equal(initialized.state, "selected");
-  const drawState = pack.readOmensPackCollationPlanPoolDrawStateForTransition(initialized.plan), poolReference = initialized.layoutReference.slots[0].resolvedPool, pool = drawState.poolStates.find((entry) => entry.poolReference === poolReference), retry = UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END % pool.poolTotalWeight, expectedIdentity = selector.selectOmensPackLocalPoolOfficialIdentityByTicket(drawState, poolReference, 0), priorDefinePropertyDescriptor = safeGetOwnPropertyDescriptor(globalThis.Object, "defineProperty"), caller = [retry, 0];
-  assert.ok(retry < UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE");
-  let poisonCalls = 0, snapshotReference, snapshotValues, snapshotDescriptors, result;
-  safeDefineProperty(caller, "0", { configurable: true, enumerable: true, get() {
-    safeDefineProperty(globalThis.Object, "defineProperty", { ...priorDefinePropertyDescriptor, value(value, property, descriptor) {
-      poisonCalls++;
-      return safeDefineProperty(value, property, property === 1 ? { ...descriptor, value: retry } : descriptor);
-    } });
-    return retry;
-  } });
-  const mapper = (samples, bound) => {
-    snapshotReference = samples;
-    snapshotValues = [samples[0], samples[1]];
-    snapshotDescriptors = [safeGetOwnPropertyDescriptor(samples, "0"), safeGetOwnPropertyDescriptor(samples, "1")];
-    return mapUnsigned32SampleBatchToBoundedTicket(samples, bound);
-  };
-  try {
-    assert.doesNotThrow(() => { result = transition.transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest(initialized.plan, caller, mapper, selector.selectOmensPackLocalPoolOfficialIdentityByTicket, stateModule.removeOmensPackLocalPoolOfficialIdentity, pack.registerOmensPackCollationPlanPositionTransition); }, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE");
-  } finally {
-    safeDefineProperty(globalThis.Object, "defineProperty", priorDefinePropertyDescriptor);
-  }
-  assert.deepEqual(safeGetOwnPropertyDescriptor(globalThis.Object, "defineProperty"), priorDefinePropertyDescriptor, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE");
-  assert.notEqual(snapshotReference, caller, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE");
-  assert.deepEqual(snapshotValues, [retry, 0], "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE");
-  assert.deepEqual(snapshotDescriptors, [{ value: retry, writable: false, enumerable: true, configurable: false }, { value: 0, writable: false, enumerable: true, configurable: false }], "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE");
-  assert.equal(poisonCalls, 0, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE");
-  assert.equal(result.state, "selected", "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE"); assert.equal(result.consumedSamples, 2, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE"); assert.equal(result.officialIdentityReference, expectedIdentity, "DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE");
-});
-test("Object.defineProperty live-global wrapper mutation fails its exact named reachable contract", () => {
-  const sourcePath = new URL("../src/finite-batch-plan-position-transition.ts", import.meta.url), anchor = "const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;", replacement = "const defineOwnDataProperty = ((value: object, property: PropertyKey, descriptor: PropertyDescriptor) => globalThis.Object.defineProperty(value, property, descriptor)) as typeof Object.defineProperty;", original = readFileSync(sourcePath, "utf8"), mutated = original.replace(anchor, replacement); assert.equal(original.split(anchor).length - 1, 1, "DEFINE_PROPERTY_CAPTURE_ANCHOR_MUST_BE_UNIQUE"); assert.notEqual(Buffer.compare(Buffer.from(original), Buffer.from(mutated)), 0, "DEFINE_PROPERTY_CAPTURE_MUTATION_BYTES_MUST_CHANGE");
-  let snapshot; try { snapshot = mkdtempSync(join(tmpdir(), "draft-table-position-define-property-capture-")); const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url)); for (const file of readdirSync(sourceDirectory).filter((entry) => entry.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(snapshot, file)); symlinkSync(join(sourceDirectory, "../../../node_modules"), join(snapshot, "node_modules"), "dir"); writeFileSync(join(snapshot, "finite-batch-plan-position-transition.ts"), mutated); writeFileSync(join(snapshot, "tsconfig.json"), '{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"bundler","strict":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["*.ts"]}'); const checked = spawnSync(join(snapshot, "node_modules", ".bin", "tsc"), ["-p", join(snapshot, "tsconfig.json")], { encoding: "utf8" }); assert.equal(checked.status, 0, `${checked.stdout}\n${checked.stderr}`); const environment = { ...process.env, [moduleKey]: pathToFileURL(join(snapshot, "finite-batch-plan-position-transition.ts")).href }; delete environment.NODE_TEST_CONTEXT; const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${definePropertyContract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment }), lines = result.stdout.split(/\r?\n/u); assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`); assert.equal(lines.filter((line) => line === `# ${definePropertyMarker}`).length, 1); assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === definePropertyContract).length, 1); assert.equal(lines.filter((line) => line.includes("DEFINE_PROPERTY_CAPTURE_MUST_PRESERVE_LATER_SNAPSHOT_OWN_WRITE")).length, 1); } finally { if (snapshot !== undefined) rmSync(snapshot, { recursive: true, force: true }); }
-});
 
 const descriptorContract = "finite batch plan position captures Object.getOwnPropertyDescriptor before hostile caller reads", descriptorMarker = "FINITE_BATCH_PLAN_POSITION_GET_OWN_PROPERTY_DESCRIPTOR_CAPTURE_CONTRACT_EXECUTED";
 test(descriptorContract, async () => {

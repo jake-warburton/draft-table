@@ -130,8 +130,8 @@ const snapshotFiniteBatch = (batchInput: unknown): Readonly<{
       value: batchInput[index], writable: false, enumerable: true, configurable: false
     });
   }
-  // Defense-in-depth for a future construction bug: captured prototype-safe own writes
-  // with sequential numeric keys make this mismatch unreachable in the current construction.
+  // Captured prototype-safe numeric own writes make this mismatch unreachable today;
+  // retain it to convert a capture-regression empty snapshot into stable rejection.
   if (sampleSnapshot.length !== sampleCount) return fail();
   return { samples: frozen(sampleSnapshot) as readonly number[], sampleCount };
 };
