@@ -123,6 +123,206 @@ const pack_local_pool_draw_state_setHasContract = "finite batch plan captures Se
 test(pack_local_pool_draw_state_setHasContract, async () => { console.log(pack_local_pool_draw_state_setHasMarker); const moduleUrl = process.env[moduleKey] ?? finiteSourcePath.href, directory = new URL("./", moduleUrl), [plan, custom, eligibility, layouts, upstream, pools, identity, layoutResolution, poolResolution, compiler, packPlan] = await Promise.all([import(moduleUrl), import(new URL("custom-cards.ts", directory)), import(new URL("draft-eligibility-classification.ts", directory)), import(new URL("layouts.ts", directory)), import(new URL("official-upstream-id-reconciliation.ts", directory)), import(new URL("pools.ts", directory)), import(new URL("recipe-official-identity-reconciliation.ts", directory)), import(new URL("recipe-layout-pool-resolution.ts", directory)), import(new URL("recipe-pool-identity-resolution.ts", directory)), import(new URL("collation-weight-tables.ts", directory)), import(new URL("pack-collation-plan.ts", directory))]), capabilities = fictionalCollationCapabilities({ ...custom, ...eligibility, ...layouts, ...upstream, ...pools, ...identity, ...layoutResolution, ...poolResolution, ...compiler }); const owner = Set.prototype, original = owner["has"]; let result; try { const samples = [0]; Object.defineProperty(samples, 0, { configurable: true, enumerable: true, get() { owner["has"] = () => { throw new Error("poisoned"); }; return 0; } }); assert.doesNotThrow(() => { result = plan.initializeOmensPackCollationPlanFromUnsigned32SampleBatch(capabilities.tables, samples); }, "PACK_LOCAL_POOL_DRAW_STATE_SETHAS_MUST_SURVIVE_HOSTILE_GETTER"); assert.equal(result.state, "selected", "PACK_LOCAL_POOL_DRAW_STATE_SETHAS_MUST_SURVIVE_HOSTILE_GETTER"); assert.doesNotThrow(() => { assert.equal(packPlan.readOmensPackCollationPlanNextPositionForTransition(result.plan), 0); }, "PACK_LOCAL_POOL_DRAW_STATE_SETHAS_MUST_SURVIVE_HOSTILE_GETTER"); } finally { owner["has"] = original; } });
 test("finite batch setHas capture mutation in pack-local-pool-draw-state.ts fails its exact named contract", () => { const sourcePath = new URL("../src/pack-local-pool-draw-state.ts", import.meta.url), original = readFileSync(sourcePath, "utf8"), anchor = "const setHas = Function.prototype.call.bind(Set.prototype.has) as <Value>(set: Set<Value>, value: Value) => boolean;", replacement = "const setHas = (<Value>(set: Set<Value>, value: Value) => Set.prototype.has.call(set, value)) as <Value>(set: Set<Value>, value: Value) => boolean;"; assert.equal(original.split(anchor).length - 1, 1); const mutated = original.replace(anchor, replacement); assert.notEqual(mutated, original); let snapshot; try { snapshot = mkdtempSync(join(tmpdir(), "draft-table-pack_local_pool_draw_state_setHas-")); const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url)); for (const sourceFile of readdirSync(sourceDirectory).filter((candidate) => candidate.endsWith(".ts"))) copyFileSync(join(sourceDirectory, sourceFile), join(snapshot, sourceFile)); symlinkSync(join(sourceDirectory, "../../../node_modules"), join(snapshot, "node_modules"), "dir"); writeFileSync(join(snapshot, "pack-local-pool-draw-state.ts"), mutated); writeFileSync(join(snapshot, "tsconfig.json"), '{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"bundler","strict":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["*.ts"]}'); const typecheck = spawnSync(join(snapshot, "node_modules", ".bin", "tsc"), ["-p", join(snapshot, "tsconfig.json")], { encoding: "utf8" }); assert.equal(typecheck.status, 0, typecheck.stdout + "\n" + typecheck.stderr); const environment = { ...process.env, [moduleKey]: pathToFileURL(join(snapshot, "finite-batch-collation-plan.ts")).href }; delete environment.NODE_TEST_CONTEXT; const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", exactPattern(pack_local_pool_draw_state_setHasContract), fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment }), lines = result.stdout.split(/\r?\n/u); assert.equal(result.status, 1, result.stdout + "\n" + result.stderr); assert.equal(lines.filter((line) => line === "# " + pack_local_pool_draw_state_setHasMarker).length, 1); assert.equal(lines.filter((line) => line.startsWith("not ok ") && line.includes(pack_local_pool_draw_state_setHasContract)).length, 1); assert.equal(lines.filter((line) => line.includes("PACK_LOCAL_POOL_DRAW_STATE_SETHAS_MUST_SURVIVE_HOSTILE_GETTER")).length, 1); } finally { if (snapshot !== undefined) rmSync(snapshot, { recursive: true, force: true }); } });
 
+const collation_weight_tables_freezeContract = "finite batch plan captures Object.freeze in collation-weight-tables.ts", collation_weight_tables_freezeMarker = "COLLATION_WEIGHT_TABLES_FREEZE_CONTRACT_EXECUTED";
+test(collation_weight_tables_freezeContract, async () => {
+  console.log(collation_weight_tables_freezeMarker);
+  const moduleUrl = process.env[moduleKey] ?? finiteSourcePath.href, directory = new URL("./", moduleUrl);
+  const [plan, custom, eligibility, layouts, upstream, pools, identity, layoutResolution, poolResolution, compiler, packPlan] = await Promise.all([import(moduleUrl), import(new URL("custom-cards.ts", directory)), import(new URL("draft-eligibility-classification.ts", directory)), import(new URL("layouts.ts", directory)), import(new URL("official-upstream-id-reconciliation.ts", directory)), import(new URL("pools.ts", directory)), import(new URL("recipe-official-identity-reconciliation.ts", directory)), import(new URL("recipe-layout-pool-resolution.ts", directory)), import(new URL("recipe-pool-identity-resolution.ts", directory)), import(new URL("collation-weight-tables.ts", directory)), import(new URL("pack-collation-plan.ts", directory))]);
+  const capabilities = fictionalCollationCapabilities({ ...custom, ...eligibility, ...layouts, ...upstream, ...pools, ...identity, ...layoutResolution, ...poolResolution, ...compiler }), owner = Object, original = owner["freeze"];
+  let result;
+  try {
+    const samples = [0];
+    Object.defineProperty(samples, 0, { configurable: true, enumerable: true, get() { owner["freeze"] = () => { throw new Error("poisoned"); }; return 0; } });
+    assert.doesNotThrow(() => { result = plan.initializeOmensPackCollationPlanFromUnsigned32SampleBatch(capabilities.tables, samples); }, "COLLATION_WEIGHT_TABLES_FREEZE_MUST_SURVIVE_HOSTILE_GETTER");
+    assert.equal(result.state, "selected", "COLLATION_WEIGHT_TABLES_FREEZE_MUST_SURVIVE_HOSTILE_GETTER");
+    assert.doesNotThrow(() => { assert.equal(packPlan.readOmensPackCollationPlanNextPositionForTransition(result.plan), 0); }, "COLLATION_WEIGHT_TABLES_FREEZE_MUST_SURVIVE_HOSTILE_GETTER");
+  } finally { owner["freeze"] = original; }
+});
+test("finite batch freeze capture mutation in collation-weight-tables.ts fails its exact named contract", () => {
+  const sourcePath = new URL("../src/collation-weight-tables.ts", import.meta.url), original = readFileSync(sourcePath, "utf8"), anchor = "const freeze: typeof Object.freeze = Object.freeze;", replacement = "const freeze: typeof Object.freeze = ((value: object) => Object.freeze(value)) as typeof Object.freeze;";
+  assert.equal(original.split(anchor).length - 1, 1);
+  const mutated = original.replace(anchor, replacement);
+  assert.notEqual(mutated, original);
+  let snapshot;
+  try {
+    snapshot = mkdtempSync(join(tmpdir(), "draft-table-collation_weight_tables_freeze-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const sourceFile of readdirSync(sourceDirectory).filter((candidate) => candidate.endsWith(".ts"))) copyFileSync(join(sourceDirectory, sourceFile), join(snapshot, sourceFile));
+    symlinkSync(join(sourceDirectory, "../../../node_modules"), join(snapshot, "node_modules"), "dir");
+    writeFileSync(join(snapshot, "collation-weight-tables.ts"), mutated);
+    writeFileSync(join(snapshot, "tsconfig.json"), '{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"bundler","strict":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["*.ts"]}');
+    const typecheck = spawnSync(join(snapshot, "node_modules", ".bin", "tsc"), ["-p", join(snapshot, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, typecheck.stdout + "\n" + typecheck.stderr);
+    const environment = { ...process.env, [moduleKey]: pathToFileURL(join(snapshot, "finite-batch-collation-plan.ts")).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", exactPattern(collation_weight_tables_freezeContract), fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment }), lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, result.stdout + "\n" + result.stderr);
+    assert.equal(lines.filter((line) => line === "# " + collation_weight_tables_freezeMarker).length, 1);
+    assert.equal(lines.filter((line) => line.startsWith("not ok ") && line.includes(collation_weight_tables_freezeContract)).length, 1);
+    assert.equal(lines.filter((line) => line.includes("COLLATION_WEIGHT_TABLES_FREEZE_MUST_SURVIVE_HOSTILE_GETTER")).length, 1);
+  } finally { if (snapshot !== undefined) rmSync(snapshot, { recursive: true, force: true }); }
+});
+
+const pack_collation_plan_freezeContract = "finite batch plan captures Object.freeze in pack-collation-plan.ts", pack_collation_plan_freezeMarker = "PACK_COLLATION_PLAN_FREEZE_CONTRACT_EXECUTED";
+test(pack_collation_plan_freezeContract, async () => {
+  console.log(pack_collation_plan_freezeMarker);
+  const moduleUrl = process.env[moduleKey] ?? finiteSourcePath.href, directory = new URL("./", moduleUrl);
+  const [plan, custom, eligibility, layouts, upstream, pools, identity, layoutResolution, poolResolution, compiler, packPlan] = await Promise.all([import(moduleUrl), import(new URL("custom-cards.ts", directory)), import(new URL("draft-eligibility-classification.ts", directory)), import(new URL("layouts.ts", directory)), import(new URL("official-upstream-id-reconciliation.ts", directory)), import(new URL("pools.ts", directory)), import(new URL("recipe-official-identity-reconciliation.ts", directory)), import(new URL("recipe-layout-pool-resolution.ts", directory)), import(new URL("recipe-pool-identity-resolution.ts", directory)), import(new URL("collation-weight-tables.ts", directory)), import(new URL("pack-collation-plan.ts", directory))]);
+  const capabilities = fictionalCollationCapabilities({ ...custom, ...eligibility, ...layouts, ...upstream, ...pools, ...identity, ...layoutResolution, ...poolResolution, ...compiler }), owner = Object, original = owner["freeze"];
+  let result;
+  try {
+    const samples = [0];
+    Object.defineProperty(samples, 0, { configurable: true, enumerable: true, get() { owner["freeze"] = () => { throw new Error("poisoned"); }; return 0; } });
+    assert.doesNotThrow(() => { result = plan.initializeOmensPackCollationPlanFromUnsigned32SampleBatch(capabilities.tables, samples); }, "PACK_COLLATION_PLAN_FREEZE_MUST_SURVIVE_HOSTILE_GETTER");
+    assert.equal(result.state, "selected", "PACK_COLLATION_PLAN_FREEZE_MUST_SURVIVE_HOSTILE_GETTER");
+    assert.doesNotThrow(() => { assert.equal(packPlan.readOmensPackCollationPlanNextPositionForTransition(result.plan), 0); }, "PACK_COLLATION_PLAN_FREEZE_MUST_SURVIVE_HOSTILE_GETTER");
+  } finally { owner["freeze"] = original; }
+});
+test("finite batch freeze capture mutation in pack-collation-plan.ts fails its exact named contract", () => {
+  const sourcePath = new URL("../src/pack-collation-plan.ts", import.meta.url), original = readFileSync(sourcePath, "utf8"), anchor = "const freeze: typeof Object.freeze = Object.freeze;", replacement = "const freeze: typeof Object.freeze = ((value: object) => Object.freeze(value)) as typeof Object.freeze;";
+  assert.equal(original.split(anchor).length - 1, 1);
+  const mutated = original.replace(anchor, replacement);
+  assert.notEqual(mutated, original);
+  let snapshot;
+  try {
+    snapshot = mkdtempSync(join(tmpdir(), "draft-table-pack_collation_plan_freeze-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const sourceFile of readdirSync(sourceDirectory).filter((candidate) => candidate.endsWith(".ts"))) copyFileSync(join(sourceDirectory, sourceFile), join(snapshot, sourceFile));
+    symlinkSync(join(sourceDirectory, "../../../node_modules"), join(snapshot, "node_modules"), "dir");
+    writeFileSync(join(snapshot, "pack-collation-plan.ts"), mutated);
+    writeFileSync(join(snapshot, "tsconfig.json"), '{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"bundler","strict":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["*.ts"]}');
+    const typecheck = spawnSync(join(snapshot, "node_modules", ".bin", "tsc"), ["-p", join(snapshot, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, typecheck.stdout + "\n" + typecheck.stderr);
+    const environment = { ...process.env, [moduleKey]: pathToFileURL(join(snapshot, "finite-batch-collation-plan.ts")).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", exactPattern(pack_collation_plan_freezeContract), fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment }), lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, result.stdout + "\n" + result.stderr);
+    assert.equal(lines.filter((line) => line === "# " + pack_collation_plan_freezeMarker).length, 1);
+    assert.equal(lines.filter((line) => line.startsWith("not ok ") && line.includes(pack_collation_plan_freezeContract)).length, 1);
+    assert.equal(lines.filter((line) => line.includes("PACK_COLLATION_PLAN_FREEZE_MUST_SURVIVE_HOSTILE_GETTER")).length, 1);
+  } finally { if (snapshot !== undefined) rmSync(snapshot, { recursive: true, force: true }); }
+});
+
+const pack_collation_plan_isFrozenContract = "finite batch plan captures Object.isFrozen in pack-collation-plan.ts", pack_collation_plan_isFrozenMarker = "PACK_COLLATION_PLAN_ISFROZEN_CONTRACT_EXECUTED";
+test(pack_collation_plan_isFrozenContract, async () => {
+  console.log(pack_collation_plan_isFrozenMarker);
+  const moduleUrl = process.env[moduleKey] ?? finiteSourcePath.href, directory = new URL("./", moduleUrl);
+  const [plan, custom, eligibility, layouts, upstream, pools, identity, layoutResolution, poolResolution, compiler, packPlan] = await Promise.all([import(moduleUrl), import(new URL("custom-cards.ts", directory)), import(new URL("draft-eligibility-classification.ts", directory)), import(new URL("layouts.ts", directory)), import(new URL("official-upstream-id-reconciliation.ts", directory)), import(new URL("pools.ts", directory)), import(new URL("recipe-official-identity-reconciliation.ts", directory)), import(new URL("recipe-layout-pool-resolution.ts", directory)), import(new URL("recipe-pool-identity-resolution.ts", directory)), import(new URL("collation-weight-tables.ts", directory)), import(new URL("pack-collation-plan.ts", directory))]);
+  const capabilities = fictionalCollationCapabilities({ ...custom, ...eligibility, ...layouts, ...upstream, ...pools, ...identity, ...layoutResolution, ...poolResolution, ...compiler }), owner = Object, original = owner["isFrozen"];
+  let result;
+  try {
+    const samples = [0];
+    Object.defineProperty(samples, 0, { configurable: true, enumerable: true, get() { owner["isFrozen"] = () => { throw new Error("poisoned"); }; return 0; } });
+    assert.doesNotThrow(() => { result = plan.initializeOmensPackCollationPlanFromUnsigned32SampleBatch(capabilities.tables, samples); }, "PACK_COLLATION_PLAN_ISFROZEN_MUST_SURVIVE_HOSTILE_GETTER");
+    assert.equal(result.state, "selected", "PACK_COLLATION_PLAN_ISFROZEN_MUST_SURVIVE_HOSTILE_GETTER");
+    assert.doesNotThrow(() => { assert.equal(packPlan.readOmensPackCollationPlanNextPositionForTransition(result.plan), 0); }, "PACK_COLLATION_PLAN_ISFROZEN_MUST_SURVIVE_HOSTILE_GETTER");
+  } finally { owner["isFrozen"] = original; }
+});
+test("finite batch isFrozen capture mutation in pack-collation-plan.ts fails its exact named contract", () => {
+  const sourcePath = new URL("../src/pack-collation-plan.ts", import.meta.url), original = readFileSync(sourcePath, "utf8"), anchor = "const isFrozen: typeof Object.isFrozen = Object.isFrozen;", replacement = "const isFrozen: typeof Object.isFrozen = (value) => Object.isFrozen(value);";
+  assert.equal(original.split(anchor).length - 1, 1);
+  const mutated = original.replace(anchor, replacement);
+  assert.notEqual(mutated, original);
+  let snapshot;
+  try {
+    snapshot = mkdtempSync(join(tmpdir(), "draft-table-pack_collation_plan_isFrozen-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const sourceFile of readdirSync(sourceDirectory).filter((candidate) => candidate.endsWith(".ts"))) copyFileSync(join(sourceDirectory, sourceFile), join(snapshot, sourceFile));
+    symlinkSync(join(sourceDirectory, "../../../node_modules"), join(snapshot, "node_modules"), "dir");
+    writeFileSync(join(snapshot, "pack-collation-plan.ts"), mutated);
+    writeFileSync(join(snapshot, "tsconfig.json"), '{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"bundler","strict":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["*.ts"]}');
+    const typecheck = spawnSync(join(snapshot, "node_modules", ".bin", "tsc"), ["-p", join(snapshot, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, typecheck.stdout + "\n" + typecheck.stderr);
+    const environment = { ...process.env, [moduleKey]: pathToFileURL(join(snapshot, "finite-batch-collation-plan.ts")).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", exactPattern(pack_collation_plan_isFrozenContract), fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment }), lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, result.stdout + "\n" + result.stderr);
+    assert.equal(lines.filter((line) => line === "# " + pack_collation_plan_isFrozenMarker).length, 1);
+    assert.equal(lines.filter((line) => line.startsWith("not ok ") && line.includes(pack_collation_plan_isFrozenContract)).length, 1);
+    assert.equal(lines.filter((line) => line.includes("PACK_COLLATION_PLAN_ISFROZEN_MUST_SURVIVE_HOSTILE_GETTER")).length, 1);
+  } finally { if (snapshot !== undefined) rmSync(snapshot, { recursive: true, force: true }); }
+});
+
+const pack_collation_plan_mapConstructorContract = "finite batch plan captures global Map constructor in pack-collation-plan.ts", pack_collation_plan_mapConstructorMarker = "PACK_COLLATION_PLAN_MAPCONSTRUCTOR_CONTRACT_EXECUTED";
+test(pack_collation_plan_mapConstructorContract, async () => {
+  console.log(pack_collation_plan_mapConstructorMarker);
+  const moduleUrl = process.env[moduleKey] ?? finiteSourcePath.href, directory = new URL("./", moduleUrl);
+  const [plan, custom, eligibility, layouts, upstream, pools, identity, layoutResolution, poolResolution, compiler, packPlan] = await Promise.all([import(moduleUrl), import(new URL("custom-cards.ts", directory)), import(new URL("draft-eligibility-classification.ts", directory)), import(new URL("layouts.ts", directory)), import(new URL("official-upstream-id-reconciliation.ts", directory)), import(new URL("pools.ts", directory)), import(new URL("recipe-official-identity-reconciliation.ts", directory)), import(new URL("recipe-layout-pool-resolution.ts", directory)), import(new URL("recipe-pool-identity-resolution.ts", directory)), import(new URL("collation-weight-tables.ts", directory)), import(new URL("pack-collation-plan.ts", directory))]);
+  const capabilities = fictionalCollationCapabilities({ ...custom, ...eligibility, ...layouts, ...upstream, ...pools, ...identity, ...layoutResolution, ...poolResolution, ...compiler }), owner = globalThis, original = owner["Map"];
+  let result;
+  try {
+    const samples = [0];
+    Object.defineProperty(samples, 0, { configurable: true, enumerable: true, get() { owner["Map"] = function () { throw new Error("poisoned"); }; return 0; } });
+    assert.doesNotThrow(() => { result = plan.initializeOmensPackCollationPlanFromUnsigned32SampleBatch(capabilities.tables, samples); }, "PACK_COLLATION_PLAN_MAPCONSTRUCTOR_MUST_SURVIVE_HOSTILE_GETTER");
+    assert.equal(result.state, "selected", "PACK_COLLATION_PLAN_MAPCONSTRUCTOR_MUST_SURVIVE_HOSTILE_GETTER");
+    assert.doesNotThrow(() => { assert.equal(packPlan.readOmensPackCollationPlanNextPositionForTransition(result.plan), 0); }, "PACK_COLLATION_PLAN_MAPCONSTRUCTOR_MUST_SURVIVE_HOSTILE_GETTER");
+  } finally { owner["Map"] = original; }
+});
+test("finite batch mapConstructor capture mutation in pack-collation-plan.ts fails its exact named contract", () => {
+  const sourcePath = new URL("../src/pack-collation-plan.ts", import.meta.url), original = readFileSync(sourcePath, "utf8"), anchor = "const mapConstructor: typeof Map = Map;", replacement = "const mapConstructor: typeof Map = new Proxy(Map, { construct(_target, values) { return Reflect.construct(globalThis.Map, values); } });";
+  assert.equal(original.split(anchor).length - 1, 1);
+  const mutated = original.replace(anchor, replacement);
+  assert.notEqual(mutated, original);
+  let snapshot;
+  try {
+    snapshot = mkdtempSync(join(tmpdir(), "draft-table-pack_collation_plan_mapConstructor-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const sourceFile of readdirSync(sourceDirectory).filter((candidate) => candidate.endsWith(".ts"))) copyFileSync(join(sourceDirectory, sourceFile), join(snapshot, sourceFile));
+    symlinkSync(join(sourceDirectory, "../../../node_modules"), join(snapshot, "node_modules"), "dir");
+    writeFileSync(join(snapshot, "pack-collation-plan.ts"), mutated);
+    writeFileSync(join(snapshot, "tsconfig.json"), '{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"bundler","strict":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["*.ts"]}');
+    const typecheck = spawnSync(join(snapshot, "node_modules", ".bin", "tsc"), ["-p", join(snapshot, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, typecheck.stdout + "\n" + typecheck.stderr);
+    const environment = { ...process.env, [moduleKey]: pathToFileURL(join(snapshot, "finite-batch-collation-plan.ts")).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", exactPattern(pack_collation_plan_mapConstructorContract), fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment }), lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, result.stdout + "\n" + result.stderr);
+    assert.equal(lines.filter((line) => line === "# " + pack_collation_plan_mapConstructorMarker).length, 1);
+    assert.equal(lines.filter((line) => line.startsWith("not ok ") && line.includes(pack_collation_plan_mapConstructorContract)).length, 1);
+    assert.equal(lines.filter((line) => line.includes("PACK_COLLATION_PLAN_MAPCONSTRUCTOR_MUST_SURVIVE_HOSTILE_GETTER")).length, 1);
+  } finally { if (snapshot !== undefined) rmSync(snapshot, { recursive: true, force: true }); }
+});
+
+const pack_local_pool_draw_state_freezeContract = "finite batch plan captures Object.freeze in pack-local-pool-draw-state.ts", pack_local_pool_draw_state_freezeMarker = "PACK_LOCAL_POOL_DRAW_STATE_FREEZE_CONTRACT_EXECUTED";
+test(pack_local_pool_draw_state_freezeContract, async () => {
+  console.log(pack_local_pool_draw_state_freezeMarker);
+  const moduleUrl = process.env[moduleKey] ?? finiteSourcePath.href, directory = new URL("./", moduleUrl);
+  const [plan, custom, eligibility, layouts, upstream, pools, identity, layoutResolution, poolResolution, compiler, packPlan] = await Promise.all([import(moduleUrl), import(new URL("custom-cards.ts", directory)), import(new URL("draft-eligibility-classification.ts", directory)), import(new URL("layouts.ts", directory)), import(new URL("official-upstream-id-reconciliation.ts", directory)), import(new URL("pools.ts", directory)), import(new URL("recipe-official-identity-reconciliation.ts", directory)), import(new URL("recipe-layout-pool-resolution.ts", directory)), import(new URL("recipe-pool-identity-resolution.ts", directory)), import(new URL("collation-weight-tables.ts", directory)), import(new URL("pack-collation-plan.ts", directory))]);
+  const capabilities = fictionalCollationCapabilities({ ...custom, ...eligibility, ...layouts, ...upstream, ...pools, ...identity, ...layoutResolution, ...poolResolution, ...compiler }), owner = Object, original = owner["freeze"];
+  let result;
+  try {
+    const samples = [0];
+    Object.defineProperty(samples, 0, { configurable: true, enumerable: true, get() { owner["freeze"] = () => { throw new Error("poisoned"); }; return 0; } });
+    assert.doesNotThrow(() => { result = plan.initializeOmensPackCollationPlanFromUnsigned32SampleBatch(capabilities.tables, samples); }, "PACK_LOCAL_POOL_DRAW_STATE_FREEZE_MUST_SURVIVE_HOSTILE_GETTER");
+    assert.equal(result.state, "selected", "PACK_LOCAL_POOL_DRAW_STATE_FREEZE_MUST_SURVIVE_HOSTILE_GETTER");
+    assert.doesNotThrow(() => { assert.equal(packPlan.readOmensPackCollationPlanNextPositionForTransition(result.plan), 0); }, "PACK_LOCAL_POOL_DRAW_STATE_FREEZE_MUST_SURVIVE_HOSTILE_GETTER");
+  } finally { owner["freeze"] = original; }
+});
+test("finite batch freeze capture mutation in pack-local-pool-draw-state.ts fails its exact named contract", () => {
+  const sourcePath = new URL("../src/pack-local-pool-draw-state.ts", import.meta.url), original = readFileSync(sourcePath, "utf8"), anchor = "const freeze: typeof Object.freeze = Object.freeze;", replacement = "const freeze: typeof Object.freeze = ((value: object) => Object.freeze(value)) as typeof Object.freeze;";
+  assert.equal(original.split(anchor).length - 1, 1);
+  const mutated = original.replace(anchor, replacement);
+  assert.notEqual(mutated, original);
+  let snapshot;
+  try {
+    snapshot = mkdtempSync(join(tmpdir(), "draft-table-pack_local_pool_draw_state_freeze-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const sourceFile of readdirSync(sourceDirectory).filter((candidate) => candidate.endsWith(".ts"))) copyFileSync(join(sourceDirectory, sourceFile), join(snapshot, sourceFile));
+    symlinkSync(join(sourceDirectory, "../../../node_modules"), join(snapshot, "node_modules"), "dir");
+    writeFileSync(join(snapshot, "pack-local-pool-draw-state.ts"), mutated);
+    writeFileSync(join(snapshot, "tsconfig.json"), '{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"bundler","strict":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["*.ts"]}');
+    const typecheck = spawnSync(join(snapshot, "node_modules", ".bin", "tsc"), ["-p", join(snapshot, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, typecheck.stdout + "\n" + typecheck.stderr);
+    const environment = { ...process.env, [moduleKey]: pathToFileURL(join(snapshot, "finite-batch-collation-plan.ts")).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", exactPattern(pack_local_pool_draw_state_freezeContract), fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment }), lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, result.stdout + "\n" + result.stderr);
+    assert.equal(lines.filter((line) => line === "# " + pack_local_pool_draw_state_freezeMarker).length, 1);
+    assert.equal(lines.filter((line) => line.startsWith("not ok ") && line.includes(pack_local_pool_draw_state_freezeContract)).length, 1);
+    assert.equal(lines.filter((line) => line.includes("PACK_LOCAL_POOL_DRAW_STATE_FREEZE_MUST_SURVIVE_HOSTILE_GETTER")).length, 1);
+  } finally { if (snapshot !== undefined) rmSync(snapshot, { recursive: true, force: true }); }
+});
+
 const pack_local_pool_draw_state_setAddContract = "finite batch plan captures Set.prototype.add in pack-local-pool-draw-state.ts", pack_local_pool_draw_state_setAddMarker = "PACK_LOCAL_POOL_DRAW_STATE_SETADD_CONTRACT_EXECUTED";
 test(pack_local_pool_draw_state_setAddContract, async () => { console.log(pack_local_pool_draw_state_setAddMarker); const moduleUrl = process.env[moduleKey] ?? finiteSourcePath.href, directory = new URL("./", moduleUrl), [plan, custom, eligibility, layouts, upstream, pools, identity, layoutResolution, poolResolution, compiler, packPlan] = await Promise.all([import(moduleUrl), import(new URL("custom-cards.ts", directory)), import(new URL("draft-eligibility-classification.ts", directory)), import(new URL("layouts.ts", directory)), import(new URL("official-upstream-id-reconciliation.ts", directory)), import(new URL("pools.ts", directory)), import(new URL("recipe-official-identity-reconciliation.ts", directory)), import(new URL("recipe-layout-pool-resolution.ts", directory)), import(new URL("recipe-pool-identity-resolution.ts", directory)), import(new URL("collation-weight-tables.ts", directory)), import(new URL("pack-collation-plan.ts", directory))]), capabilities = fictionalCollationCapabilities({ ...custom, ...eligibility, ...layouts, ...upstream, ...pools, ...identity, ...layoutResolution, ...poolResolution, ...compiler }); const owner = Set.prototype, original = owner["add"]; let result; try { const samples = [0]; Object.defineProperty(samples, 0, { configurable: true, enumerable: true, get() { owner["add"] = () => { throw new Error("poisoned"); }; return 0; } }); assert.doesNotThrow(() => { result = plan.initializeOmensPackCollationPlanFromUnsigned32SampleBatch(capabilities.tables, samples); }, "PACK_LOCAL_POOL_DRAW_STATE_SETADD_MUST_SURVIVE_HOSTILE_GETTER"); assert.equal(result.state, "selected", "PACK_LOCAL_POOL_DRAW_STATE_SETADD_MUST_SURVIVE_HOSTILE_GETTER"); assert.doesNotThrow(() => { assert.equal(packPlan.readOmensPackCollationPlanNextPositionForTransition(result.plan), 0); }, "PACK_LOCAL_POOL_DRAW_STATE_SETADD_MUST_SURVIVE_HOSTILE_GETTER"); } finally { owner["add"] = original; } });
 test("finite batch setAdd capture mutation in pack-local-pool-draw-state.ts fails its exact named contract", () => { const sourcePath = new URL("../src/pack-local-pool-draw-state.ts", import.meta.url), original = readFileSync(sourcePath, "utf8"), anchor = "const setAdd = Function.prototype.call.bind(Set.prototype.add) as <Value>(set: Set<Value>, value: Value) => Set<Value>;", replacement = "const setAdd = (<Value>(set: Set<Value>, value: Value) => Set.prototype.add.call(set, value)) as <Value>(set: Set<Value>, value: Value) => Set<Value>;"; assert.equal(original.split(anchor).length - 1, 1); const mutated = original.replace(anchor, replacement); assert.notEqual(mutated, original); let snapshot; try { snapshot = mkdtempSync(join(tmpdir(), "draft-table-pack_local_pool_draw_state_setAdd-")); const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url)); for (const sourceFile of readdirSync(sourceDirectory).filter((candidate) => candidate.endsWith(".ts"))) copyFileSync(join(sourceDirectory, sourceFile), join(snapshot, sourceFile)); symlinkSync(join(sourceDirectory, "../../../node_modules"), join(snapshot, "node_modules"), "dir"); writeFileSync(join(snapshot, "pack-local-pool-draw-state.ts"), mutated); writeFileSync(join(snapshot, "tsconfig.json"), '{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"bundler","strict":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["*.ts"]}'); const typecheck = spawnSync(join(snapshot, "node_modules", ".bin", "tsc"), ["-p", join(snapshot, "tsconfig.json")], { encoding: "utf8" }); assert.equal(typecheck.status, 0, typecheck.stdout + "\n" + typecheck.stderr); const environment = { ...process.env, [moduleKey]: pathToFileURL(join(snapshot, "finite-batch-collation-plan.ts")).href }; delete environment.NODE_TEST_CONTEXT; const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", exactPattern(pack_local_pool_draw_state_setAddContract), fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment }), lines = result.stdout.split(/\r?\n/u); assert.equal(result.status, 1, result.stdout + "\n" + result.stderr); assert.equal(lines.filter((line) => line === "# " + pack_local_pool_draw_state_setAddMarker).length, 1); assert.equal(lines.filter((line) => line.startsWith("not ok ") && line.includes(pack_local_pool_draw_state_setAddContract)).length, 1); assert.equal(lines.filter((line) => line.includes("PACK_LOCAL_POOL_DRAW_STATE_SETADD_MUST_SURVIVE_HOSTILE_GETTER")).length, 1); } finally { if (snapshot !== undefined) rmSync(snapshot, { recursive: true, force: true }); } });
