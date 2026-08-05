@@ -35,24 +35,38 @@ const EXPECTED_POOL_COUNT = 11;
 const drawStateCapabilities = new WeakSet<object>();
 const drawStateTables = new WeakMap<object, OmensCollationWeightTables>();
 const freeze: typeof Object.freeze = Object.freeze;
+const isFrozen: typeof Object.isFrozen = Object.isFrozen;
+const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
+const maximumSafeInteger = Number.MAX_SAFE_INTEGER;
+const arrayEvery = Function.prototype.call.bind(Array.prototype.every) as <Value>(array: readonly Value[], predicate: (value: Value, index: number) => boolean) => boolean;
+const arrayMap = Function.prototype.call.bind(Array.prototype.map) as <Value, Result>(array: readonly Value[], callback: (value: Value, index: number) => Result) => Result[];
+const arrayFilter = Function.prototype.call.bind(Array.prototype.filter) as <Value>(array: readonly Value[], predicate: (value: Value) => boolean) => Value[];
+const weakSetAdd = Function.prototype.call.bind(WeakSet.prototype.add) as (set: WeakSet<object>, value: object) => WeakSet<object>;
+const weakSetHas = Function.prototype.call.bind(WeakSet.prototype.has) as (set: WeakSet<object>, value: object) => boolean;
+const weakMapSet = Function.prototype.call.bind(WeakMap.prototype.set) as (map: WeakMap<object, OmensCollationWeightTables>, key: object, value: OmensCollationWeightTables) => WeakMap<object, OmensCollationWeightTables>;
+const weakMapGet = Function.prototype.call.bind(WeakMap.prototype.get) as (map: WeakMap<object, OmensCollationWeightTables>, key: object) => OmensCollationWeightTables | undefined;
+const setConstructor: typeof Set = Set;
+const setHas = Function.prototype.call.bind(Set.prototype.has) as <Value>(set: Set<Value>, value: Value) => boolean;
+const setAdd = Function.prototype.call.bind(Set.prototype.add) as <Value>(set: Set<Value>, value: Value) => Set<Value>;
 const fail = (): never => { throw new OmensPackLocalPoolDrawStateError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => freeze(value);
 
 const nextExclusiveEnd = (prior: number, weight: number): number => {
-  if (!Number.isSafeInteger(prior) || prior < 0 || !Number.isSafeInteger(weight) || weight <= 0 || prior > Number.MAX_SAFE_INTEGER - weight) fail();
+  if (!isSafeInteger(prior) || prior < 0 || !isSafeInteger(weight) || weight <= 0 || prior > maximumSafeInteger - weight) fail();
   const next = prior + weight;
-  if (!Number.isSafeInteger(next) || next <= prior) fail();
+  if (!isSafeInteger(next) || next <= prior) fail();
   return next;
 };
 
 const validPoolState = (poolState: PoolState): boolean => {
-  if (!Object.isFrozen(poolState) || !Object.isFrozen(poolState.poolReference) ||
-    !Object.isFrozen(poolState.officialIdentityChoices) || !Number.isSafeInteger(poolState.poolTotalWeight) || poolState.poolTotalWeight < 0) return false;
+  if (!isFrozen(poolState) || !isFrozen(poolState.poolReference) ||
+    !isFrozen(poolState.officialIdentityChoices) || !isSafeInteger(poolState.poolTotalWeight) || poolState.poolTotalWeight < 0) return false;
   let prior = 0;
-  const identities = new Set<OfficialIdentityReference>();
-  for (const choice of poolState.officialIdentityChoices) {
-    if (!Object.isFrozen(choice) || !Object.isFrozen(choice.officialIdentityReference) || identities.has(choice.officialIdentityReference)) return false;
-    identities.add(choice.officialIdentityReference);
+  const identities = new setConstructor<OfficialIdentityReference>();
+  for (let index = 0; index < poolState.officialIdentityChoices.length; index++) {
+    const choice = poolState.officialIdentityChoices[index];
+    if (!isFrozen(choice) || !isFrozen(choice.officialIdentityReference) || setHas(identities, choice.officialIdentityReference)) return false;
+    setAdd(identities, choice.officialIdentityReference);
     prior = nextExclusiveEnd(prior, choice.weight);
     if (choice.cumulativeExclusiveEnd !== prior) return false;
   }
@@ -63,20 +77,20 @@ const register = (
   poolStates: ReadonlyArray<PoolState>,
   tables: OmensCollationWeightTables
 ): OmensPackLocalPoolDrawState => {
-  if (poolStates.length !== EXPECTED_POOL_COUNT || !poolStates.every(validPoolState)) fail();
+  if (poolStates.length !== EXPECTED_POOL_COUNT || !arrayEvery(poolStates, validPoolState)) fail();
   const state = frozen({ poolStates: frozen(poolStates) });
-  drawStateCapabilities.add(state);
-  drawStateTables.set(state, tables);
+  weakSetAdd(drawStateCapabilities, state);
+  weakMapSet(drawStateTables, state, tables);
   return state;
 };
 
 const initialize = (tables: OmensCollationWeightTables): OmensPackLocalPoolDrawState => {
   const sourceTables = readOmensCollationPoolWeightTablesForPackLocalDrawState(tables);
   if (sourceTables.length !== EXPECTED_POOL_COUNT) fail();
-  const poolReferences = new Set<PoolReference>();
-  const poolStates: PoolState[] = sourceTables.map((table) => {
-    if (poolReferences.has(table.poolReference)) return fail();
-    poolReferences.add(table.poolReference);
+  const poolReferences = new setConstructor<PoolReference>();
+  const poolStates: PoolState[] = arrayMap(sourceTables, (table) => {
+    if (setHas(poolReferences, table.poolReference)) return fail();
+    setAdd(poolReferences, table.poolReference);
     return frozen({
       poolReference: table.poolReference,
       poolTotalWeight: table.poolTotalWeight,
@@ -99,7 +113,7 @@ export const initializeOmensPackLocalPoolDrawState = (
 export const isOmensPackLocalPoolDrawStateRegisteredForPlanInitialization = (
   tables: OmensCollationWeightTables,
   state: OmensPackLocalPoolDrawState
-): boolean => drawStateCapabilities.has(state) && drawStateTables.get(state) === tables;
+): boolean => weakSetHas(drawStateCapabilities, state) && weakMapGet(drawStateTables, state) === tables;
 
 /** Narrow exact-freshness check consumed only by selected pack-collation-plan initialization. */
 export const isOmensPackLocalPoolDrawStateFreshForPlanInitialization = (
@@ -108,12 +122,12 @@ export const isOmensPackLocalPoolDrawStateFreshForPlanInitialization = (
 ): boolean => {
   if (!isOmensPackLocalPoolDrawStateRegisteredForPlanInitialization(tables, state) ||
     state.poolStates.length !== tables.poolTables.length) return false;
-  return state.poolStates.every((poolState, poolIndex) => {
+  return arrayEvery(state.poolStates, (poolState, poolIndex) => {
     const poolTable = tables.poolTables[poolIndex];
     if (poolState.poolReference !== poolTable.poolReference ||
       poolState.poolTotalWeight !== poolTable.poolTotalWeight ||
       poolState.officialIdentityChoices.length !== poolTable.officialIdentityChoices.length) return false;
-    return poolState.officialIdentityChoices.every((choice, choiceIndex) => {
+    return arrayEvery(poolState.officialIdentityChoices, (choice, choiceIndex) => {
       const expected = poolTable.officialIdentityChoices[choiceIndex];
       return choice.officialIdentityReference === expected.officialIdentityReference &&
         choice.weight === expected.weight &&
@@ -124,14 +138,15 @@ export const isOmensPackLocalPoolDrawStateFreshForPlanInitialization = (
 
 const removeFromPool = (selectedPool: PoolState, selectedIdentity: OfficialIdentityReference): PoolState => {
   const choices = selectedPool.officialIdentityChoices;
-  const selectedChoices = choices.filter((choice) => choice.officialIdentityReference === selectedIdentity);
+  const selectedChoices = arrayFilter(choices, (choice) => choice.officialIdentityReference === selectedIdentity);
   if (selectedChoices.length !== 1) fail();
   const selectedChoice = selectedChoices[0];
   const nextTotal = selectedPool.poolTotalWeight - selectedChoice.weight;
-  if (!Number.isSafeInteger(nextTotal) || nextTotal < 0) fail();
+  if (!isSafeInteger(nextTotal) || nextTotal < 0) fail();
   let cumulativeExclusiveEnd = 0;
   const nextChoices: PoolChoice[] = [];
-  for (const choice of choices) {
+  for (let index = 0; index < choices.length; index++) {
+    const choice = choices[index];
     if (choice === selectedChoice) continue;
     cumulativeExclusiveEnd = nextExclusiveEnd(cumulativeExclusiveEnd, choice.weight);
     nextChoices.push(frozen({
@@ -156,8 +171,8 @@ export const readOmensPackLocalPoolDrawStatePoolForTicketSelection = (
   scopedTotal: number;
   choices: ReadonlyArray<PoolChoice>;
 }> => {
-  if (!drawStateCapabilities.has(state) || !Object.isFrozen(poolReference)) return fail();
-  const selectedPools = state.poolStates.filter((poolState) => poolState.poolReference === poolReference);
+  if (!weakSetHas(drawStateCapabilities, state) || !isFrozen(poolReference)) return fail();
+  const selectedPools = arrayFilter(state.poolStates, (poolState) => poolState.poolReference === poolReference);
   if (selectedPools.length !== 1 || !validPoolState(selectedPools[0])) return fail();
   const selectedPool = selectedPools[0];
   return frozen({ scopedTotal: selectedPool.poolTotalWeight, choices: selectedPool.officialIdentityChoices });
@@ -170,15 +185,15 @@ export const removeOmensPackLocalPoolOfficialIdentity = (
   if (inputs.length !== 3) return fail();
   try {
     const [state, selectedPoolReference, selectedIdentity] = inputs;
-    if (!drawStateCapabilities.has(state) || !Object.isFrozen(selectedPoolReference) || !Object.isFrozen(selectedIdentity)) return fail();
-    const selectedPools = state.poolStates.filter((poolState) => poolState.poolReference === selectedPoolReference);
+    if (!weakSetHas(drawStateCapabilities, state) || !isFrozen(selectedPoolReference) || !isFrozen(selectedIdentity)) return fail();
+    const selectedPools = arrayFilter(state.poolStates, (poolState) => poolState.poolReference === selectedPoolReference);
     if (selectedPools.length !== 1) return fail();
     const selectedPool = selectedPools[0];
     if (!validPoolState(selectedPool)) return fail();
-    const nextPoolStates = state.poolStates.map((poolState) => poolState === selectedPool
+    const nextPoolStates = arrayMap(state.poolStates, (poolState) => poolState === selectedPool
       ? removeFromPool(poolState, selectedIdentity)
       : poolState);
-    const tables = drawStateTables.get(state);
+    const tables = weakMapGet(drawStateTables, state);
     if (tables === undefined) return fail();
     return register(nextPoolStates, tables);
   } catch (error) { if (error instanceof OmensPackLocalPoolDrawStateError) throw error; return fail(); }

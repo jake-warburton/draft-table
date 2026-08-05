@@ -13,16 +13,24 @@ import {
 } from "./pack-local-pool-draw-state.ts";
 import type { OmensRecipeLayoutOfficialIdentityPoolResolution } from "./recipe-layout-pool-resolution.ts";
 
+const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;
+const freeze: typeof Object.freeze = Object.freeze;
+const isFrozen: typeof Object.isFrozen = Object.isFrozen;
+
 /** Stable, source-secret failure for one selected layout's fresh pack-local collation plan. */
 export class OmensPackCollationPlanInitializationError extends Error {
-  readonly code = "OMENS_PACK_COLLATION_PLAN_INITIALIZATION_FAILED";
+  declare readonly code: "OMENS_PACK_COLLATION_PLAN_INITIALIZATION_FAILED";
 
   constructor() {
     super("Omens pack collation plan initialization failed.");
-    this.name = "OmensPackCollationPlanInitializationError";
-    this.stack = `${this.name}: ${this.message}`;
+    defineOwnDataProperty(this, "name", { value: "OmensPackCollationPlanInitializationError", writable: true, enumerable: true, configurable: true });
+    defineOwnDataProperty(this, "code", { value: "OMENS_PACK_COLLATION_PLAN_INITIALIZATION_FAILED", writable: true, enumerable: true, configurable: true });
+    defineOwnDataProperty(this, "stack", { value: "OmensPackCollationPlanInitializationError: Omens pack collation plan initialization failed.", writable: true, enumerable: false, configurable: true });
   }
 }
+
+freeze(OmensPackCollationPlanInitializationError.prototype);
+freeze(OmensPackCollationPlanInitializationError);
 
 type LayoutReference = OmensRecipeLayoutOfficialIdentityPoolResolution["layouts"][number];
 type PlanParts = Readonly<{
@@ -46,12 +54,14 @@ type PoolStateInitializer = (tables: OmensCollationWeightTables) => OmensPackLoc
 const EXPECTED_POOL_COUNT = 11;
 const EXPECTED_POSITION_COUNT = 14;
 const planCapabilities = new WeakMap<object, PlanParts>();
-const freeze: typeof Object.freeze = Object.freeze;
-const isFrozen: typeof Object.isFrozen = Object.isFrozen;
 const arrayFrom: typeof Array.from = Array.from;
-const arrayEvery: typeof Array.prototype.every = Array.prototype.every;
-const arrayFind: typeof Array.prototype.find = Array.prototype.find;
+const arrayEvery = Function.prototype.call.bind(Array.prototype.every) as <Value>(array: readonly Value[], predicate: (value: Value, index: number) => boolean) => boolean;
+const arrayFind = Function.prototype.call.bind(Array.prototype.find) as <Value>(array: readonly Value[], predicate: (value: Value) => boolean) => Value | undefined;
 const mapConstructor: typeof Map = Map;
+const mapGet = Function.prototype.call.bind(Map.prototype.get) as <Key, Value>(map: Map<Key, Value>, key: Key) => Value | undefined;
+const mapSet = Function.prototype.call.bind(Map.prototype.set) as <Key, Value>(map: Map<Key, Value>, key: Key, value: Value) => Map<Key, Value>;
+const weakMapGet = Function.prototype.call.bind(WeakMap.prototype.get) as <Value>(map: WeakMap<object, Value>, key: object) => Value | undefined;
+const weakMapSet = Function.prototype.call.bind(WeakMap.prototype.set) as <Value>(map: WeakMap<object, Value>, key: object, value: Value) => WeakMap<object, Value>;
 const fail = (): never => { throw new OmensPackCollationPlanInitializationError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => freeze(value);
 const expectedRoles = frozen([
@@ -71,23 +81,25 @@ const validateSelectedPlan = (
     !isFrozen(layoutReference) || !isFrozen(layoutReference.slots) ||
     layoutReference.slots.length !== EXPECTED_POSITION_COUNT) fail();
   // Identity membership is established here; downstream compiled-layout self-comparison is meaningless.
-  if (arrayFind.call(tables.layoutChoices, (choice) => choice.layoutReference === layoutReference) === undefined) return fail();
-  const poolTablesByReference = new mapConstructor(arrayFrom(tables.poolTables, (table) => [table.poolReference, table]));
-  if (poolTablesByReference.size !== EXPECTED_POOL_COUNT) fail();
-  const requiredByPool = new mapConstructor<OmensCollationWeightTables["poolTables"][number]["poolReference"], number>();
-  if (!arrayEvery.call(layoutReference.slots, (position, index) => {
-    const poolTable = poolTablesByReference.get(position.resolvedPool);
-    if (!isFrozen(position) || position.position !== index + 1 ||
-      position.recipeStructuralRole !== expectedRoles[index] || poolTable === undefined) return false;
-    requiredByPool.set(position.resolvedPool, (requiredByPool.get(position.resolvedPool) ?? 0) + 1);
+  if (arrayFind(tables.layoutChoices, (choice) => choice.layoutReference === layoutReference) === undefined) return fail();
+  const poolTablesByReference = new mapConstructor<OmensCollationWeightTables["poolTables"][number]["poolReference"], OmensCollationWeightTables["poolTables"][number]>();
+  if (!arrayEvery(tables.poolTables, (table) => {
+    if (mapGet(poolTablesByReference, table.poolReference) !== undefined) return false;
+    mapSet(poolTablesByReference, table.poolReference, table);
     return true;
   })) fail();
-  const hasSufficientCapacity = ([poolReference, required]: [OmensCollationWeightTables["poolTables"][number]["poolReference"], number]): boolean => {
-    const poolTable = poolTablesByReference.get(poolReference);
-    return poolTable !== undefined && poolTable.poolTotalWeight > 0 &&
-      poolTable.officialIdentityChoices.length >= required;
-  };
-  if (!arrayEvery.call([...requiredByPool], hasSufficientCapacity)) fail();
+  const requiredByPool = new mapConstructor<OmensCollationWeightTables["poolTables"][number]["poolReference"], number>();
+  if (!arrayEvery(layoutReference.slots, (position, index) => {
+    const poolTable = mapGet(poolTablesByReference, position.resolvedPool);
+    if (!isFrozen(position) || position.position !== index + 1 ||
+      position.recipeStructuralRole !== expectedRoles[index] || poolTable === undefined) return false;
+    mapSet(requiredByPool, position.resolvedPool, (mapGet(requiredByPool, position.resolvedPool) ?? 0) + 1);
+    return true;
+  })) fail();
+  if (!arrayEvery(tables.poolTables, (poolTable) => {
+    const required = mapGet(requiredByPool, poolTable.poolReference);
+    return required === undefined || (poolTable.poolTotalWeight > 0 && poolTable.officialIdentityChoices.length >= required);
+  })) fail();
 };
 
 const register = (
@@ -99,7 +111,7 @@ const register = (
     !isFrozen(layoutReference) || !isFrozen(layoutReference.slots) || layoutReference.slots.length !== 14 ||
     !isOmensPackLocalPoolDrawStateFreshForPlanInitialization(tables, poolDrawState)) fail();
   const plan: OmensPackCollationPlan = frozen({});
-  planCapabilities.set(plan, frozen({ tables, layoutReference, poolDrawState, nextPosition: 0 }));
+  weakMapSet(planCapabilities, plan, frozen({ tables, layoutReference, poolDrawState, nextPosition: 0 }));
   return plan;
 };
 
@@ -146,7 +158,7 @@ export const initializeOmensPackCollationPlanFromOneUnsigned32SampleForTest = (
   catch (error) { if (error instanceof OmensPackCollationPlanInitializationError) throw error; return fail(); }
 };
 
-const partsFor = (plan: OmensPackCollationPlan): PlanParts => planCapabilities.get(plan) ?? fail();
+const partsFor = (plan: OmensPackCollationPlan): PlanParts => weakMapGet(planCapabilities, plan) ?? fail();
 
 /** Narrow reader returning only the exact layout reference bound during initialization. */
 export const readOmensPackCollationPlanLayoutForTransition = (plan: OmensPackCollationPlan): LayoutReference => partsFor(plan).layoutReference;

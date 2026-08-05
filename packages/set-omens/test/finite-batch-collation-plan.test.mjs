@@ -87,7 +87,7 @@ test("selected finite batches create independent plans without mutating their co
 });
 
 test("finite batch initialization rejects copied foreign invalid extra and hostile inputs without partial state", () => {
-  const first = fictionalCollationCapabilities(), second = fictionalCollationCapabilities(), before = structuredClone(first.tables);
+  const first = fictionalCollationCapabilities(), before = structuredClone(first.tables);
   for (const samples of [[-1], [0.5], [NaN], [Infinity], [UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END], [0, -1], "0", null, undefined]) safe(() => initializeOmensPackCollationPlanFromUnsigned32SampleBatch(first.tables, samples));
   safe(() => initializeOmensPackCollationPlanFromUnsigned32SampleBatch());
   safe(() => initializeOmensPackCollationPlanFromUnsigned32SampleBatch(first.tables, [], "extra"));
@@ -103,6 +103,46 @@ test("finite batch initialization rejects copied foreign invalid extra and hosti
   assert.ok(Object.isFrozen(readOmensPackCollationPlanPoolDrawStateForTransition(hostileResult.plan)));
   assert.deepEqual(first.tables, before);
 });
+
+const hostileIntrinsicCases = [
+  ["Object.defineProperty", Object, "defineProperty"],
+  ["Object.freeze", Object, "freeze"],
+  ["Object.isFrozen", Object, "isFrozen"],
+  ["Object.getOwnPropertyDescriptor", Object, "getOwnPropertyDescriptor"],
+  ["Reflect.ownKeys", Reflect, "ownKeys"],
+  ["Number.isFinite", Number, "isFinite"],
+  ["Number.isSafeInteger", Number, "isSafeInteger"],
+  ["Math.floor", Math, "floor"],
+  ["Array.isArray", Array, "isArray"],
+  ["Array.prototype.some", Array.prototype, "some"],
+  ["Array.prototype.find", Array.prototype, "find"],
+  ["Array.prototype.every", Array.prototype, "every"],
+  ["Array.prototype.map", Array.prototype, "map"],
+  ["Map.prototype.get", Map.prototype, "get"],
+  ["Map.prototype.set", Map.prototype, "set"],
+  ["WeakSet.prototype.has", WeakSet.prototype, "has"],
+  ["WeakSet.prototype.add", WeakSet.prototype, "add"],
+  ["WeakMap.prototype.get", WeakMap.prototype, "get"],
+  ["WeakMap.prototype.set", WeakMap.prototype, "set"],
+  ["Set.prototype.has", Set.prototype, "has"],
+  ["Set.prototype.add", Set.prototype, "add"],
+  ["global Map constructor", globalThis, "Map"],
+  ["global Set constructor", globalThis, "Set"]
+];
+for (const [label, owner, property] of hostileIntrinsicCases) {
+  test(`finite batch captures ${label} before a hostile sample getter`, () => {
+    const { tables } = fictionalCollationCapabilities(), original = owner[property];
+    let result;
+    try {
+      const samples = [0];
+      Object.defineProperty(samples, 0, { configurable: true, enumerable: true, get() { owner[property] = () => { throw new Error(`poisoned ${label}`); }; return 0; } });
+      result = initializeOmensPackCollationPlanFromUnsigned32SampleBatch(tables, samples);
+    } finally { owner[property] = original; }
+    assert.equal(result.state, "selected");
+    assert.equal(result.layoutReference, tables.layoutChoices[0].layoutReference);
+    assert.equal(readOmensPackCollationPlanNextPositionForTransition(result.plan), 0);
+  });
+}
 
 const mutationModuleKey = "DRAFT_TABLE_TEST_FINITE_BATCH_PLAN_MODULE";
 const sourcePath = new URL("../src/finite-batch-collation-plan.ts", import.meta.url);

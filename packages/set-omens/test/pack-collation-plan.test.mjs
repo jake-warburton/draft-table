@@ -38,6 +38,27 @@ const selected = (tables, sample) => {
   const result = initializeOmensPackCollationPlanFromOneUnsigned32Sample(tables, sample); assert.equal(result.state, "selected"); return result;
 };
 
+test("plan error owns stable fields despite inherited setters", () => {
+  const originalName = Object.getOwnPropertyDescriptor(Error.prototype, "name");
+  try {
+    Object.defineProperty(Error.prototype, "name", { configurable: true, set() { throw new Error("hostile name setter"); } });
+    const error = new OmensPackCollationPlanInitializationError();
+    assert.ok(error instanceof OmensPackCollationPlanInitializationError);
+    assert.equal(error.name, "OmensPackCollationPlanInitializationError");
+    assert.equal(error.code, "OMENS_PACK_COLLATION_PLAN_INITIALIZATION_FAILED");
+    assert.equal(error.message, "Omens pack collation plan initialization failed.");
+    assert.equal(error.stack, "OmensPackCollationPlanInitializationError: Omens pack collation plan initialization failed.");
+  } finally { Object.defineProperty(Error.prototype, "name", originalName); }
+});
+
+test("plan error constructor and prototype are frozen without breaking instanceof", () => {
+  assert.ok(Object.isFrozen(OmensPackCollationPlanInitializationError));
+  assert.ok(Object.isFrozen(OmensPackCollationPlanInitializationError.prototype));
+  assert.throws(() => Object.defineProperty(OmensPackCollationPlanInitializationError.prototype, "name", { set() {} }), TypeError);
+  assert.throws(() => Object.defineProperty(OmensPackCollationPlanInitializationError, Symbol.hasInstance, { value: () => false }), TypeError);
+  assert.ok(new OmensPackCollationPlanInitializationError() instanceof OmensPackCollationPlanInitializationError);
+});
+
 test("one sample retries without initializing or creates exact first middle last layout-bound fresh plans", () => {
   const { tables, resolvedLayouts } = fictionalCollationCapabilities(), accepted = cutoff(tables.layoutTotalWeight); let initialized = 0;
   const retry = initializeOmensPackCollationPlanFromOneUnsigned32SampleForTest(tables, accepted, () => Object.freeze({ state: "retry" }), () => { initialized++; throw new Error("must not initialize"); });
@@ -110,7 +131,7 @@ test(capacityContract, async () => {
 });
 const capacityMutationContract = "plan capacity semantic mutation fails its exact named contract";
 test(capacityMutationContract, () => {
-  const guard = "  if (!arrayEvery.call([...requiredByPool], hasSufficientCapacity)) fail();", original = readFileSync(sourcePath, "utf8"), mutated = original.replace(guard, "  if (false) fail();");
+  const guard = "  if (!arrayEvery(tables.poolTables, (poolTable) => {\n    const required = mapGet(requiredByPool, poolTable.poolReference);\n    return required === undefined || (poolTable.poolTotalWeight > 0 && poolTable.officialIdentityChoices.length >= required);\n  })) fail();", original = readFileSync(sourcePath, "utf8"), mutated = original.replace(guard, "  if (false) fail();");
   assert.equal(original.split(guard).length - 1, 1, "CAPACITY_GUARD_MUST_HAVE_ONE_CANONICAL_OCCURRENCE"); assert.notEqual(mutated, original, "CAPACITY_MUTATION_BYTES_MUST_CHANGE"); runMutation(mutated, capacityContract, capacityMarker, "CAPACITY_MUST_REJECT_BEFORE_INITIALIZATION");
 });
 

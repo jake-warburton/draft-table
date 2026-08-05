@@ -31,5 +31,5 @@ When updating this file, preserve this bar for all agents and keep entries conci
   expected failing contract. Never write mutation modules beside production source; loaders,
   interception, and shared mutation harnesses remain prohibited. Existing inline-duplicate proofs
   are follow-up candidates, not blessed.
-- Assignment consults the prototype chain whereas own-property definition does not; capture load-bearing intrinsics before hostile property reads because caller code can replace mutable globals during those reads. Keep this enforced by the finite-batch collation-plan contracts.
+- Assignment consults the prototype chain whereas own-property definition does not; exported error classes must define own instance fields with a module-captured `Object.defineProperty` and freeze their constructor and prototype at module load. Capture every load-bearing intrinsic before hostile property reads and keep the full-composition cross-attacks enforced by finite-batch collation-plan contracts.
 - When findings share a root cause, test each fix against the other findings' attacks; individually plausible fixes can be mutually defeatable. Keep the cross-attack coverage with the owning contracts.
