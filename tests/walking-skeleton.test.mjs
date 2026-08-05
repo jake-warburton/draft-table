@@ -21,7 +21,14 @@ const writeClientShell = (directory, bytes) => {
   }
 };
 
-test("the browser shell identifies Draft Table as an unofficial walking skeleton without playable behavior", () => {
+test("the browser shell permanently identifies Draft Table as unofficial and non-affiliated", () => {
+  const html = readFileSync(fromRoot("apps/web/index.html"), "utf8");
+
+  assert.match(html, /unofficial/i);
+  assert.match(html, /not affiliated with Legend Story Studios/i);
+});
+
+test("the browser shell identifies current fixture-only playability and deferred integration", () => {
   const html = readFileSync(fromRoot("apps/web/index.html"), "utf8");
 
   assert.match(html, /<title>Draft Table<\/title>/);

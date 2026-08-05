@@ -16,8 +16,8 @@ npm run build
 npm run size
 ```
 
-The web contract test checks initial render, click and keyboard activation, reload reset, removal/recording, the two-seat three-pack progression, stale/double rejection, completion/focus, labels/status/focus styling, reduced motion, deterministic output, no network calls, no app imports, and inline-only output. The emitted client is **1,977 bytes** against the root 2,048-byte ceiling (71 bytes spare); the build emits `index.html` and `styles.css` only.
+The web contract test checks initial render, click and keyboard activation, reload reset, removal/recording, the two-seat three-pack progression, stale/double rejection, completion/focus, labels/status/focus styling, reduced motion, deterministic output, no network calls, no app imports, and inline-only output. The emitted client is **2,037 bytes** against the root 2,048-byte ceiling (11 bytes spare); the build emits `index.html` and `styles.css` only.
 
 ## Integration owed
 
-The shell has no engine or `set-omens` integration. Replacing fixtures through a reviewed engine/`set-omens` runtime-facing boundary is later work. Real packs, card identities/images, draft authority, multiplayer state, entropy, persistence, and product treatment semantics remain out of scope.
+The unofficial and non-affiliation notice is permanent; fixture-only playability is temporary pending integration. The shell has no engine or `set-omens` integration. Replacing fixtures through a reviewed engine/`set-omens` runtime-facing boundary is later work. Real packs, card identities/images, draft authority, multiplayer state, entropy, persistence, and product treatment semantics remain out of scope.
