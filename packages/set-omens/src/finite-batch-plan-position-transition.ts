@@ -130,6 +130,8 @@ const snapshotFiniteBatch = (batchInput: unknown): Readonly<{
       value: batchInput[index], writable: false, enumerable: true, configurable: false
     });
   }
+  // Defense-in-depth for a future construction bug: captured prototype-safe own writes
+  // with sequential numeric keys make this mismatch unreachable in the current construction.
   if (sampleSnapshot.length !== sampleCount) return fail();
   return { samples: frozen(sampleSnapshot) as readonly number[], sampleCount };
 };
