@@ -14,10 +14,7 @@ Pitch colour and rear marker are `null`: the accepted inputs have no authoritati
 
 ## Evidence and commands
 
-- `npm run test:card-presentation-evidence` requires caller-held `FAB_CARD_SOURCE_EVIDENCE_PATH`, `FAB_CARD_SCHEMA_EVIDENCE_PATH`, and `FAB_CARD_VAULT_EVIDENCE_PATH`; the existing checksum/schema/membership capabilities run before this projection.
-- The command prints `card presentation acceptance passed` only after its exact public-evidence contract executes. No source bytes, snapshots, or network fetches are committed or used at runtime.
-- Public evidence is unavailable in this review worktree, so public projection acceptance is **NOT RUN**. The pinned expected checksums remain card `243162c827dc9becc3dad46894b15e6ed4dfb7ceb63eee10efb3568f6730219e`, schema `4fd114d85ab416854e84d298f468d1bc390075997d9d8886378b699586b886c1`, and observed Card Vault response `59f26e3071ef50a0515c99ce568110934290aad698b3669b45e224e52fc1a83f`; they do not substitute for executing the acceptance command against caller-held bytes.
-- Private four-source acceptance is **NOT RUN — awaiting captain measurement**; it is not waived by the public result.
+The [walking-skeleton setup](../../README.md#walking-skeleton-setup) owns the public evidence command and input instructions. That command runs the existing checksum, schema, and membership guards before the projection and prints its success marker only after the exact public-evidence contract executes. No source bytes, snapshots, or network fetches are committed or used at runtime. Private four-source acceptance is **NOT RUN — awaiting captain measurement**; it is not waived by a public result.
 
 ## Integration risks
 
