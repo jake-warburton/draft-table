@@ -14,7 +14,8 @@ import {
   discoverEvidenceTests,
   discoverPublicSourceEvidenceTests,
   discoverRecipeIdentityEvidenceTests,
-  discoverRecipeRarityEvidenceTests
+  discoverRecipeRarityEvidenceTests,
+  discoverDraftEligibilityEvidenceTests
 } from "./evidence-discovery.mjs";
 
 const syntheticFiles = [
@@ -23,6 +24,7 @@ const syntheticFiles = [
   "public-source-checksum-gate.public-source-evidence.test.mjs",
   "recipe-identity-reconciliation.recipe-identity-evidence.test.mjs",
   "recipe-rarity-correspondence.recipe-rarity-evidence.test.mjs",
+  "draft-eligibility-classification.draft-eligibility-evidence.test.mjs",
   "topic-about-public-source.test.mjs",
   "synthetic-contract.test.mjs"
 ];
@@ -95,6 +97,12 @@ test("recipe identity evidence discovery selects only its separate four-source g
 test("recipe rarity evidence discovery selects only its separate four-source gate", () => {
   assert.deepEqual(discoverRecipeRarityEvidenceTests(syntheticFiles), [
     "recipe-rarity-correspondence.recipe-rarity-evidence.test.mjs"
+  ]);
+});
+
+test("draft eligibility evidence discovery selects only its separate four-source gate", () => {
+  assert.deepEqual(discoverDraftEligibilityEvidenceTests(syntheticFiles), [
+    "draft-eligibility-classification.draft-eligibility-evidence.test.mjs"
   ]);
 });
 

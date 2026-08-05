@@ -216,7 +216,7 @@ test("mapped and unmapped still total 260 when one identity crosses the accepted
 });
 
 const canonicalModules = Object.freeze([
-  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "custom-cards.ts", "descriptor.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "recipe-official-identity-reconciliation.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
+  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "custom-cards.ts", "descriptor.ts", "draft-eligibility-classification.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "recipe-official-identity-reconciliation.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
 ]);
 const withCanonicalSnapshot = (action, copy = copyFileSync) => {
   let directory;
