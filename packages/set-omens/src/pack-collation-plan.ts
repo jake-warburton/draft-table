@@ -10,6 +10,7 @@ import {
   initializeOmensPackLocalPoolDrawState,
   isOmensPackLocalPoolDrawStateExactRemovalForPlanTransition,
   isOmensPackLocalPoolDrawStateFreshForPlanInitialization,
+  isOmensPackLocalPoolDrawStateRegisteredForPlanInitialization,
   type OmensPackLocalPoolDrawState
 } from "./pack-local-pool-draw-state.ts";
 import type { OmensRecipeLayoutOfficialIdentityPoolResolution } from "./recipe-layout-pool-resolution.ts";
@@ -37,11 +38,17 @@ freeze(OmensPackCollationPlanInitializationError);
 type LayoutReference = OmensRecipeLayoutOfficialIdentityPoolResolution["layouts"][number];
 type PositionReference = LayoutReference["slots"][number];
 type OfficialIdentityReference = PositionReference["resolvedPool"]["entries"][number]["officialIdentity"];
+export type OmensPackCollationPlanPositionSelection = Readonly<{
+  positionReference: PositionReference;
+  officialIdentityReference: OfficialIdentityReference;
+}>;
+export type OmensPackCollationPlanSelectionHistory = ReadonlyArray<OmensPackCollationPlanPositionSelection>;
 type PlanParts = Readonly<{
   tables: OmensCollationWeightTables;
   layoutReference: LayoutReference;
   poolDrawState: OmensPackLocalPoolDrawState;
   nextPosition: number;
+  selectionHistory: OmensPackCollationPlanSelectionHistory;
 }>;
 
 /** Opaque, immutable historical capability for one exact layout, pool state, and cursor. */
@@ -75,6 +82,73 @@ const expectedRoles = frozen([
   "rainbow-foil" as const
 ]);
 const retry = (): Readonly<{ state: "retry" }> => frozen({ state: "retry" });
+
+const freshSelectionHistory = (): OmensPackCollationPlanSelectionHistory => frozen([]);
+
+const exactSelectionHistory = (
+  parts: PlanParts,
+  candidate: unknown
+): candidate is OmensPackCollationPlanSelectionHistory => {
+  if (candidate !== parts.selectionHistory || !isFrozen(parts.selectionHistory) ||
+    !isSafeInteger(parts.nextPosition) || parts.nextPosition < 0 ||
+    parts.nextPosition > EXPECTED_POSITION_COUNT ||
+    parts.selectionHistory.length !== parts.nextPosition ||
+    !isOmensPackLocalPoolDrawStateRegisteredForPlanInitialization(parts.tables, parts.poolDrawState) ||
+    parts.poolDrawState.poolStates.length !== parts.tables.poolTables.length) return false;
+  if (!arrayEvery(parts.selectionHistory, (record, index) =>
+    isFrozen(record) && isFrozen(record.positionReference) &&
+    isFrozen(record.officialIdentityReference) &&
+    record.positionReference === parts.layoutReference.slots[index] &&
+    record.positionReference.position === index + 1)) return false;
+  return arrayEvery(parts.tables.poolTables, (poolTable, poolIndex) => {
+    const poolState = parts.poolDrawState.poolStates[poolIndex];
+    if (poolState === undefined || poolState.poolReference !== poolTable.poolReference) return false;
+    let selectedCount = 0;
+    arrayEvery(parts.selectionHistory, (record) => {
+      if (record.positionReference.resolvedPool === poolTable.poolReference) selectedCount++;
+      return true;
+    });
+    if (poolState.officialIdentityChoices.length !== poolTable.officialIdentityChoices.length - selectedCount) return false;
+    let stateChoiceIndex = 0, cumulativeExclusiveEnd = 0;
+    const choicesAreExact = arrayEvery(poolTable.officialIdentityChoices, (tableChoice) => {
+      const wasSelected = arrayFind(parts.selectionHistory, (record) =>
+        record.positionReference.resolvedPool === poolTable.poolReference &&
+        record.officialIdentityReference === tableChoice.officialIdentityReference
+      ) !== undefined;
+      if (wasSelected) return true;
+      cumulativeExclusiveEnd += tableChoice.weight;
+      const stateChoice = poolState.officialIdentityChoices[stateChoiceIndex++];
+      return stateChoice !== undefined &&
+        stateChoice.officialIdentityReference === tableChoice.officialIdentityReference &&
+        stateChoice.weight === tableChoice.weight &&
+        stateChoice.cumulativeExclusiveEnd === cumulativeExclusiveEnd;
+    });
+    return choicesAreExact && stateChoiceIndex === poolState.officialIdentityChoices.length &&
+      poolState.poolTotalWeight === cumulativeExclusiveEnd;
+  });
+};
+
+const appendSelectionHistory = (
+  prior: OmensPackCollationPlanSelectionHistory,
+  positionReference: PositionReference,
+  officialIdentityReference: OfficialIdentityReference
+): OmensPackCollationPlanSelectionHistory => {
+  const record = {} as {
+    positionReference: PositionReference;
+    officialIdentityReference: OfficialIdentityReference;
+  };
+  defineOwnDataProperty(record, "positionReference", { value: positionReference, writable: false, enumerable: true, configurable: false });
+  defineOwnDataProperty(record, "officialIdentityReference", { value: officialIdentityReference, writable: false, enumerable: true, configurable: false });
+  const immutableRecord = frozen(record);
+  const history: OmensPackCollationPlanPositionSelection[] = [];
+  arrayEvery(prior, (priorRecord, index) => {
+    defineOwnDataProperty(history, index, { value: priorRecord, writable: false, enumerable: true, configurable: false });
+    return true;
+  });
+  defineOwnDataProperty(history, prior.length, { value: immutableRecord, writable: false, enumerable: true, configurable: false });
+  if (history.length !== prior.length + 1) return fail();
+  return frozen(history);
+};
 
 const validateSelectedPlan = (
   tables: OmensCollationWeightTables,
@@ -114,8 +188,11 @@ const register = (
   if (!isOmensCollationLayoutRegisteredForPlanInitialization(tables, layoutReference) ||
     !isFrozen(layoutReference) || !isFrozen(layoutReference.slots) || layoutReference.slots.length !== 14 ||
     !isOmensPackLocalPoolDrawStateFreshForPlanInitialization(tables, poolDrawState)) fail();
+  const selectionHistory = freshSelectionHistory();
+  const parts = frozen({ tables, layoutReference, poolDrawState, nextPosition: 0, selectionHistory });
+  if (!isFrozen(selectionHistory) || selectionHistory.length !== 0) return fail();
   const plan: OmensPackCollationPlan = frozen({});
-  weakMapSet(planCapabilities, plan, frozen({ tables, layoutReference, poolDrawState, nextPosition: 0 }));
+  weakMapSet(planCapabilities, plan, parts);
   return plan;
 };
 
@@ -173,17 +250,57 @@ export const readOmensPackCollationPlanPoolDrawStateForTransition = (plan: Omens
 /** Narrow reader returning the exact next recipe-position cursor. */
 export const readOmensPackCollationPlanNextPositionForTransition = (plan: OmensPackCollationPlan): number => partsFor(plan).nextPosition;
 
+/** Package-internal immutable source-order facts for a future completed-plan boundary. */
+export const readOmensPackCollationPlanSelectionHistoryForCompletion = (
+  plan: OmensPackCollationPlan
+): OmensPackCollationPlanSelectionHistory => {
+  const parts = partsFor(plan);
+  return exactSelectionHistory(parts, parts.selectionHistory) ? parts.selectionHistory : fail();
+};
+
 /** Package-internal current-position capability reader; terminal plans reject before mapping. */
 export const readOmensPackCollationPlanCurrentPositionForTransition = (
   plan: OmensPackCollationPlan
 ): Readonly<{ positionReference: PositionReference; poolDrawState: OmensPackLocalPoolDrawState }> => {
   const parts = partsFor(plan);
-  if (!isSafeInteger(parts.nextPosition) || parts.nextPosition < 0 ||
+  if (!exactSelectionHistory(parts, parts.selectionHistory) ||
+    !isSafeInteger(parts.nextPosition) || parts.nextPosition < 0 ||
     parts.nextPosition >= EXPECTED_POSITION_COUNT) return fail();
   const positionReference = parts.layoutReference.slots[parts.nextPosition];
   if (positionReference === undefined || !isFrozen(positionReference) ||
     positionReference.position !== parts.nextPosition + 1) return fail();
   return frozen({ positionReference, poolDrawState: parts.poolDrawState });
+};
+
+const registerPositionTransition = (
+  priorPlan: OmensPackCollationPlan,
+  priorSelectionHistory: unknown,
+  positionReference: PositionReference,
+  officialIdentityReference: OfficialIdentityReference,
+  nextPoolDrawState: OmensPackLocalPoolDrawState
+): OmensPackCollationPlan => {
+  const prior = partsFor(priorPlan);
+  if (!exactSelectionHistory(prior, priorSelectionHistory) ||
+    prior.nextPosition >= EXPECTED_POSITION_COUNT ||
+    prior.layoutReference.slots[prior.nextPosition] !== positionReference ||
+    !isOmensPackLocalPoolDrawStateExactRemovalForPlanTransition(
+      prior.tables, prior.poolDrawState, nextPoolDrawState,
+      positionReference.resolvedPool, officialIdentityReference
+    )) return fail();
+  const selectionHistory = appendSelectionHistory(
+    prior.selectionHistory, positionReference, officialIdentityReference
+  );
+  const nextParts = frozen({
+    tables: prior.tables,
+    layoutReference: prior.layoutReference,
+    poolDrawState: nextPoolDrawState,
+    nextPosition: prior.nextPosition + 1,
+    selectionHistory
+  });
+  if (!exactSelectionHistory(nextParts, selectionHistory)) return fail();
+  const nextPlan: OmensPackCollationPlan = frozen({});
+  weakMapSet(planCapabilities, nextPlan, nextParts);
+  return nextPlan;
 };
 
 /** Package-internal registration of exactly one validated atomic position transition. */
@@ -194,22 +311,22 @@ export const registerOmensPackCollationPlanPositionTransition = (
   try {
     const [priorPlan, positionReference, officialIdentityReference, nextPoolDrawState] = inputs;
     const prior = partsFor(priorPlan);
-    if (!isSafeInteger(prior.nextPosition) || prior.nextPosition < 0 ||
-      prior.nextPosition >= EXPECTED_POSITION_COUNT ||
-      prior.layoutReference.slots[prior.nextPosition] !== positionReference ||
-      !isOmensPackLocalPoolDrawStateExactRemovalForPlanTransition(
-        prior.tables, prior.poolDrawState, nextPoolDrawState,
-        positionReference.resolvedPool, officialIdentityReference
-      )) return fail();
-    const nextPlan: OmensPackCollationPlan = frozen({});
-    weakMapSet(planCapabilities, nextPlan, frozen({
-      tables: prior.tables,
-      layoutReference: prior.layoutReference,
-      poolDrawState: nextPoolDrawState,
-      nextPosition: prior.nextPosition + 1
-    }));
-    return nextPlan;
+    return registerPositionTransition(
+      priorPlan, prior.selectionHistory, positionReference, officialIdentityReference, nextPoolDrawState
+    );
   } catch (error) {
+    if (error instanceof OmensPackCollationPlanInitializationError) throw error;
+    return fail();
+  }
+};
+
+/** Package-internal seam proving supplied prior history facts cannot be forged or substituted. */
+export const registerOmensPackCollationPlanPositionTransitionWithPriorHistoryForTest = (
+  ...inputs: [OmensPackCollationPlan, OmensPackCollationPlanSelectionHistory, PositionReference, OfficialIdentityReference, OmensPackLocalPoolDrawState]
+): OmensPackCollationPlan => {
+  if (inputs.length !== 5) return fail();
+  try { return registerPositionTransition(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4]); }
+  catch (error) {
     if (error instanceof OmensPackCollationPlanInitializationError) throw error;
     return fail();
   }
@@ -225,12 +342,21 @@ export const isOmensPackCollationPlanExactPositionTransition = (
 ): boolean => {
   try {
     const prior = weakMapGet(planCapabilities, priorPlan), next = weakMapGet(planCapabilities, nextPlan);
+    const appendedRecord = next === undefined ? undefined : next.selectionHistory[next.selectionHistory.length - 1];
     return prior !== undefined && next !== undefined && priorPlan !== nextPlan &&
+      exactSelectionHistory(prior, prior.selectionHistory) &&
+      exactSelectionHistory(next, next.selectionHistory) &&
       isSafeInteger(prior.nextPosition) && isSafeInteger(next.nextPosition) &&
       prior.nextPosition >= 0 && prior.nextPosition < EXPECTED_POSITION_COUNT &&
       prior.layoutReference.slots[prior.nextPosition] === positionReference &&
       next.tables === prior.tables && next.layoutReference === prior.layoutReference &&
       next.poolDrawState === nextPoolDrawState && next.nextPosition === prior.nextPosition + 1 &&
+      next.selectionHistory !== prior.selectionHistory &&
+      next.selectionHistory.length === prior.selectionHistory.length + 1 &&
+      arrayEvery(prior.selectionHistory, (record, index) => next.selectionHistory[index] === record) &&
+      appendedRecord !== undefined && arrayFind(prior.selectionHistory, (record) => record === appendedRecord) === undefined &&
+      appendedRecord.positionReference === positionReference &&
+      appendedRecord.officialIdentityReference === officialIdentityReference &&
       isOmensPackLocalPoolDrawStateExactRemovalForPlanTransition(
         prior.tables, prior.poolDrawState, nextPoolDrawState,
         positionReference.resolvedPool, officialIdentityReference

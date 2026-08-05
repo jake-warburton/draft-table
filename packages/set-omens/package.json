@@ -28,7 +28,8 @@
     "test:pack-local-pool-sample-draw-transition-evidence": "node test/pack-local-pool-sample-draw-transition-evidence-command.mjs",
     "test:pack-collation-plan-evidence": "node test/pack-collation-plan-evidence-command.mjs",
     "test:finite-batch-collation-plan-evidence": "node test/finite-batch-collation-plan-evidence-command.mjs",
-    "test:finite-batch-plan-position-transition-evidence": "node test/finite-batch-plan-position-transition-evidence-command.mjs"
+    "test:finite-batch-plan-position-transition-evidence": "node test/finite-batch-plan-position-transition-evidence-command.mjs",
+    "test:pack-collation-plan-selection-history-evidence": "node test/pack-collation-plan-selection-history-evidence-command.mjs"
   },
   "dependencies": {
     "@draft-table/engine": "0.0.0"
