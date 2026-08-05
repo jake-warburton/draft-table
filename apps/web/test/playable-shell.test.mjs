@@ -90,7 +90,11 @@ test("the static shell has labelled regions, visible focus, reduced motion, no n
   assert.match(html, /aria-label="Cards in fixture pack"/);
   assert.match(html, /aria-label="Picked cards"/);
   assert.match(css, /:focus-visible/);
+  assert.match(css, /section\s*{\s*padding:\s*1rem/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /scroll-behavior:\s*auto\s*!important/);
+  assert.match(css, /@media \(max-width:\s*42rem\)[\s\S]*main\s*{\s*padding:\s*1rem/);
+  assert.match(css, /@media \(max-width:\s*42rem\)[\s\S]*button\s*{\s*min-height:\s*4rem/);
   assert.doesNotMatch(`${html}\n${css}\n${js}`, /fetch\(|XMLHttpRequest|https?:\/\//);
   assert.doesNotMatch(js, /^\s*import\s/m);
 });

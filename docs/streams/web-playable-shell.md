@@ -19,7 +19,7 @@ node scripts/bundle-size.mjs
 npm run size
 ```
 
-The root size report measures only the completed `apps/web/dist/index.html` and `apps/web/dist/styles.css` artifacts; it reports their total and rejects missing built artifacts rather than reading committed source. Current readable source totals **3,347 bytes** (`index.html` 999, `main.js` 1,768, `styles.css` 580). Current built output totals **3,368 bytes** (`index.html` 2,788, `styles.css` 580). The previously proposed 2,048-byte cap is superseded. The web contract checks deterministic repeated output, inline-only output, source readability, and cleanup; the root contract distinguishes built-output measurement from source measurement, permits deliberately large built output, and requires the expected artifacts.
+The root size report measures only the completed `apps/web/dist/index.html` and `apps/web/dist/styles.css` artifacts; it reports their total and rejects missing built artifacts rather than reading committed source. The previously proposed 2,048-byte cap is superseded: optimizing for it caused accessibility and responsive-layout regressions, so it must not be reintroduced. The web contract checks deterministic repeated output, inline-only output, source readability, retained accessibility and responsive behavior, and cleanup; the root contract distinguishes built-output measurement from source measurement, permits deliberately large built output, and requires the expected artifacts.
 
 ## Integration owed
 

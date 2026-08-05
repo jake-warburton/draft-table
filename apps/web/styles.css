@@ -9,6 +9,10 @@ main {
   padding: 2rem;
 }
 
+section {
+  padding: 1rem;
+}
+
 .cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -30,12 +34,21 @@ button:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
+    scroll-behavior: auto !important;
     transition: none !important;
   }
 }
 
 @media (max-width: 42rem) {
+  main {
+    padding: 1rem;
+  }
+
   .cards {
     grid-template-columns: 1fr;
+  }
+
+  button {
+    min-height: 4rem;
   }
 }
