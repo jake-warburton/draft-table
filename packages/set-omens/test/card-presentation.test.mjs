@@ -125,12 +125,28 @@ test(intrinsicContractName, async () => {
   } catch (error) { weakSetError = error; } finally { Object.defineProperty(WeakSet.prototype, "has", weakSetHasDescriptor); }
   assert.equal(weakSetError, undefined, "BOUND_WEAK_SET_HAS_MUST_SURVIVE_CALL_TIME_POISON");
   assert.equal(read, projected);
+  const capturedDefineProperty = Object.defineProperty;
+  const liveDefineProperty = Object.defineProperty;
+  let definePropertyError;
+  try {
+    Object.defineProperty = () => { throw new Error("poisoned defineProperty"); };
+    presentation.projectOmensOfficialCardPresentation(capabilities.reconciliation, capabilities.faces, identity, printing, 10);
+    assert.throws(() => presentation.readOmensCardPresentationForBuild(Object.freeze({})), presentation.OmensCardPresentationError, "BOUND_DEFINE_PROPERTY_RETAINS_STABLE_FAILURE");
+  } catch (error) { definePropertyError = error; } finally { Object.defineProperty = liveDefineProperty; }
+  assert.equal(definePropertyError, undefined, "BOUND_DEFINE_PROPERTY_MUST_SURVIVE_CALL_TIME_POISON");
+  assert.equal(Object.defineProperty, capturedDefineProperty);
 });
 
 test("call-time intrinsic lookup mutations fail the named card-presentation bound-reference contract", () => {
   const sourcePath = new URL("../src/card-presentation.ts", import.meta.url);
   const original = readFileSync(sourcePath, "utf8");
   const mutations = [
+    [
+      "define-property",
+      "const defineProperty = Object.defineProperty;",
+      "const defineProperty = ((target: object, property: PropertyKey, descriptor: PropertyDescriptor) => Object.defineProperty(target, property, descriptor)) as typeof Object.defineProperty;",
+      "BOUND_DEFINE_PROPERTY_MUST_SURVIVE_CALL_TIME_POISON"
+    ],
     [
       "array-includes",
       "const arrayIncludes = Function.prototype.call.bind(Array.prototype.includes) as (values: readonly unknown[], value: unknown) => boolean;",
