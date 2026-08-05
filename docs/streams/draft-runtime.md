@@ -1,95 +1,98 @@
 # Stream 4: draft runtime
 
-`@draft-table/draft` is a dependency-free, platform-independent state machine. It owns draft sequencing only. It does not collate packs, interpret card strength, generate randomness, perform I/O, or import `@draft-table/engine` or `@draft-table/set-omens`.
+`@draft-table/draft` is a dependency-free, platform-independent state machine. It owns draft sequencing only. It does not collate packs, interpret card strength, generate entropy, perform I/O, or import `@draft-table/engine` or `@draft-table/set-omens`.
 
 ## Abstract inputs
 
-The package deliberately uses local product-neutral types:
+The package uses local product-neutral types:
 
-- `DraftCard`: `instanceId`, `cardId`, and optional display `label`. `instanceId` identifies one exact physical draft choice; `cardId` may be shared by multiple instances.
-- `DraftPack`: stable pack `id` and an ordered non-empty card array.
-- `DraftSeat`: stable seat `id` and a `human` or `bot` controller.
-- `DraftSetup`: 2–8 seats and exactly three rounds, each containing one pack per seat. Packs in one round must have equal non-zero sizes.
+- `DraftCard`: stable physical `instanceId`, reusable `cardId`, and optional `label`.
+- `DraftPack`: stable `id` and an ordered non-empty card array.
+- `DraftSeat`: stable seat `id`, `human` or `bot` controller, and optional initial occupant/presence fields. Omitted `occupantId` defaults to the seat ID and omitted `connected` defaults to true.
+- `DraftSetup`: 2–8 seats and exactly three rounds, each with one equal-sized non-empty pack per seat.
 
-Seat IDs, pack IDs, and card instance IDs are unique in a setup. At least one seat is human-controlled. Setup copies only the abstract card fields, so later caller changes cannot alter a draft.
+Seat IDs, initial occupant IDs, pack IDs, and card instance IDs are unique. At least one initial seat is human-controlled. Setup is copied and frozen so later caller changes cannot alter the draft.
 
-## State-transition API
+## State and transition API
 
 ```ts
-const initial = createDraft(setup);
-const next = pickCard(initial, {
-  round: initial.round,
-  pick: initial.pick,
+let state = createDraft(setup);
+state = pickCard(state, {
+  round: state.round,
+  pick: state.pick,
   seatId,
+  occupantId,
   packId,
   cardInstanceId,
 });
-
-const afterBots = runPendingBots(next, firstCardBotPolicy);
+state = revealBarrier(state, {
+  type: "reveal",
+  round: state.round,
+  pick: state.pick,
+});
 ```
 
-`DraftState` exposes:
+`DraftState` exposes stable seats and presence, current round/pick/direction, in-flight and unopened packs, provisional picks, canonical unqueued `pendingSeatIds`, picked pools, connected occupied seats' legal choices, and committed `totalPicks`. All states and nested values are immutable and serializable. A rejection throws `DraftRuleError`, leaves the input unchanged, and cannot partially commit.
 
-- `status`: `picking` or `complete`;
-- current `round`, one-based `pick`, and `passDirection`;
-- stable ordered `seats`;
-- `packsInFlight`, including each pack's original and current seat;
-- future `unopenedRounds` needed by the pure transition;
-- canonical `pendingSeatIds` for the current barrier;
-- per-seat chronological `pickedPools`;
-- `legalChoices`, containing the exact pack and immutable cards each pending seat can choose;
-- `totalPicks`.
+Every pick and lifecycle intent binds to the exact current round and pick. Pick intents also bind the occupant, seat, pack, and physical card instance. This rejects malformed, stale, foreign-occupant, foreign-pack, and absent-card actions before transition.
 
-All created states and nested values are frozen. A successful transition returns a new state and leaves its input available as an independent historical branch. A rejection throws `DraftRuleError` and cannot partially mutate the input.
+## Provisional barrier and passing
 
-Actions bind the caller's intent to an exact round, pick, seat, pack, and card instance. Error codes distinguish malformed, terminal, stale, unknown-seat, duplicate-seat, wrong-pack, and absent-card actions. A delayed action cannot become valid merely because the same seat receives another pack later.
+`pickCard` queues a provisional card. It does not remove or reveal the card, change a pool, increment `totalPicks`, pass a pack, or advance a counter. The same occupant may replace that seat's provisional choice while the barrier remains open. Other seats' choices remain independent of arrival order.
 
-## Pure simultaneous-barrier sequencing
+`revealBarrier` succeeds only when all seats have a valid provisional choice. It then clears all provisional choices and, in one immutable transition, removes each selected card exactly once, appends one card to each seat's chronological pool, increments committed picks, and passes or opens the next round. There is no partially revealed state.
 
-The runtime models simultaneous table picks as explicitly sequenced pure actions:
+“Left” sends the pack at seat index `i` to `(i + 1) mod seatCount`; “right” sends it to `(i - 1 + seatCount) mod seatCount`. Directions are left, right, left for rounds one through three and work identically for odd and even tables. Exhausting a round opens the next round without an empty-pack choice state. Exhausting round three creates the exact terminal state with no packs, provisional picks, pending seats, legal choices, or unopened rounds.
 
-1. At the start of each pick, every seat is in `pendingSeatIds` in canonical setup order.
-2. Any pending seat may submit its one action; server arrival order does not constrain other seats.
-3. That card is removed and appended to that seat's pool immediately. The seat leaves the barrier, but no pack moves and `pick` does not advance.
-4. Only the action that empties `pendingSeatIds` closes the barrier.
-5. If cards remain, every pack passes atomically, `pick` increments, and all seats become pending again.
-6. If packs are empty, the next round opens immediately. There is no empty-pack choice state.
-7. Exhausting round three creates the terminal state.
+## Presence, vacancy, and replacement
 
-“Left” maps the pack at seat index `i` to `(i + 1) mod seatCount`; “right” maps it to `(i - 1 + seatCount) mod seatCount`. Directions are left in round one, right in round two, and left in round three. The definition works identically for odd and even table sizes.
+`disconnectSeat` and `reconnectSeat` change connection state without changing occupancy, pack, pool, or a queued choice. `vacateSeat` atomically clears the departing occupant and that seat's provisional choice. `fillSeat` is valid only for a vacant seat; the replacement inherits the stable seat, current pack, existing picked pool, and future packs, but never inherits a queued choice. The replacement can then queue through `pickCard` using its own occupant ID.
 
-## Invariants
+Vacant and disconnected seats remain in the immutable pass ring. They do not expose interactive legal choices, but timeout fallback still commits one card for every such seat.
 
-- Every picking state has exactly one in-flight pack at each seat.
-- A pending seat has exactly one matching legal choice; a seat that already acted has none.
-- One action removes exactly one matching card instance and appends that same instance exactly once.
-- Packs cannot pass and round/pick counters cannot advance before the full-table barrier closes.
-- Each seat's picked pool is chronological across picks and rounds, independent of action arrival order at a barrier.
-- Every unopened round remains immutable and opens with pack index aligned to seat index.
-- Completion is exact: round 3 remains current, direction is left, `pick` remains the final round's last pick number, all cards are in picked pools, and in-flight packs, unopened rounds, pending seats, and legal choices are empty. Further picks are rejected.
+## Timeout and caller-owned randomness
+
+Timeout resolution is explicit:
+
+```ts
+state = resolveTimeout(
+  state,
+  { type: "timeout", round: state.round, pick: state.pick },
+  missingSeats.map(({ id, packId }) => ({
+    type: "random-fallback",
+    round: state.round,
+    pick: state.pick,
+    seatId: id,
+    packId,
+  })),
+  randomSource,
+);
+```
+
+The fallback intents must cover each and only each seat without a provisional choice, exactly once, and must bind its current pack. Existing provisional choices are committed unchanged. Missing choices are selected uniformly from their local packs using rejection sampling over caller-supplied uint32 samples. `DraftRandomSource` is only the local `nextUint32()` interface: the package creates, seeds, stores, and imports no random generator. Rejected uint32 samples consume another caller-owned sample; malformed samples reject the transition. Only resulting card identities enter state.
 
 ## Bots and single-player use
 
-`BotPolicy` is an explicit replaceable function that receives only the bot's current round/pick metadata and locally available abstract cards. The built-in `firstCardBotPolicy` always chooses the first offered card and has no card-strength rules or randomness. `runPendingBots` resolves pending bot seats in canonical order and stops when only human input remains or the draft completes. A one-human setup with one or more bot seats therefore uses the same transition and validation path as a multiplayer table.
+`BotPolicy` receives only current round/pick metadata and one local abstract pack. `firstCardBotPolicy` deterministically chooses its first card without card-strength knowledge or randomness. `runPendingBots` queues connected bot choices through the same `pickCard` validation path and does not reveal or commit the barrier. The caller invokes the same reveal or timeout transition used for human tables. Policies are replaceable and invalid output is rejected.
 
-A policy returns a card instance ID. The runtime validates that output against the bot's exact active pack; illegal policy output is a `BOT_INVALID_CHOICE` rejection.
+## Invariants
+
+- Every picking state has exactly one pack at every stable seat.
+- A provisional instance belongs to that seat's exact current pack and phase.
+- Cards remain in packs and out of pools until an atomic reveal or timeout commit.
+- Every commit moves exactly one instance per seat and preserves chronological pool order.
+- Passing, pick advancement, round opening, and completion occur only with a full atomic commit.
+- Vacating clears provisional ownership before replacement or fallback can occur; disconnecting does not.
+- Caller-owned timeout entropy is mapped without modulo bias.
+- Historical states remain immutable and independently branchable.
 
 ## Integration requirements
 
-Later integration must:
+Later integration must construct unique physical IDs, keep unopened packs and provisional identities server-side, authenticate occupant/seat authority before calling this package, serialize the exact stale-action fields, own timing and entropy, and project only seat-appropriate views. Empty/disconnected readiness policy and deadline scheduling remain integration concerns; timeout resolution itself is deterministic for the supplied intents and random sample sequence.
 
-1. construct unique card-instance and pack IDs while adapting product cards and three collated pack rounds into these local types;
-2. keep the authoritative full state server-side because `unopenedRounds` contains future packs, and project only seat-appropriate views over shared contracts;
-3. add authenticated room/action identity checks outside this package, then call `pickCard` with the authoritative seat, round, pick, pack, and card instance;
-4. serialize actions and state through later shared contracts without weakening stale-action fields;
-5. choose bot policies explicitly; product intelligence, entropy, and timing stay outside this runtime;
-6. preserve the 2–8 drafting-seat boundary independently from spectator room limits.
-
-No integration registration outside the package is currently required: the existing root `packages/*` workspace glob discovers it.
+No external registration is needed because the root `packages/*` workspace glob already discovers this package.
 
 ## Validation
-
-Package-only commands:
 
 ```sh
 npm --workspace @draft-table/draft run build
@@ -98,14 +101,4 @@ npm --workspace @draft-table/draft run lint
 npm --workspace @draft-table/draft test
 ```
 
-Repository commands:
-
-```sh
-npm run build
-npm run typecheck
-npm run lint
-npm test
-npm run size
-```
-
-The package tests cover setup, all supported seat counts, the simultaneous barrier, all three passing directions, odd/even wrapping, exhaustion and round opening, chronological pools, exact terminal state, stale/duplicate/foreign/malformed rejections, immutable branch independence, deterministic and replaceable bots, single-player completion, and the dependency/import boundary.
+Tests cover setup, provisional replacement and reveal ordering, vacancy versus disconnect, replacement inheritance, exact fallback coverage, rejection-sampling boundaries, three-round passing, odd/even rotations, exhaustion, chronological pools, stale/foreign/malformed rejection, immutability, replaceable bots, single-player completion, serialization, terminal state, and package boundaries.

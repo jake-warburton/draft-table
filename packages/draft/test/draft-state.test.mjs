@@ -6,9 +6,15 @@ import {
   MAX_DRAFT_SEATS,
   MIN_DRAFT_SEATS,
   createDraft,
+  disconnectSeat,
+  fillSeat,
   firstCardBotPolicy,
   pickCard,
+  reconnectSeat,
+  resolveTimeout,
+  revealBarrier,
   runPendingBots,
+  vacateSeat,
 } from "../src/index.ts";
 
 const card = (round, pack, position) => ({
@@ -46,6 +52,7 @@ const actionFor = (state, seatId, cardIndex = 0) => {
     round: state.round,
     pick: state.pick,
     seatId,
+    occupantId: state.seats.find(({ id }) => id === seatId).occupantId,
     packId: choice.packId,
     cardInstanceId: choice.cards[cardIndex].instanceId,
   };
@@ -53,10 +60,10 @@ const actionFor = (state, seatId, cardIndex = 0) => {
 
 const pickBarrier = (initialState, cardIndex = 0) => {
   let state = initialState;
-  for (const seatId of initialState.pendingSeatIds) {
+  for (const seatId of initialState.seats.map(({ id }) => id)) {
     state = pickCard(state, actionFor(state, seatId, cardIndex));
   }
-  return state;
+  return revealBarrier(state, { type: "reveal", round: state.round, pick: state.pick });
 };
 
 const finishDraft = (initialState) => {
@@ -130,36 +137,37 @@ test("setup creates a deeply immutable first-round state and detached input snap
   assert.equal(state.packsInFlight[0].cards[0].label, "Card 1/0/0");
 });
 
-test("a pick barrier removes cards immediately but passes packs only after every seat picks", () => {
+test("provisional picks remain hidden and uncommitted until an explicit full barrier reveal", () => {
   const initial = createDraft(makeSetup({ seatCount: 3 }));
-  const afterOne = pickCard(initial, actionFor(initial, "seat-1"));
+  const first = pickCard(initial, actionFor(initial, "seat-1"));
+  const replaced = pickCard(first, actionFor(first, "seat-1", 1));
 
-  assert.equal(afterOne.round, 1);
-  assert.equal(afterOne.pick, 1);
-  assert.deepEqual(afterOne.pendingSeatIds, ["seat-0", "seat-2"]);
-  assert.equal(choiceFor(afterOne, "seat-1"), undefined);
-  assert.deepEqual(
-    afterOne.packsInFlight.map(({ atSeatId }) => atSeatId),
-    ["seat-0", "seat-1", "seat-2"]
+  assert.equal(replaced.pick, 1);
+  assert.deepEqual(replaced.pendingSeatIds, ["seat-0", "seat-2"]);
+  assert.equal(choiceFor(replaced, "seat-1").cards.length, 2);
+  assert.equal(replaced.packsInFlight[1].cards.length, 2);
+  assert.equal(replaced.pickedPools[1].cards.length, 0);
+  assert.equal(replaced.totalPicks, 0);
+  assert.equal(replaced.provisionalPicks[0].cardInstanceId, "r1-p1-c1");
+  expectRuleError(
+    () => revealBarrier(replaced, { type: "reveal", round: 1, pick: 1 }),
+    "BARRIER_NOT_READY"
   );
-  assert.equal(afterOne.packsInFlight[1].cards.length, 1);
-  assert.deepEqual(afterOne.pickedPools[1].cards.map(({ instanceId }) => instanceId), [
-    "r1-p1-c0",
-  ]);
 
-  const afterBarrier = pickBarrier(afterOne);
+  let queued = replaced;
+  queued = pickCard(queued, actionFor(queued, "seat-0"));
+  queued = pickCard(queued, actionFor(queued, "seat-2"));
+  assert.equal(queued.totalPicks, 0);
+  const afterBarrier = revealBarrier(queued, { type: "reveal", round: 1, pick: 1 });
   assert.equal(afterBarrier.pick, 2);
   assert.deepEqual(afterBarrier.pendingSeatIds, ["seat-0", "seat-1", "seat-2"]);
-  assert.deepEqual(
-    afterBarrier.packsInFlight.map(({ id, atSeatId }) => ({ id, atSeatId })),
-    [
-      { id: "round-1-pack-2", atSeatId: "seat-0" },
-      { id: "round-1-pack-0", atSeatId: "seat-1" },
-      { id: "round-1-pack-1", atSeatId: "seat-2" },
-    ]
-  );
+  assert.deepEqual(afterBarrier.packsInFlight.map(({ id, atSeatId }) => ({ id, atSeatId })), [
+    { id: "round-1-pack-2", atSeatId: "seat-0" },
+    { id: "round-1-pack-0", atSeatId: "seat-1" },
+    { id: "round-1-pack-1", atSeatId: "seat-2" },
+  ]);
+  assert.deepEqual(afterBarrier.pickedPools[1].cards.map(({ instanceId }) => instanceId), ["r1-p1-c1"]);
   assert.equal(initial.packsInFlight[1].cards.length, 2);
-  assert.equal(initial.pickedPools[1].cards.length, 0);
 });
 
 test("three rounds pass left, right, left and preserve each seat's chronological pool order", () => {
@@ -227,13 +235,13 @@ test("pack exhaustion starts the next round without an empty-pack pick window", 
   assert.equal(state.unopenedRounds.length, 1);
 });
 
-test("stale, duplicate, foreign-pack, foreign-card, and unknown-seat actions are atomic rejections", () => {
+test("stale, foreign-occupant, foreign-pack, foreign-card, and unknown-seat actions are atomic rejections", () => {
   const initial = createDraft(makeSetup({ seatCount: 3 }));
   const validAction = actionFor(initial, "seat-0");
   const afterOne = pickCard(initial, validAction);
   const snapshot = JSON.stringify(afterOne);
 
-  expectRuleError(() => pickCard(afterOne, validAction), "SEAT_ALREADY_PICKED");
+  expectRuleError(() => pickCard(afterOne, { ...validAction, occupantId: "intruder" }), "OCCUPANT_MISMATCH");
   expectRuleError(
     () => pickCard(afterOne, { ...actionFor(afterOne, "seat-1"), round: 2 }),
     "STALE_ACTION"
@@ -277,13 +285,9 @@ test("independent transitions branch without sharing mutable arrays", () => {
   const firstBranch = pickCard(initial, actionFor(initial, "seat-0", 0));
   const secondBranch = pickCard(initial, actionFor(initial, "seat-0", 1));
 
-  assert.deepEqual(firstBranch.pickedPools[0].cards.map(({ instanceId }) => instanceId), [
-    "r1-p0-c0",
-  ]);
-  assert.deepEqual(secondBranch.pickedPools[0].cards.map(({ instanceId }) => instanceId), [
-    "r1-p0-c1",
-  ]);
-  assert.equal(initial.pickedPools[0].cards.length, 0);
+  assert.equal(firstBranch.provisionalPicks[0].cardInstanceId, "r1-p0-c0");
+  assert.equal(secondBranch.provisionalPicks[0].cardInstanceId, "r1-p0-c1");
+  assert.equal(initial.provisionalPicks.length, 0);
   assertDeepFrozen(firstBranch);
   assertDeepFrozen(secondBranch);
 });
@@ -307,9 +311,8 @@ test("the default bot deterministically chooses the first locally offered card",
   );
   const afterBots = runPendingBots(state);
   assert.deepEqual(afterBots.pendingSeatIds, ["seat-0"]);
-  assert.deepEqual(afterBots.pickedPools[1].cards.map(({ instanceId }) => instanceId), [
-    "r1-p1-c0",
-  ]);
+  assert.equal(afterBots.provisionalPicks[0].cardInstanceId, "r1-p1-c0");
+  assert.equal(afterBots.pickedPools[1].cards.length, 0);
 });
 
 test("bot policy is replaceable, receives only local choices, and invalid output is rejected", () => {
@@ -332,9 +335,7 @@ test("bot policy is replaceable, receives only local choices, and invalid output
     "seatId",
   ]);
   assertDeepFrozen(contexts[0]);
-  assert.deepEqual(afterBots.pickedPools[1].cards.map(({ instanceId }) => instanceId), [
-    "r1-p1-c1",
-  ]);
+  assert.equal(afterBots.provisionalPicks[0].cardInstanceId, "r1-p1-c1");
   expectRuleError(() => runPendingBots(state, () => "foreign-card"), "BOT_INVALID_CHOICE");
   assert.equal(state.pickedPools[1].cards.length, 0);
 });
@@ -354,11 +355,70 @@ test("one human plus deterministic bots can complete all three rounds", () => {
     assert.ok(humanChoice);
     state = pickCard(state, actionFor(state, "seat-0"));
     state = runPendingBots(state);
+    state = revealBarrier(state, { type: "reveal", round: state.round, pick: state.pick });
   }
 
   assert.equal(state.totalPicks, 20);
   assert.deepEqual(state.pickedPools.map(({ cards }) => cards.length), [5, 5, 5, 5]);
   assert.equal(state.status, "complete");
+});
+
+test("disconnect preserves intent while vacancy clears before replacement and fallback", () => {
+  let state = createDraft(makeSetup({ seatCount: 2, cardsPerRound: [3, 1, 1] }));
+  state = pickCard(state, actionFor(state, "seat-1", 2));
+  state = disconnectSeat(state, {
+    round: 1, pick: 1, seatId: "seat-1", occupantId: "seat-1",
+  });
+  assert.equal(state.provisionalPicks[0].cardInstanceId, "r1-p1-c2");
+  state = reconnectSeat(state, {
+    round: 1, pick: 1, seatId: "seat-1", occupantId: "seat-1",
+  });
+  state = vacateSeat(state, {
+    round: 1, pick: 1, seatId: "seat-1", occupantId: "seat-1",
+  });
+  assert.equal(state.provisionalPicks.length, 0);
+  assert.equal(state.seats[1].occupantId, null);
+  const inheritedPack = state.packsInFlight.find(({ atSeatId }) => atSeatId === "seat-1").id;
+  state = fillSeat(state, {
+    round: 1, pick: 1, seatId: "seat-1", occupantId: "replacement",
+    controller: "human",
+  });
+  assert.equal(state.provisionalPicks.length, 0);
+  assert.equal(choiceFor(state, "seat-1").packId, inheritedPack);
+
+  state = pickCard(state, actionFor(state, "seat-0"));
+  const samples = [0xffff_ffff, 1];
+  const resolved = resolveTimeout(
+    state,
+    { type: "timeout", round: 1, pick: 1 },
+    [{ type: "random-fallback", round: 1, pick: 1, seatId: "seat-1", packId: inheritedPack }],
+    { nextUint32: () => samples.shift() }
+  );
+  assert.deepEqual(samples, []);
+  assert.equal(resolved.pickedPools[1].cards[0].instanceId, "r1-p1-c1");
+  assert.equal(resolved.pick, 2);
+});
+
+test("timeout intents reject incomplete, duplicate, and stale fallback coverage atomically", () => {
+  const state = createDraft(makeSetup({ cardsPerRound: [2, 1, 1] }));
+  const snapshot = JSON.stringify(state);
+  const fallback = (seatId) => ({
+    type: "random-fallback", round: 1, pick: 1, seatId,
+    packId: choiceFor(state, seatId).packId,
+  });
+  expectRuleError(
+    () => resolveTimeout(state, { type: "timeout", round: 1, pick: 1 }, [fallback("seat-0")], { nextUint32: () => 0 }),
+    "FALLBACK_MISMATCH"
+  );
+  expectRuleError(
+    () => resolveTimeout(state, { type: "timeout", round: 1, pick: 1 }, [fallback("seat-0"), fallback("seat-0")], { nextUint32: () => 0 }),
+    "FALLBACK_MISMATCH"
+  );
+  expectRuleError(
+    () => resolveTimeout(state, { type: "timeout", round: 2, pick: 1 }, [fallback("seat-0"), fallback("seat-1")], { nextUint32: () => 0 }),
+    "STALE_ACTION"
+  );
+  assert.equal(JSON.stringify(state), snapshot);
 });
 
 test("completion produces the exact terminal control state and rejects further picks", () => {
@@ -395,6 +455,7 @@ test("completion produces the exact terminal control state and rejects further p
         round: 3,
         pick: 1,
         seatId: "seat-0",
+        occupantId: "seat-0",
         packId: "round-3-pack-0",
         cardInstanceId: "r3-p0-c0",
       }),
@@ -456,6 +517,7 @@ test("malformed actions are rejected without changing state", () => {
     { ...actionFor(state, "seat-0"), round: 0 },
     { ...actionFor(state, "seat-0"), pick: 1.5 },
     { ...actionFor(state, "seat-0"), seatId: "" },
+    { ...actionFor(state, "seat-0"), occupantId: "" },
     { ...actionFor(state, "seat-0"), packId: "" },
     { ...actionFor(state, "seat-0"), cardInstanceId: "" },
   ];
