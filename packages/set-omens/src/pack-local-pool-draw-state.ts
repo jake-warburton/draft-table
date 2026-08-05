@@ -34,6 +34,7 @@ type PoolState = OmensPackLocalPoolDrawState["poolStates"][number];
 const EXPECTED_POOL_COUNT = 11;
 const drawStateCapabilities = new WeakSet<object>();
 const drawStateTables = new WeakMap<object, OmensCollationWeightTables>();
+const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;
 const freeze: typeof Object.freeze = Object.freeze;
 const isFrozen: typeof Object.isFrozen = Object.isFrozen;
 const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
@@ -149,11 +150,16 @@ const removeFromPool = (selectedPool: PoolState, selectedIdentity: OfficialIdent
     const choice = choices[index];
     if (choice === selectedChoice) continue;
     cumulativeExclusiveEnd = nextExclusiveEnd(cumulativeExclusiveEnd, choice.weight);
-    nextChoices.push(frozen({
-      officialIdentityReference: choice.officialIdentityReference,
-      weight: choice.weight,
-      cumulativeExclusiveEnd
-    }));
+    defineOwnDataProperty(nextChoices, nextChoices.length, {
+      value: frozen({
+        officialIdentityReference: choice.officialIdentityReference,
+        weight: choice.weight,
+        cumulativeExclusiveEnd
+      }),
+      writable: true,
+      enumerable: true,
+      configurable: true
+    });
   }
   if (cumulativeExclusiveEnd !== nextTotal) fail();
   return frozen({
