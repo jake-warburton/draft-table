@@ -115,7 +115,7 @@ const removeFromPool = (selectedPool: PoolState, selectedIdentity: OfficialIdent
   });
 };
 
-/** Narrow reader for one current pack-local pool consumed only by dynamic bounded-ticket lookup. */
+/** Narrow reader for one current pack-local pool consumed only by current-state selection composition. */
 export const readOmensPackLocalPoolDrawStatePoolForTicketSelection = (
   state: OmensPackLocalPoolDrawState,
   poolReference: PoolReference
