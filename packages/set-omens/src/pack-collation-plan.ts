@@ -51,7 +51,7 @@ type PlanParts = Readonly<{
   selectionHistory: OmensPackCollationPlanSelectionHistory;
 }>;
 
-/** Opaque, immutable historical capability for one exact layout, pool state, and cursor. */
+/** Opaque, immutable historical capability for one exact layout, pool state, cursor, and accepted-selection history. */
 export type OmensPackCollationPlan = Readonly<Record<never, never>>;
 export type OmensPackCollationPlanInitialization = Readonly<{
   state: "selected";
