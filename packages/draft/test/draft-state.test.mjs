@@ -138,14 +138,14 @@ test("setup creates a deeply immutable first-round state and detached input snap
 });
 
 test("provisional picks remain hidden and uncommitted until an explicit full barrier reveal", () => {
-  const initial = createDraft(makeSetup({ seatCount: 3 }));
+  const initial = createDraft(makeSetup({ seatCount: 3, cardsPerRound: [3, 2, 2] }));
   const first = pickCard(initial, actionFor(initial, "seat-1"));
   const replaced = pickCard(first, actionFor(first, "seat-1", 1));
 
   assert.equal(replaced.pick, 1);
   assert.deepEqual(replaced.pendingSeatIds, ["seat-0", "seat-2"]);
-  assert.equal(choiceFor(replaced, "seat-1").cards.length, 2);
-  assert.equal(replaced.packsInFlight[1].cards.length, 2);
+  assert.equal(choiceFor(replaced, "seat-1").cards.length, 3);
+  assert.equal(replaced.packsInFlight[1].cards.length, 3);
   assert.equal(replaced.pickedPools[1].cards.length, 0);
   assert.equal(replaced.totalPicks, 0);
   assert.equal(replaced.provisionalPicks[0].cardInstanceId, "r1-p1-c1");
@@ -167,11 +167,11 @@ test("provisional picks remain hidden and uncommitted until an explicit full bar
     { id: "round-1-pack-1", atSeatId: "seat-2" },
   ]);
   assert.deepEqual(afterBarrier.pickedPools[1].cards.map(({ instanceId }) => instanceId), ["r1-p1-c1"]);
-  assert.equal(initial.packsInFlight[1].cards.length, 2);
+  assert.equal(initial.packsInFlight[1].cards.length, 3);
 });
 
 test("three rounds pass left, right, left and preserve each seat's chronological pool order", () => {
-  let state = createDraft(makeSetup({ seatCount: 3 }));
+  let state = createDraft(makeSetup({ seatCount: 3, cardsPerRound: [3, 3, 3] }));
 
   assert.equal(state.passDirection, "left");
   state = pickBarrier(state);
@@ -197,13 +197,17 @@ test("three rounds pass left, right, left and preserve each seat's chronological
   assert.equal(state.status, "complete");
   assert.deepEqual(
     state.pickedPools[0].cards.map(({ instanceId }) => instanceId),
-    ["r1-p0-c0", "r1-p2-c1", "r2-p0-c0", "r2-p1-c1", "r3-p0-c0", "r3-p2-c1"]
+    [
+      "r1-p0-c0", "r1-p2-c1", "r1-p1-c2",
+      "r2-p0-c0", "r2-p1-c1", "r2-p2-c2",
+      "r3-p0-c0", "r3-p2-c1", "r3-p1-c2",
+    ]
   );
 });
 
 test("left and right rotations wrap correctly for odd and even seat counts", () => {
   for (const seatCount of [3, 4]) {
-    let state = createDraft(makeSetup({ seatCount, cardsPerRound: [2, 2, 1] }));
+    let state = createDraft(makeSetup({ seatCount, cardsPerRound: [3, 3, 1] }));
     state = pickBarrier(state);
     for (let origin = 0; origin < seatCount; origin += 1) {
       const pack = state.packsInFlight.find((candidate) => candidate.originSeatId === `seat-${origin}`);
@@ -220,13 +224,18 @@ test("left and right rotations wrap correctly for odd and even seat counts", () 
   }
 });
 
-test("pack exhaustion starts the next round without an empty-pack pick window", () => {
-  let state = createDraft(makeSetup({ cardsPerRound: [1, 2, 1] }));
+test("a sole final card is passed and assigned in the preceding atomic barrier", () => {
+  let state = createDraft(makeSetup({ cardsPerRound: [2, 2, 1] }));
   state = pickBarrier(state);
 
   assert.equal(state.round, 2);
   assert.equal(state.pick, 1);
   assert.equal(state.passDirection, "right");
+  assert.deepEqual(state.pickedPools.map(({ cards }) => cards.map(({ instanceId }) => instanceId)), [
+    ["r1-p0-c0", "r1-p1-c1"],
+    ["r1-p1-c0", "r1-p0-c1"],
+  ]);
+  assert.equal(state.totalPicks, 4);
   assert.deepEqual(state.packsInFlight.map(({ id }) => id), [
     "round-2-pack-0",
     "round-2-pack-1",
@@ -271,7 +280,7 @@ test("stale, foreign-occupant, foreign-pack, foreign-card, and unknown-seat acti
 });
 
 test("a stale action from before a completed barrier cannot affect the next pick", () => {
-  const initial = createDraft(makeSetup());
+  const initial = createDraft(makeSetup({ cardsPerRound: [3, 2, 2] }));
   const stale = actionFor(initial, "seat-0");
   const nextPick = pickBarrier(initial);
 
@@ -399,25 +408,36 @@ test("disconnect preserves intent while vacancy clears before replacement and fa
   assert.equal(resolved.pick, 2);
 });
 
-test("timeout intents reject incomplete, duplicate, and stale fallback coverage atomically", () => {
+test("timeout prevalidates complete fallback batches before reading entropy", () => {
   const state = createDraft(makeSetup({ cardsPerRound: [2, 1, 1] }));
   const snapshot = JSON.stringify(state);
   const fallback = (seatId) => ({
     type: "random-fallback", round: 1, pick: 1, seatId,
     packId: choiceFor(state, seatId).packId,
   });
+  const invalidBatches = [
+    { fallbacks: [fallback("seat-0")], code: "FALLBACK_MISMATCH" },
+    { fallbacks: [fallback("seat-0"), fallback("seat-0")], code: "FALLBACK_MISMATCH" },
+    { fallbacks: [fallback("seat-0"), null], code: "MALFORMED_ACTION" },
+    { fallbacks: [fallback("seat-0"), { ...fallback("seat-1"), round: 2 }], code: "STALE_ACTION" },
+    { fallbacks: [fallback("seat-0"), { ...fallback("seat-1"), seatId: "foreign-seat" }], code: "FALLBACK_MISMATCH" },
+    { fallbacks: [fallback("seat-0"), { ...fallback("seat-1"), packId: "foreign-pack" }], code: "FALLBACK_MISMATCH" },
+  ];
+  for (const { fallbacks, code } of invalidBatches) {
+    let entropyReads = 0;
+    expectRuleError(
+      () => resolveTimeout(state, { type: "timeout", round: 1, pick: 1 }, fallbacks, { nextUint32: () => { entropyReads += 1; return 0; } }),
+      code
+    );
+    assert.equal(entropyReads, 0);
+  }
+  let staleEntropyReads = 0;
   expectRuleError(
-    () => resolveTimeout(state, { type: "timeout", round: 1, pick: 1 }, [fallback("seat-0")], { nextUint32: () => 0 }),
-    "FALLBACK_MISMATCH"
-  );
-  expectRuleError(
-    () => resolveTimeout(state, { type: "timeout", round: 1, pick: 1 }, [fallback("seat-0"), fallback("seat-0")], { nextUint32: () => 0 }),
-    "FALLBACK_MISMATCH"
-  );
-  expectRuleError(
-    () => resolveTimeout(state, { type: "timeout", round: 2, pick: 1 }, [fallback("seat-0"), fallback("seat-1")], { nextUint32: () => 0 }),
+    () => resolveTimeout(state, { type: "timeout", round: 2, pick: 1 }, [fallback("seat-0"), fallback("seat-1")],
+      { nextUint32: () => { staleEntropyReads += 1; return 0; } }),
     "STALE_ACTION"
   );
+  assert.equal(staleEntropyReads, 0);
   assert.equal(JSON.stringify(state), snapshot);
 });
 

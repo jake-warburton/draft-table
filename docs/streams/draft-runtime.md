@@ -40,7 +40,7 @@ Every pick and lifecycle intent binds to the exact current round and pick. Pick 
 
 `pickCard` queues a provisional card. It does not remove or reveal the card, change a pool, increment `totalPicks`, pass a pack, or advance a counter. The same occupant may replace that seat's provisional choice while the barrier remains open. Other seats' choices remain independent of arrival order.
 
-`revealBarrier` succeeds only when all seats have a valid provisional choice. It then clears all provisional choices and, in one immutable transition, removes each selected card exactly once, appends one card to each seat's chronological pool, increments committed picks, and passes or opens the next round. There is no partially revealed state.
+`revealBarrier` succeeds only when all seats have a valid provisional choice. It then clears all provisional choices and, in one immutable transition, removes each selected card exactly once, appends it to each seat's chronological pool, increments committed picks, and passes or opens the next round. If that pass leaves one card in each pack, the same transition passes and automatically appends each sole final card to its receiving seat before advancing; no provisional choice or pick interval is created for it. There is no partially revealed state.
 
 “Left” sends the pack at seat index `i` to `(i + 1) mod seatCount`; “right” sends it to `(i - 1 + seatCount) mod seatCount`. Directions are left, right, left for rounds one through three and work identically for odd and even tables. Exhausting a round opens the next round without an empty-pack choice state. Exhausting round three creates the exact terminal state with no packs, provisional picks, pending seats, legal choices, or unopened rounds.
 
@@ -69,7 +69,7 @@ state = resolveTimeout(
 );
 ```
 
-The fallback intents must cover each and only each seat without a provisional choice, exactly once, and must bind its current pack. Existing provisional choices are committed unchanged. Missing choices are selected uniformly from their local packs using rejection sampling over caller-supplied uint32 samples. `DraftRandomSource` is only the local `nextUint32()` interface: the package creates, seeds, stores, and imports no random generator. Rejected uint32 samples consume another caller-owned sample; malformed samples reject the transition. Only resulting card identities enter state.
+The fallback intents must cover each and only each seat without a provisional choice, exactly once, and must bind its current pack. The complete batch is validated before the first entropy read, so malformed, duplicate, stale, or foreign fallback rejection consumes no samples. Existing provisional choices are committed unchanged. Missing choices are selected uniformly from their local packs using rejection sampling over caller-supplied uint32 samples. `DraftRandomSource` is only the local `nextUint32()` interface: the package creates, seeds, stores, and imports no random generator. Rejected uint32 samples consume another caller-owned sample; malformed samples reject the transition. Only resulting card identities enter state.
 
 ## Bots and single-player use
 
@@ -80,8 +80,8 @@ The fallback intents must cover each and only each seat without a provisional ch
 - Every picking state has exactly one pack at every stable seat.
 - A provisional instance belongs to that seat's exact current pack and phase.
 - Cards remain in packs and out of pools until an atomic reveal or timeout commit.
-- Every commit moves exactly one instance per seat and preserves chronological pool order.
-- Passing, pick advancement, round opening, and completion occur only with a full atomic commit.
+- Every interactive commit moves one selected instance per seat and preserves chronological pool order; when only one card then remains, the same transition passes and assigns it automatically.
+- Passing, automatic final-card assignment, pick advancement, round opening, and completion occur only with a full atomic commit.
 - Vacating clears provisional ownership before replacement or fallback can occur; disconnecting does not.
 - Caller-owned timeout entropy is mapped without modulo bias.
 - Historical states remain immutable and independently branchable.

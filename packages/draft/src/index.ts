@@ -353,7 +353,7 @@ const passPacks = (packs: readonly PackInFlight[], seats: readonly ActiveDraftSe
 const commitPicks = (state: DraftState, picks: readonly ProvisionalPick[]): DraftState => {
   const selected = new Map(picks.map((pick) => [pick.seatId, pick]));
   const selectedCards = new Map<string, DraftCard>();
-  const packs = frozenArray(state.packsInFlight.map((pack) => {
+  const reducedPacks = frozenArray(state.packsInFlight.map((pack) => {
     const pick = selected.get(pack.atSeatId);
     if (pick === undefined || pick.packId !== pack.id) fail("FALLBACK_MISMATCH", "Barrier has no exact selection for every pack.");
     const index = pack.cards.findIndex(({ instanceId }) => instanceId === pick.cardInstanceId);
@@ -361,9 +361,18 @@ const commitPicks = (state: DraftState, picks: readonly ProvisionalPick[]): Draf
     selectedCards.set(pack.atSeatId, pack.cards[index]);
     return Object.freeze({ ...pack, cards: frozenArray([...pack.cards.slice(0, index), ...pack.cards.slice(index + 1)]) });
   }));
-  const pools = frozenArray(state.pickedPools.map((pool) => Object.freeze({ ...pool,
-    cards: frozenArray([...pool.cards, selectedCards.get(pool.seatId) as DraftCard]) })));
-  const totalPicks = state.totalPicks + state.seats.length;
+  let committedBySeat = state.seats.map(({ id }) => frozenArray([selectedCards.get(id) as DraftCard]));
+  let totalPicks = state.totalPicks + state.seats.length;
+  let packs = reducedPacks;
+  if (reducedPacks[0].cards.length === 1) {
+    packs = passPacks(reducedPacks, state.seats, state.passDirection);
+    committedBySeat = state.seats.map(({ id }, index) => frozenArray([...committedBySeat[index],
+      (packs.find(({ atSeatId }) => atSeatId === id) as PackInFlight).cards[0]]));
+    totalPicks += state.seats.length;
+    packs = frozenArray(packs.map((pack) => Object.freeze({ ...pack, cards: frozenArray<DraftCard>([]) })));
+  }
+  const pools = frozenArray(state.pickedPools.map((pool, index) => Object.freeze({ ...pool,
+    cards: frozenArray([...pool.cards, ...committedBySeat[index]]) })));
   if (packs[0].cards.length > 0) return makeState({ ...state, pick: state.pick + 1,
     packsInFlight: passPacks(packs, state.seats, state.passDirection), provisionalPicks: frozenArray([]), pickedPools: pools, totalPicks });
   if (state.unopenedRounds.length > 0) {
@@ -409,15 +418,31 @@ export const resolveTimeout = (
   const queued = new Set(state.provisionalPicks.map(({ seatId }) => seatId));
   const missing = state.seats.filter(({ id }) => !queued.has(id));
   if (fallbacks.length !== missing.length) fail("FALLBACK_MISMATCH", "Fallback intents must exactly cover unqueued seats.");
+  const validatedFallbacks = fallbacks.map((value) => {
+    if (!isCurrentFields(value) || value.type !== "random-fallback" ||
+      !isIdentifier(value.seatId) || !isIdentifier(value.packId)) {
+      fail("MALFORMED_ACTION", "Random fallback intent fields are malformed.");
+    }
+    return value;
+  });
+  const missingIds = new Set(missing.map(({ id }) => id));
+  const fallbackBySeat = new Map<string, RandomFallbackIntent>();
+  for (const intent of validatedFallbacks) {
+    if (intent.round !== state.round || intent.pick !== state.pick) fail("STALE_ACTION", "Fallback intent does not target the current round and pick.");
+    if (!missingIds.has(intent.seatId) || fallbackBySeat.has(intent.seatId)) {
+      fail("FALLBACK_MISMATCH", "Fallback intents must exactly cover unqueued seats once.");
+    }
+    const pack = state.packsInFlight.find(({ atSeatId }) => atSeatId === intent.seatId);
+    if (pack === undefined || intent.packId !== pack.id) fail("FALLBACK_MISMATCH", `Invalid fallback intent for ${intent.seatId}.`);
+    fallbackBySeat.set(intent.seatId, intent);
+  }
+  if (fallbackBySeat.size !== missing.length) fail("FALLBACK_MISMATCH", "Fallback intents must exactly cover unqueued seats.");
   const fallbackPicks = missing.map((seat) => {
-    const intent = fallbacks.find(({ seatId }) => seatId === seat.id);
-    const pack = state.packsInFlight.find(({ atSeatId }) => atSeatId === seat.id);
-    if (intent === undefined || !isCurrentFields(intent) || intent.type !== "random-fallback" ||
-      intent.round !== state.round || intent.pick !== state.pick || pack === undefined || intent.packId !== pack.id ||
-      fallbacks.filter(({ seatId }) => seatId === seat.id).length !== 1) fail("FALLBACK_MISMATCH", `Invalid fallback intent for ${seat.id}.`);
+    const intent = fallbackBySeat.get(seat.id) as RandomFallbackIntent;
+    const pack = state.packsInFlight.find(({ atSeatId }) => atSeatId === seat.id) as PackInFlight;
     const card = pack.cards[boundedIndex(pack.cards.length, random)];
     return Object.freeze({ round: state.round, pick: state.pick, seatId: seat.id,
-      occupantId: seat.occupantId ?? "random-fallback", packId: pack.id, cardInstanceId: card.instanceId });
+      occupantId: seat.occupantId ?? "random-fallback", packId: intent.packId, cardInstanceId: card.instanceId });
   });
   return commitPicks(state, frozenArray([...state.provisionalPicks, ...fallbackPicks]));
 };
