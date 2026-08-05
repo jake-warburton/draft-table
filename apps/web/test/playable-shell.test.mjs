@@ -28,7 +28,7 @@ test("initial fixture render provides named native pick controls and a live stat
   assert.equal(round.textContent, 1);
   assert.equal(pack.children.length, 3);
   assert.match(status.textContent, /Choose one card/);
-  assert.ok(pack.children.every((card) => card.ariaLabel.startsWith("Pick ")));
+  assert.deepEqual(pack.children.map((card) => card.textContent), ["Fixture A", "Fixture B", "Fixture C"]);
 });
 
 test("a click picks one card, removes its pack, and advances deterministically", async () => {
@@ -36,15 +36,15 @@ test("a click picks one card, removes its pack, and advances deterministically",
   const chosen = pack.firstChild;
   chosen.onclick();
   assert.equal(chosen.disabled, true);
-  assert.equal(picks.children[0].textContent, "Ash");
+  assert.equal(picks.children[0].textContent, "Fixture A");
   assert.equal(round.textContent, 2);
-  assert.equal(pack.children.some((card) => card.textContent === "Ash"), false);
+  assert.equal(pack.children.some((card) => card.textContent === "Fixture A"), false);
 });
 
 test("keyboard activation has the same native-button pick result", async () => {
   const { pack, picks } = await loadShell();
   pack.children[1].onclick(); // Native Enter/Space activation dispatches click for a button.
-  assert.equal(picks.children[0].textContent, "Gale");
+  assert.equal(picks.children[0].textContent, "Fixture B");
 });
 
 test("a reload starts a fresh deterministic walkthrough", async () => {
@@ -53,7 +53,7 @@ test("a reload starts a fresh deterministic walkthrough", async () => {
   const reloaded = await loadShell();
   assert.equal(reloaded.round.textContent, 1);
   assert.equal(reloaded.picks.children.length, 0);
-  assert.equal(reloaded.pack.firstChild.textContent, "Ash");
+  assert.equal(reloaded.pack.firstChild.textContent, "Fixture A");
 });
 
 test("stale and double card activation cannot add a second pick", async () => {
@@ -85,6 +85,7 @@ test("the static shell has labelled regions, visible focus, reduced motion, no n
   const html = readFileSync(file("index.html"), "utf8");
   const css = readFileSync(file("styles.css"), "utf8");
   const js = readFileSync(file("main.js"), "utf8");
+  assert.match(html, /Playable with invented fixtures only; engine\/set-omens integration comes later\./);
   assert.match(html, /role="status" aria-live="polite"/);
   assert.match(html, /aria-label="Cards in fixture pack"/);
   assert.match(html, /aria-label="Picked cards"/);
