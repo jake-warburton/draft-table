@@ -44,8 +44,7 @@ export const mapUnsigned32SampleBatchToBoundedTicket = (
       return fail();
     }
     return frozen({ state: "needs-sample", consumedSamples: samples.length });
-  } catch (error) {
-    if (error instanceof UnbiasedUint32TicketMappingError) throw error;
+  } catch {
     return fail();
   }
 };

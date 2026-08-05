@@ -181,6 +181,17 @@ test("finite uint32 batches snapshot hostile array length and elements exactly o
   const throwingElement = [0];
   Object.defineProperty(throwingElement, 0, { get() { throw new Error("element trap"); } });
   safe(() => mapUnsigned32SampleBatchToBoundedTicket(throwingElement, 1));
+
+  const hostileError = new UnbiasedUint32TicketMappingError();
+  hostileError.message = "attacker-controlled";
+  hostileError.stack = "attacker-controlled";
+  const throwingEngineError = [0];
+  Object.defineProperty(throwingEngineError, 0, { get() { throw hostileError; } });
+  safe(() => mapUnsigned32SampleBatchToBoundedTicket(throwingEngineError, 1));
+
+  const { proxy: revoked, revoke } = Proxy.revocable([], {});
+  revoke();
+  safe(() => mapUnsigned32SampleBatchToBoundedTicket(revoked, 1));
 });
 
 test("finite uint32 batch results are deeply immutable, deterministic, and independent of caller copies", () => {
@@ -234,6 +245,40 @@ const runMutation = (mutated, contractName, marker, failure) => withCanonicalSna
   assert.equal(lines.filter((line) => line === `# ${marker}`).length, 1);
   assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === contractName).length, 1);
   assert.equal(lines.filter((line) => line.includes(failure)).length, 1);
+});
+
+const hostileProxyContract = "finite batch snapshots hostile Proxy length for bounded consumption";
+test(hostileProxyContract, async () => {
+  console.log("FINITE_BATCH_HOSTILE_PROXY_CONTRACT_EXECUTED");
+  const mapping = await loadMutationModule();
+  let lengthReads = 0;
+  const elementReads = new Map();
+  const samples = new Proxy([], {
+    get(target, property, receiver) {
+      if (property === "length") {
+        lengthReads++;
+        return Math.min(lengthReads + 1, 3);
+      }
+      if (typeof property === "string" && /^\d+$/u.test(property)) {
+        elementReads.set(property, (elementReads.get(property) ?? 0) + 1);
+        return property === "0" ? retrySample(7) : 12;
+      }
+      return Reflect.get(target, property, receiver);
+    }
+  });
+  assert.equal(Array.isArray(samples), true);
+  assert.deepEqual(mapping.mapUnsigned32SampleBatchToBoundedTicket(samples, 7), { state: "accepted", ticket: 5, consumedSamples: 2 });
+  assert.equal(lengthReads, 1, "HOSTILE_PROXY_LENGTH_MUST_BE_READ_ONCE");
+  assert.deepEqual(Object.fromEntries(elementReads), { 0: 1, 1: 1 }, "HOSTILE_PROXY_MUST_READ_ONLY_CAPTURED_ELEMENTS");
+});
+test("hostile-Proxy length semantic mutation fails its exact named contract", () => {
+  const original = readFileSync(sourcePath, "utf8");
+  const mutated = original.replace(
+    "index < sampleCount",
+    "index < suppliedSamples.length"
+  );
+  assert.notEqual(mutated, original);
+  runMutation(mutated, hostileProxyContract, "FINITE_BATCH_HOSTILE_PROXY_CONTRACT_EXECUTED", "HOSTILE_PROXY_LENGTH_MUST_BE_READ_ONCE");
 });
 
 const retryFallbackContract = "finite batch retry does not fallback to ticket zero";
