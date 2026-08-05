@@ -10,6 +10,9 @@ import {
 
 const defineProperty = Object.defineProperty;
 const freeze = Object.freeze;
+const arrayIncludes = Function.prototype.call.bind(Array.prototype.includes) as (values: readonly unknown[], value: unknown) => boolean;
+const weakSetAdd = Function.prototype.call.bind(WeakSet.prototype.add) as (set: WeakSet<object>, value: object) => WeakSet<object>;
+const weakSetHas = Function.prototype.call.bind(WeakSet.prototype.has) as (set: WeakSet<object>, value: object) => boolean;
 const presentationCapabilities = new WeakSet<object>();
 
 /** Stable source-secret failure for an exact build-time card display projection. */
@@ -81,7 +84,7 @@ export const projectOmensOfficialCardPresentation = (
   try {
     const records = readOfficialUpstreamIdReconciliationForSuffixFoiling(reconciliation);
     const projectedFaces = readOfficialCardVaultFaceProjectionForMultiplicityReconciliation(faces);
-    if (!records.includes(identity) || !identity.printings.includes(printing) || !Number.isInteger(faceLayoutPosition)) fail();
+    if (!arrayIncludes(records, identity) || !arrayIncludes(identity.printings, printing) || !Number.isInteger(faceLayoutPosition)) fail();
     const faceEntry = projectedFaces.find((entry) => entry.print_id === identity.officialPrintId);
     if (faceEntry === undefined) return fail();
     const face = faceEntry.faces.find((entry) => entry.layout_position === faceLayoutPosition);
@@ -101,7 +104,7 @@ export const projectOmensOfficialCardPresentation = (
       rearMarker: null,
       source
     });
-    presentationCapabilities.add(output);
+    weakSetAdd(presentationCapabilities, output);
     return output;
   } catch (error) {
     if (error instanceof OmensCardPresentationError) throw error;
@@ -111,4 +114,4 @@ export const projectOmensOfficialCardPresentation = (
 
 /** Reads only a registered immutable display projection for a following build-time slice. */
 export const readOmensCardPresentationForBuild = (presentation: OmensCardPresentation): OmensCardPresentation =>
-  presentationCapabilities.has(presentation) ? presentation : fail();
+  weakSetHas(presentationCapabilities, presentation) ? presentation : fail();

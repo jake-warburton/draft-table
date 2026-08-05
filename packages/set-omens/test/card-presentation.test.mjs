@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import { projectCardVaultOfficialFaceMetadataForTest } from "../src/card-vault-face-projection.ts";
 import { validateCardVaultOfficialMembershipBytesAgainstFact } from "../src/card-vault-official-membership.ts";
@@ -58,4 +62,87 @@ test("projection has no network or raw-byte parser boundary: checksum-verified c
   assert.doesNotMatch(sourceText, /fetch\(|https?:\/\/|parseCardVaultResponseBytes|Uint8Array/u);
   assert.match(sourceText, /readOfficialUpstreamIdReconciliationForSuffixFoiling/u);
   assert.match(sourceText, /readOfficialCardVaultFaceProjectionForMultiplicityReconciliation/u);
+});
+
+const intrinsicContractName = "card presentation captures capability and membership methods before call-time poisoning";
+const intrinsicContractMarker = "CARD_PRESENTATION_BOUND_REFERENCE_CONTRACT_EXECUTED";
+const intrinsicModuleEnvironmentKey = "DRAFT_TABLE_TEST_CARD_PRESENTATION_MODULE";
+
+const capabilitiesFrom = (modules) => {
+  const officialMembership = modules.membership.validateCardVaultOfficialMembershipBytesAgainstFact(encode(response()), fact());
+  return {
+    reconciliation: modules.reconciliation.reconcileOfficialUpstreamIdRecordsForTest(forms, source(), Object.freeze({ entries: 5, omnEntries: 3, iarEntries: 2, omnPrintings: 4, iarPrintings: 2 })),
+    faces: modules.faces.projectCardVaultOfficialFaceMetadataForTest(officialMembership, encode(response()), faceAggregate)
+  };
+};
+
+test(intrinsicContractName, async () => {
+  console.log(intrinsicContractMarker);
+  const moduleUrl = process.env[intrinsicModuleEnvironmentKey] ?? new URL("../src/card-presentation.ts", import.meta.url).href;
+  const directory = new URL("./", moduleUrl);
+  const [presentation, reconciliationModule, facesModule, membershipModule] = await Promise.all([
+    import(moduleUrl),
+    import(new URL("official-upstream-id-reconciliation.ts", directory)),
+    import(new URL("card-vault-face-projection.ts", directory)),
+    import(new URL("card-vault-official-membership.ts", directory))
+  ]);
+  const capabilities = capabilitiesFrom({ reconciliation: reconciliationModule, faces: facesModule, membership: membershipModule });
+  const identity = capabilities.reconciliation[1], printing = identity.printings[1];
+  const includesDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, "includes");
+  let projected, includesError;
+  try {
+    Object.defineProperty(Array.prototype, "includes", { configurable: true, writable: true, value: () => { throw new Error("poisoned includes"); } });
+    projected = presentation.projectOmensOfficialCardPresentation(capabilities.reconciliation, capabilities.faces, identity, printing, 10);
+  } catch (error) { includesError = error; } finally { Object.defineProperty(Array.prototype, "includes", includesDescriptor); }
+  assert.equal(includesError, undefined, "BOUND_ARRAY_INCLUDES_MUST_SURVIVE_CALL_TIME_POISON");
+  const weakSetHasDescriptor = Object.getOwnPropertyDescriptor(WeakSet.prototype, "has");
+  let read, weakSetError;
+  try {
+    Object.defineProperty(WeakSet.prototype, "has", { configurable: true, writable: true, value: () => { throw new Error("poisoned weak set has"); } });
+    read = presentation.readOmensCardPresentationForBuild(projected);
+  } catch (error) { weakSetError = error; } finally { Object.defineProperty(WeakSet.prototype, "has", weakSetHasDescriptor); }
+  assert.equal(weakSetError, undefined, "BOUND_WEAK_SET_HAS_MUST_SURVIVE_CALL_TIME_POISON");
+  assert.equal(read, projected);
+});
+
+test("call-time intrinsic lookup mutations fail the named card-presentation bound-reference contract", () => {
+  const sourcePath = new URL("../src/card-presentation.ts", import.meta.url);
+  const original = readFileSync(sourcePath, "utf8");
+  const mutations = [
+    [
+      "array-includes",
+      "const arrayIncludes = Function.prototype.call.bind(Array.prototype.includes) as (values: readonly unknown[], value: unknown) => boolean;",
+      "const arrayIncludes = ((values: readonly unknown[], value: unknown) => values.includes(value)) as (values: readonly unknown[], value: unknown) => boolean;",
+      "BOUND_ARRAY_INCLUDES_MUST_SURVIVE_CALL_TIME_POISON"
+    ],
+    [
+      "weak-set-has",
+      "const weakSetHas = Function.prototype.call.bind(WeakSet.prototype.has) as (set: WeakSet<object>, value: object) => boolean;",
+      "const weakSetHas = ((set: WeakSet<object>, value: object) => WeakSet.prototype.has.call(set, value)) as (set: WeakSet<object>, value: object) => boolean;",
+      "BOUND_WEAK_SET_HAS_MUST_SURVIVE_CALL_TIME_POISON"
+    ]
+  ];
+  for (const [label, anchor, replacement, failureMarker] of mutations) {
+    assert.equal(original.split(anchor).length - 1, 1, `${label} capture anchor must be unique`);
+    const mutated = original.replace(anchor, replacement);
+    let snapshot;
+    try {
+      snapshot = mkdtempSync(join(tmpdir(), `draft-table-card-presentation-${label}-`));
+      const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+      for (const sourceFile of readdirSync(sourceDirectory).filter((candidate) => candidate.endsWith(".ts"))) copyFileSync(join(sourceDirectory, sourceFile), join(snapshot, sourceFile));
+      symlinkSync(join(sourceDirectory, "../../../node_modules"), join(snapshot, "node_modules"), "dir");
+      writeFileSync(join(snapshot, "card-presentation.ts"), mutated);
+      writeFileSync(join(snapshot, "tsconfig.json"), '{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"bundler","strict":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["*.ts"]}');
+      const checked = spawnSync(join(snapshot, "node_modules", ".bin", "tsc"), ["-p", join(snapshot, "tsconfig.json")], { encoding: "utf8" });
+      assert.equal(checked.status, 0, `${label} isolated mutation must typecheck\n${checked.stdout}\n${checked.stderr}`);
+      const environment = { ...process.env, [intrinsicModuleEnvironmentKey]: pathToFileURL(join(snapshot, "card-presentation.ts")).href };
+      delete environment.NODE_TEST_CONTEXT;
+      const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", "--test-name-pattern", `^${intrinsicContractName}$`, fileURLToPath(import.meta.url)], { encoding: "utf8", env: environment });
+      const lines = result.stdout.split(/\r?\n/u);
+      assert.equal(result.status, 1, `${label} mutation did not fail the focused contract\n${result.stdout}\n${result.stderr}`);
+      assert.equal(lines.filter((line) => line === `# ${intrinsicContractMarker}`).length, 1, `${label} exact execution marker`);
+      assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.endsWith(intrinsicContractName)).length, 1, `${label} exact named contract failure`);
+      assert.equal(lines.filter((line) => line.includes(failureMarker)).length, 1, `${label} exact failure marker`);
+    } finally { if (snapshot !== undefined) rmSync(snapshot, { recursive: true, force: true }); }
+  }
 });
