@@ -1,4 +1,7 @@
-import { mapUnsigned32SampleBatchToBoundedTicket } from "@draft-table/engine";
+import {
+  UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END,
+  mapUnsigned32SampleBatchToBoundedTicket
+} from "@draft-table/engine";
 import {
   readOmensCollationLayoutWeightTotalForSampleSelection,
   type OmensCollationWeightTables
@@ -34,7 +37,9 @@ type LayoutSelector = (
   tables: OmensCollationWeightTables,
   ticket: number
 ) => OmensRecipeLayoutOfficialIdentityPoolResolution["layouts"][number];
+type BatchMapper = (samples: readonly number[], ticketBound: number) => unknown;
 
+const isArray: typeof Array.isArray = Array.isArray;
 const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;
 const freeze: typeof Object.freeze = Object.freeze;
 const getOwnPropertyDescriptor: typeof Object.getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
@@ -51,17 +56,21 @@ const ownFrozenDataValue = (value: object, property: string): unknown => {
   return descriptor.value;
 };
 
-const validateMapping = (mapping: unknown, ticketBound: number): BatchMapping => {
+const validateMapping = (mapping: unknown, ticketBound: number, sampleCount: number): BatchMapping => {
   if (typeof mapping !== "object" || mapping === null || !isFrozen(mapping)) return fail();
   const state = ownFrozenDataValue(mapping, "state");
   if (state !== "accepted" && state !== "needs-sample") return fail();
   const expectedPropertyCount = state === "accepted" ? 3 : 2;
   if (ownKeys(mapping).length !== expectedPropertyCount) return fail();
   const consumedSamples = ownFrozenDataValue(mapping, "consumedSamples");
-  if (typeof consumedSamples !== "number" || !isSafeInteger(consumedSamples) || consumedSamples < 0) return fail();
-  if (state === "needs-sample") return { state, consumedSamples };
+  if (typeof consumedSamples !== "number" || !isSafeInteger(consumedSamples)) return fail();
+  if (state === "needs-sample") {
+    if (consumedSamples !== sampleCount) return fail();
+    return { state, consumedSamples };
+  }
   const ticket = ownFrozenDataValue(mapping, "ticket");
-  if (typeof ticket !== "number" || !isSafeInteger(ticket) || ticket < 0 || ticket >= ticketBound || consumedSamples < 1) return fail();
+  if (typeof ticket !== "number" || !isSafeInteger(ticket) || ticket < 0 || ticket >= ticketBound ||
+    consumedSamples < 1 || consumedSamples > sampleCount) return fail();
   return { state, ticket, consumedSamples };
 };
 
@@ -93,10 +102,12 @@ const selected = (
 const compose = (
   tables: OmensCollationWeightTables,
   samples: readonly number[],
+  sampleCount: number,
+  mapBatch: BatchMapper,
   selectLayout: LayoutSelector
 ): OmensFiniteBatchCollationPlanInitialization => {
   const layoutTotal = readOmensCollationLayoutWeightTotalForSampleSelection(tables);
-  const mapping = validateMapping(mapUnsigned32SampleBatchToBoundedTicket(samples, layoutTotal), layoutTotal);
+  const mapping = validateMapping(mapBatch(samples, layoutTotal), layoutTotal, sampleCount);
   if (mapping.state === "needs-sample") return needsSample(mapping.consumedSamples);
   const layoutReference = selectLayout(tables, mapping.ticket);
   const plan = registerOmensPackCollationPlanForExactSelectedLayout(tables, layoutReference);
@@ -110,7 +121,27 @@ const compose = (
 export const initializeOmensPackCollationPlanFromUnsigned32SampleBatch = (
   ...inputs: [OmensCollationWeightTables, readonly number[]]
 ): OmensFiniteBatchCollationPlanInitialization => {
-  if (inputs.length !== 2) return fail();
-  try { return compose(inputs[0], inputs[1], selectOmensCollationLayoutByTicket); }
-  catch { return fail(); }
+  if (inputs.length !== 2 || !isArray(inputs[1])) return fail();
+  try {
+    const sampleCount = inputs[1].length;
+    if (!isSafeInteger(sampleCount) || sampleCount < 0 ||
+      sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
+    return compose(
+      inputs[0], inputs[1], sampleCount,
+      mapUnsigned32SampleBatchToBoundedTicket, selectOmensCollationLayoutByTicket
+    );
+  } catch { return fail(); }
+};
+
+/** Package-internal seam for malformed mapper-result contracts. */
+export const initializeOmensPackCollationPlanFromUnsigned32SampleBatchForTest = (
+  ...inputs: [OmensCollationWeightTables, readonly number[], BatchMapper]
+): OmensFiniteBatchCollationPlanInitialization => {
+  if (inputs.length !== 3 || !isArray(inputs[1]) || typeof inputs[2] !== "function") return fail();
+  try {
+    const sampleCount = inputs[1].length;
+    if (!isSafeInteger(sampleCount) || sampleCount < 0 ||
+      sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
+    return compose(inputs[0], inputs[1], sampleCount, inputs[2], selectOmensCollationLayoutByTicket);
+  } catch { return fail(); }
 };
