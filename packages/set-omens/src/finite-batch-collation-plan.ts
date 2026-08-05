@@ -116,6 +116,8 @@ const compose = (
 
 /**
  * Consumes only one finite caller-owned uint32 batch to initialize one exact fresh collation plan.
+ * Invalid batches and abrupt caller-controlled reads throw the stable
+ * `OmensPackCollationPlanInitializationError`.
  * It owns no entropy, retry policy, card draw, position transition, or pack construction.
  */
 export const initializeOmensPackCollationPlanFromUnsigned32SampleBatch = (
