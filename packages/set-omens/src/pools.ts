@@ -1,5 +1,9 @@
-import { parseOmensLayoutsFromTrustedBytes, type OmensLayouts } from "./layouts.ts";
-import type { OmensRecipeCardReference } from "./custom-cards.ts";
+import { parseOmensLayoutsFromTrustedBytes, validateOmensRecipeLayoutsAggregate, type OmensLayouts } from "./layouts.ts";
+import {
+  readCompletedOmensRecipeCustomCardsForIdentityReconciliation,
+  validateOmensRecipeCustomCardsAggregate,
+  type OmensRecipeCardReference
+} from "./custom-cards.ts";
 import { translateOmensRecipeRarityAtFabSeam, type FabNativeRecipeRarity } from "./recipe-rarity-domain.ts";
 
 const UTF8_BOM = new Uint8Array([0xef, 0xbb, 0xbf]);
@@ -43,6 +47,10 @@ const POOL_RARITIES: Readonly<Record<string, FabNativeRecipeRarity>> = Object.fr
   Generic: "common", Equipment: "common", Rare: "rare", Majestic: "majestic",
   Rfcommon: "common", RFRare: "rare", RFMajestic: "majestic"
 });
+const parsedPoolCapabilities = new WeakSet<object>();
+const completedPoolOwnership = new WeakMap<object, Readonly<{
+  owners: WeakMap<object, OmensRecipeCardReference>;
+}>>();
 
 const invalidPools = (): never => {
   throw new OmensRecipePoolsError();
@@ -95,6 +103,61 @@ export const validateOmensRecipeReferences = (
       if (normalCounts.get(cardName) !== 1) return invalidPools();
     }
   }
+};
+
+const completePools = (
+  pools: OmensPools,
+  layouts: OmensLayouts,
+  cards: ReadonlyArray<OmensRecipeCardReference>
+): OmensPools => {
+  if (!parsedPoolCapabilities.has(pools)) return invalidPools();
+  const completedCards = readCompletedOmensRecipeCustomCardsForIdentityReconciliation(cards);
+  validateOmensRecipeReferences(layouts, pools, completedCards);
+  const cardsByName = new Map(completedCards.map((card) => [card.name, card]));
+  const owners = new WeakMap<object, OmensRecipeCardReference>();
+  for (const pool of pools.pools) {
+    for (const entry of pool.entries) owners.set(entry, cardsByName.get(entry.reference) ?? invalidPools());
+  }
+  completedPoolOwnership.set(pools, Object.freeze({ owners }));
+  return pools;
+};
+
+/** Package-internal fictional seam completing only parser-owned pools after exact reference contracts pass. */
+export const completeOmensRecipePoolsForTest = (
+  pools: OmensPools,
+  layouts: OmensLayouts,
+  cards: ReadonlyArray<OmensRecipeCardReference>
+): OmensPools => completePools(pools, layouts, cards);
+
+/** Completes the pinned pool capability only after all aggregate and cross-reference contracts pass. */
+export const completeValidatedOmensRecipePools = (
+  pools: OmensPools,
+  layouts: OmensLayouts,
+  cards: ReadonlyArray<OmensRecipeCardReference>
+): OmensPools => completePools(
+  validateOmensRecipePoolsAggregate(pools),
+  validateOmensRecipeLayoutsAggregate(layouts),
+  validateOmensRecipeCustomCardsAggregate(cards)
+);
+
+/** Reads only the exact completed opaque pool result for identity resolution. */
+export const readCompletedOmensRecipePoolsForIdentityResolution = (pools: OmensPools): OmensPools =>
+  completedPoolOwnership.has(pools) ? pools : invalidPools();
+
+/** Resolves one exact parser-owned entry through its already-validated same-source CustomCards owner. */
+export const readCompletedOmensRecipePoolEntryOwner = (
+  pools: OmensPools,
+  entry: OmensPoolEntry
+): OmensRecipeCardReference => completedPoolOwnership.get(pools)?.owners.get(entry) ?? invalidPools();
+
+/** Returns only domain facts already established by the pinned pool-reference contracts. */
+export const readOmensRecipePoolDomainFact = (pool: OmensPool): Readonly<{
+  fabRarity: FabNativeRecipeRarity;
+  category: "normal" | "rainbow-foil";
+}> => {
+  const fabRarity = POOL_RARITIES[pool.name];
+  if (fabRarity === undefined || (!NORMAL_POOL_NAMES.has(pool.name) && !RF_POOL_NAMES.has(pool.name))) return invalidPools();
+  return Object.freeze({ fabRarity, category: RF_POOL_NAMES.has(pool.name) ? "rainbow-foil" : "normal" });
 };
 
 const hasUtf8Bom = (bytes: Uint8Array): boolean =>
@@ -177,7 +240,9 @@ export const parseOmensPoolsFromTrustedBytes = (bytes: Uint8Array): OmensPools =
       }
       pools.push(Object.freeze({ name, entries: Object.freeze(entries) }));
     }
-    return Object.freeze({ pools: Object.freeze(pools) });
+    const capability = Object.freeze({ pools: Object.freeze(pools) });
+    parsedPoolCapabilities.add(capability);
+    return capability;
   } catch (error) {
     if (error instanceof OmensRecipePoolsError) throw error;
     return invalidPools();

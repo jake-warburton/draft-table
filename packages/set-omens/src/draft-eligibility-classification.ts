@@ -63,6 +63,7 @@ const acceptedAggregate: ExpectedAggregate = Object.freeze({
   unclassifiedCf: 3,
   unclassifiedMv: 0
 });
+const classificationCapabilities = new WeakMap<object, OmensRecipeOfficialIdentityReconciliation>();
 const fail = (): never => { throw new DraftEligibilityClassificationError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
 
@@ -146,7 +147,9 @@ const reconcile = (
     unclassifiedUnsuffixed !== expected.unclassifiedUnsuffixed || unclassifiedRf !== expected.unclassifiedRf || unclassifiedCf !== expected.unclassifiedCf || unclassifiedMv !== expected.unclassifiedMv ||
     mappedEntries + excludedEntries + unclassifiedEntries !== official.length ||
     unclassifiedUnsuffixed + unclassifiedRf + unclassifiedCf + unclassifiedMv !== unclassifiedEntries) fail();
-  return frozen(output);
+  const capability = frozen(output);
+  classificationCapabilities.set(capability, identityCapability);
+  return capability;
 };
 
 /** Package-internal fictional seam for opaque capability classification contracts. */
@@ -158,6 +161,12 @@ export const classifyOmensDraftEligibilityForTest = (
   try { return reconcile(identities, official, expected); }
   catch (error) { if (error instanceof DraftEligibilityClassificationError) throw error; return fail(); }
 };
+
+/** Reads only the exact completed product-policy capability for recipe-pool identity resolution. */
+export const readOmensDraftEligibilityForPoolIdentityResolution = (
+  classification: OmensDraftEligibilityClassification,
+  identities: OmensRecipeOfficialIdentityReconciliation
+): OmensDraftEligibilityClassification => classificationCapabilities.get(classification) === identities ? classification : fail();
 
 /** Build-time Omens product classification; policy is fixed here and never caller supplied. */
 export const classifyOmensOfficialDraftEligibility = (

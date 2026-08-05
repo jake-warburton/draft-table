@@ -48,6 +48,12 @@ import {
   type OmensDraftEligibilityClassification
 } from "./draft-eligibility-classification.ts";
 import {
+  OmensRecipePoolIdentityResolutionError,
+  resolveOmensRecipePoolsToDraftableOfficialIdentities as resolveRecipePools,
+  type OmensRecipePoolOfficialIdentityResolution
+} from "./recipe-pool-identity-resolution.ts";
+import type { OmensPools } from "./pools.ts";
+import {
   OmensRecipeRarityCorrespondenceError,
   reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings as reconcileRecipeRarities,
   type OmensRecipeRarityCorrespondence
@@ -63,6 +69,7 @@ export {
   OmensRecipeOfficialIdentityReconciliationError,
   OmensRecipeRarityCorrespondenceError,
   DraftEligibilityClassificationError,
+  OmensRecipePoolIdentityResolutionError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -71,6 +78,7 @@ export {
   type OmensRecipeOfficialIdentityReconciliation,
   type OmensRecipeRarityCorrespondence,
   type OmensDraftEligibilityClassification,
+  type OmensRecipePoolOfficialIdentityResolution,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -124,6 +132,11 @@ export const reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings = (
 export const classifyOmensOfficialDraftEligibility = (
   ...inputs: [OmensRecipeOfficialIdentityReconciliation, OfficialUpstreamIdReconciliation]
 ): OmensDraftEligibilityClassification => classifyDraftEligibility(...inputs);
+
+/** Build-time-only staged recipe-pool ownership to draftable official identity resolution; no treatment is selected. */
+export const resolveOmensRecipePoolsToDraftableOfficialIdentities = (
+  ...inputs: [OmensPools, OmensRecipeOfficialIdentityReconciliation, OmensDraftEligibilityClassification]
+): OmensRecipePoolOfficialIdentityResolution => resolveRecipePools(...inputs);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (

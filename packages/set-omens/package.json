@@ -16,7 +16,8 @@
     "test:public-source-evidence": "node test/public-source-evidence-command.mjs",
     "test:recipe-identity-evidence": "node test/recipe-identity-evidence-command.mjs",
     "test:recipe-rarity-evidence": "node test/recipe-rarity-evidence-command.mjs",
-    "test:draft-eligibility-evidence": "node test/draft-eligibility-evidence-command.mjs"
+    "test:draft-eligibility-evidence": "node test/draft-eligibility-evidence-command.mjs",
+    "test:recipe-pool-identity-evidence": "node test/recipe-pool-identity-evidence-command.mjs"
   },
   "devDependencies": {
     "ajv": "8.20.0",
