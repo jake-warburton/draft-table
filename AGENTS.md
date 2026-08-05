@@ -33,3 +33,5 @@ When updating this file, preserve this bar for all agents and keep entries conci
   are follow-up candidates, not blessed.
 - Assignment consults the prototype chain whereas own-property definition does not; exported error classes must define own instance fields with a module-captured `Object.defineProperty` and freeze their constructor and prototype at module load. Capture every load-bearing intrinsic before hostile property reads and keep the full-composition cross-attacks enforced by finite-batch collation-plan contracts.
 - When findings share a root cause, test each fix against the other findings' attacks; individually plausible fixes can be mutually defeatable. Keep the cross-attack coverage with the owning contracts.
+- Structural transition validity does not prove per-invocation freshness; newly minted capability contracts must enforce and test rejection of sibling-result reuse.
+- Finite caller-batch composers capture batch length exactly once inside their stable error boundary and bind accepted and needs-sample consumed counts to that captured value.

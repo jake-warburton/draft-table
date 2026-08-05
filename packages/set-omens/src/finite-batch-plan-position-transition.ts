@@ -1,4 +1,7 @@
-import { mapUnsigned32SampleBatchToBoundedTicket } from "@draft-table/engine";
+import {
+  UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END,
+  mapUnsigned32SampleBatchToBoundedTicket
+} from "@draft-table/engine";
 import {
   isOmensPackCollationPlanExactPositionTransition,
   readOmensPackCollationPlanCurrentPositionForTransition,
@@ -20,6 +23,9 @@ const getOwnPropertyDescriptor: typeof Object.getOwnPropertyDescriptor = Object.
 const ownKeys: typeof Reflect.ownKeys = Reflect.ownKeys;
 const isFrozen: typeof Object.isFrozen = Object.isFrozen;
 const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
+const handedOutTransitionPlans = new WeakSet<object>();
+const hasHandedOutTransitionPlan = WeakSet.prototype.has.bind(handedOutTransitionPlans);
+const addHandedOutTransitionPlan = WeakSet.prototype.add.bind(handedOutTransitionPlans);
 
 /** Stable, source-secret failure for exactly one finite-batch plan-position transition. */
 export class OmensPackCollationPlanPositionTransitionError extends Error {
@@ -87,17 +93,20 @@ const ownFrozenDataValue = (value: object, property: string): unknown => {
   return descriptor.value;
 };
 
-const validateMapping = (mapping: unknown, ticketBound: number): BatchMapping => {
+const validateMapping = (mapping: unknown, ticketBound: number, sampleCount: number): BatchMapping => {
   if (typeof mapping !== "object" || mapping === null || !isFrozen(mapping)) return fail();
   const state = ownFrozenDataValue(mapping, "state");
   if (state !== "accepted" && state !== "needs-sample") return fail();
   if (ownKeys(mapping).length !== (state === "accepted" ? 3 : 2)) return fail();
   const consumedSamples = ownFrozenDataValue(mapping, "consumedSamples");
-  if (typeof consumedSamples !== "number" || !isSafeInteger(consumedSamples) || consumedSamples < 0) return fail();
-  if (state === "needs-sample") return { state, consumedSamples };
+  if (typeof consumedSamples !== "number" || !isSafeInteger(consumedSamples)) return fail();
+  if (state === "needs-sample") {
+    if (consumedSamples !== sampleCount) return fail();
+    return { state, consumedSamples };
+  }
   const ticket = ownFrozenDataValue(mapping, "ticket");
   if (typeof ticket !== "number" || !isSafeInteger(ticket) || ticket < 0 || ticket >= ticketBound ||
-    consumedSamples < 1) return fail();
+    consumedSamples < 1 || consumedSamples > sampleCount) return fail();
   return { state, ticket, consumedSamples };
 };
 
@@ -150,6 +159,7 @@ const selected = (
 const compose = (
   plan: OmensPackCollationPlan,
   samples: readonly number[],
+  sampleCount: number,
   mapBatch: BatchMapper,
   selectIdentity: TicketSelector,
   removeIdentity: IdentityRemover,
@@ -159,7 +169,7 @@ const compose = (
   const positionReference = current.positionReference;
   const poolReference = positionReference.resolvedPool;
   const scope = readOmensPackLocalPoolDrawStatePoolForTicketSelection(current.poolDrawState, poolReference);
-  const mapping = validateMapping(mapBatch(samples, scope.scopedTotal), scope.scopedTotal);
+  const mapping = validateMapping(mapBatch(samples, scope.scopedTotal), scope.scopedTotal, sampleCount);
   if (mapping.state === "needs-sample") return needsSample(mapping.consumedSamples);
   const officialIdentityReference = exactSelectedIdentity(
     scope.choices, mapping.ticket,
@@ -173,7 +183,8 @@ const compose = (
   ) as OmensPackCollationPlan;
   if (!isOmensPackCollationPlanExactPositionTransition(
     plan, nextPlan, positionReference, officialIdentityReference, nextPoolDrawState
-  )) return fail();
+  ) || hasHandedOutTransitionPlan(nextPlan)) return fail();
+  addHandedOutTransitionPlan(nextPlan);
   return selected(
     mapping.consumedSamples, positionReference, officialIdentityReference, nextPlan
   );
@@ -188,8 +199,11 @@ export const transitionOmensPackCollationPlanCurrentPositionFromUnsigned32Sample
 ): OmensFiniteBatchCollationPlanPositionTransition => {
   try {
     if (inputs.length !== 2) return fail();
+    const samples = inputs[1], sampleCount = samples.length;
+    if (!isSafeInteger(sampleCount) || sampleCount < 0 ||
+      sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
     return compose(
-      inputs[0], inputs[1], mapUnsigned32SampleBatchToBoundedTicket,
+      inputs[0], samples, sampleCount, mapUnsigned32SampleBatchToBoundedTicket,
       selectOmensPackLocalPoolOfficialIdentityByTicket,
       removeOmensPackLocalPoolOfficialIdentity,
       registerOmensPackCollationPlanPositionTransition
@@ -204,6 +218,9 @@ export const transitionOmensPackCollationPlanCurrentPositionFromUnsigned32Sample
   try {
     if (inputs.length !== 6 || typeof inputs[2] !== "function" || typeof inputs[3] !== "function" ||
       typeof inputs[4] !== "function" || typeof inputs[5] !== "function") return fail();
-    return compose(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5]);
+    const samples = inputs[1], sampleCount = samples.length;
+    if (!isSafeInteger(sampleCount) || sampleCount < 0 ||
+      sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
+    return compose(inputs[0], samples, sampleCount, inputs[2], inputs[3], inputs[4], inputs[5]);
   } catch { return fail(); }
 };

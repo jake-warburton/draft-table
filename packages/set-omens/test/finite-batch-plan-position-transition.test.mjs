@@ -190,7 +190,7 @@ test("invalid extra foreign copied malformed and cross-capability inputs fail th
   safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatch(structuredClone(plan), []));
   safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatch(plan, new Uint32Array([0])));
   for (const samples of [[-1], [0.5], [NaN], [Infinity], [UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END], "0", null, undefined]) safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatch(plan, samples));
-  for (const mapping of [null, {}, Object.freeze({ state: "needs-sample", consumedSamples: -1 }), Object.freeze({ state: "accepted", ticket: pool.poolTotalWeight, consumedSamples: 1 }), Object.freeze({ state: "accepted", ticket: 0, consumedSamples: 1, extra: true })]) {
+  for (const mapping of [null, {}, Object.freeze({ state: "needs-sample", consumedSamples: -1 }), Object.freeze({ state: "needs-sample", consumedSamples: 0 }), Object.freeze({ state: "needs-sample", consumedSamples: Number.MAX_SAFE_INTEGER }), Object.freeze({ state: "accepted", ticket: pool.poolTotalWeight, consumedSamples: 1 }), Object.freeze({ state: "accepted", ticket: 0, consumedSamples: 2 }), Object.freeze({ state: "accepted", ticket: 0, consumedSamples: Number.MAX_SAFE_INTEGER }), Object.freeze({ state: "accepted", ticket: 0, consumedSamples: 1, extra: true })]) {
     safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest(plan, [0], () => mapping, selectOmensPackLocalPoolOfficialIdentityByTicket, removeOmensPackLocalPoolOfficialIdentity, () => { throw new Error("must not register"); }));
   }
   safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest(plan, [0], mapUnsigned32SampleBatchToBoundedTicket, () => other.pool.officialIdentityChoices[0].officialIdentityReference, removeOmensPackLocalPoolOfficialIdentity, () => { throw new Error("must not register"); }));
@@ -199,6 +199,10 @@ test("invalid extra foreign copied malformed and cross-capability inputs fail th
   safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest(plan, [0], mapUnsigned32SampleBatchToBoundedTicket, selectOmensPackLocalPoolOfficialIdentityByTicket, removeOmensPackLocalPoolOfficialIdentity, () => plan));
   safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest(plan, [0], mapUnsigned32SampleBatchToBoundedTicket, selectOmensPackLocalPoolOfficialIdentityByTicket, removeOmensPackLocalPoolOfficialIdentity, () => otherPlan));
   safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest(plan, [0], mapUnsigned32SampleBatchToBoundedTicket, () => position.resolvedPool.entries.at(-1).officialIdentity, removeOmensPackLocalPoolOfficialIdentity, () => plan));
+  const sibling = transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatch(plan, [0]);
+  assert.equal(sibling.state, "selected");
+  const siblingState = current(sibling.nextPlan).state;
+  safe(() => transitionOmensPackCollationPlanCurrentPositionFromUnsigned32SampleBatchForTest(plan, [0], mapUnsigned32SampleBatchToBoundedTicket, selectOmensPackLocalPoolOfficialIdentityByTicket, () => siblingState, () => sibling.nextPlan));
   assert.deepEqual(state, before);
 });
 
@@ -243,5 +247,6 @@ test("transition error constructor and prototype are frozen and outputs remain h
 
 test("position transition source owns no entropy retry loop pack construction or excluded future policy", () => {
   const source = readFileSync(new URL("../src/finite-batch-plan-position-transition.ts", import.meta.url), "utf8");
-  assert.doesNotMatch(source, /mapUnsigned32SampleToBoundedTicket|FromOneUnsigned32Sample|samples\s*\[|samples\.length|inputs\[1\]\.length|Array\.isArray|Math\.random|crypto|randomBytes|randomUUID|while\s*\(|pack construction|card instance|rear|treatment|printing|image|snapshot|room|simulation|console\.|process\./iu);
+  assert.equal(source.match(/sampleCount = samples\.length/g)?.length, 2);
+  assert.doesNotMatch(source, /mapUnsigned32SampleToBoundedTicket|FromOneUnsigned32Sample|samples\s*\[|inputs\[1\]\.length|Array\.isArray|Math\.random|crypto|randomBytes|randomUUID|while\s*\(|pack construction|card instance|rear|treatment|printing|image|snapshot|room|simulation|console\.|process\./iu);
 });
