@@ -35,14 +35,21 @@ const selected = (
   nextState: OmensPackLocalPoolDrawState
 ): OmensPackLocalPoolSampleDrawTransition => frozen({ state: "selected", officialIdentityReference, nextState });
 
+type PoolIdentityRemoval = (
+  state: OmensPackLocalPoolDrawState,
+  poolReference: PoolReference,
+  officialIdentityReference: OfficialIdentityReference
+) => OmensPackLocalPoolDrawState;
+
 const transitionFromOneSample = (
   state: OmensPackLocalPoolDrawState,
   poolReference: PoolReference,
-  sample: number
+  sample: number,
+  removeIdentity: PoolIdentityRemoval
 ): OmensPackLocalPoolSampleDrawTransition => {
   const selection: OmensPackLocalPoolSampleSelection = selectOmensPackLocalPoolOfficialIdentityFromOneUnsigned32Sample(state, poolReference, sample);
   if (selection.state === "retry") return retry();
-  const nextState = removeOmensPackLocalPoolOfficialIdentity(state, poolReference, selection.officialIdentityReference);
+  const nextState = removeIdentity(state, poolReference, selection.officialIdentityReference);
   if (nextState === state) return fail();
   return selected(selection.officialIdentityReference, nextState);
 };
@@ -55,6 +62,15 @@ export const drawOmensPackLocalPoolOfficialIdentityFromOneUnsigned32Sample = (
   ...inputs: [OmensPackLocalPoolDrawState, PoolReference, number]
 ): OmensPackLocalPoolSampleDrawTransition => {
   if (inputs.length !== 3) return fail();
-  try { return transitionFromOneSample(inputs[0], inputs[1], inputs[2]); }
+  try { return transitionFromOneSample(inputs[0], inputs[1], inputs[2], removeOmensPackLocalPoolOfficialIdentity); }
+  catch (error) { if (error instanceof OmensPackLocalPoolSampleDrawTransitionError) throw error; return fail(); }
+};
+
+/** Package-internal seam for proving atomic transition guards with a synthetic removal dependency. */
+export const drawOmensPackLocalPoolOfficialIdentityFromOneUnsigned32SampleForTest = (
+  ...inputs: [OmensPackLocalPoolDrawState, PoolReference, number, PoolIdentityRemoval]
+): OmensPackLocalPoolSampleDrawTransition => {
+  if (inputs.length !== 4 || typeof inputs[3] !== "function") return fail();
+  try { return transitionFromOneSample(inputs[0], inputs[1], inputs[2], inputs[3]); }
   catch (error) { if (error instanceof OmensPackLocalPoolSampleDrawTransitionError) throw error; return fail(); }
 };
