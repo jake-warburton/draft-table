@@ -64,6 +64,11 @@ import {
   reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings as reconcileRecipeRarities,
   type OmensRecipeRarityCorrespondence
 } from "./recipe-rarity-correspondence.ts";
+import {
+  OmensCollationWeightTablesError,
+  compileOmensCollationWeightTables as compileCollationWeightTables,
+  type OmensCollationWeightTables
+} from "./collation-weight-tables.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -77,6 +82,7 @@ export {
   DraftEligibilityClassificationError,
   OmensRecipePoolIdentityResolutionError,
   OmensRecipeLayoutPoolResolutionError,
+  OmensCollationWeightTablesError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -87,6 +93,7 @@ export {
   type OmensDraftEligibilityClassification,
   type OmensRecipePoolOfficialIdentityResolution,
   type OmensRecipeLayoutOfficialIdentityPoolResolution,
+  type OmensCollationWeightTables,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -150,6 +157,11 @@ export const resolveOmensRecipePoolsToDraftableOfficialIdentities = (
 export const resolveOmensRecipeLayoutsToOfficialIdentityPools = (
   ...inputs: [OmensLayouts, OmensRecipePoolOfficialIdentityResolution]
 ): OmensRecipeLayoutOfficialIdentityPoolResolution => resolveRecipeLayouts(...inputs);
+
+/** Build-time-only compilation of exact integer cumulative weights; no selector, randomness, or draw is performed. */
+export const compileOmensCollationWeightTables = (
+  ...inputs: [OmensRecipeLayoutOfficialIdentityPoolResolution, OmensRecipePoolOfficialIdentityResolution]
+): OmensCollationWeightTables => compileCollationWeightTables(...inputs);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (
