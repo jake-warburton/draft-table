@@ -11,13 +11,18 @@ export type Unsigned32SampleBatchTicketResult = Readonly<
 >;
 
 const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;
+const freeze: typeof Object.freeze = Object.freeze;
+const isArray: typeof Array.isArray = Array.isArray;
+const isFiniteNumber: typeof Number.isFinite = Number.isFinite;
 const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
 const fail = (): never => { throw new UnbiasedUint32TicketMappingError(); };
-const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
+const frozen = <Value>(value: Value): Readonly<Value> => freeze(value);
 const isUint32Sample = (value: unknown): value is number =>
-  typeof value === "number" && isSafeInteger(value) && value >= 0 && value < UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
+  typeof value === "number" && isFiniteNumber(value) && isSafeInteger(value) && value >= 0 &&
+  value < UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
 const isAcceptedTicketBound = (value: unknown): value is number =>
-  typeof value === "number" && isSafeInteger(value) && value >= 1 && value <= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
+  typeof value === "number" && isFiniteNumber(value) && isSafeInteger(value) && value >= 1 &&
+  value <= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
 
 /**
  * Consumes one finite batch of caller-owned uint32 samples in source order.
@@ -27,7 +32,7 @@ export const mapUnsigned32SampleBatchToBoundedTicket = (
   ...inputs: [samples: readonly number[], ticketBound: number]
 ): Unsigned32SampleBatchTicketResult => {
   try {
-    if (inputs.length !== 2 || !Array.isArray(inputs[0]) || !isAcceptedTicketBound(inputs[1])) return fail();
+    if (inputs.length !== 2 || !isArray(inputs[0]) || !isAcceptedTicketBound(inputs[1])) return fail();
     const suppliedSamples = inputs[0] as readonly unknown[];
     const sampleCount = suppliedSamples.length;
     if (!isSafeInteger(sampleCount) || sampleCount < 0 || sampleCount >= UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END) return fail();
@@ -43,15 +48,20 @@ export const mapUnsigned32SampleBatchToBoundedTicket = (
     }
     const samples = sampleSnapshot as number[];
 
-    for (let index = 0; index < samples.length; index++) {
-      const mapping = mapUnsigned32SampleToBoundedTicket(samples[index], inputs[1]);
-      if (mapping.state === "accepted") return frozen({
-        state: "accepted", ticket: mapping.ticket, consumedSamples: index + 1
-      });
-      if (mapping.state === "retry") continue;
+    for (let index = 0; index < sampleCount; index++) {
+      const mapping: unknown = mapUnsigned32SampleToBoundedTicket(samples[index], inputs[1]);
+      if (typeof mapping !== "object" || mapping === null) return fail();
+      const state: unknown = (mapping as { readonly state?: unknown }).state;
+      if (state === "accepted") {
+        const ticket: unknown = (mapping as { readonly ticket?: unknown }).ticket;
+        if (typeof ticket !== "number" || !isFiniteNumber(ticket) || !isSafeInteger(ticket) ||
+          ticket < 0 || ticket >= inputs[1]) return fail();
+        return frozen({ state: "accepted", ticket, consumedSamples: index + 1 });
+      }
+      if (state === "retry") continue;
       return fail();
     }
-    return frozen({ state: "needs-sample", consumedSamples: samples.length });
+    return frozen({ state: "needs-sample", consumedSamples: sampleCount });
   } catch {
     return fail();
   }

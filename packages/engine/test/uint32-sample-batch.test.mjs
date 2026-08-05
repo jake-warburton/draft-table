@@ -284,6 +284,70 @@ test("finite uint32 batch results are deeply immutable, deterministic, and indep
 const mutationModuleKey = "DRAFT_TABLE_TEST_UINT32_SAMPLE_BATCH_MODULE";
 const sourcePath = new URL("../src/uint32-sample-batch.ts", import.meta.url);
 
+const capturedDefinePropertyContract = "finite batch uses captured defineProperty against hostile caller getters";
+test(capturedDefinePropertyContract, async () => {
+  console.log("FINITE_BATCH_CAPTURED_DEFINE_PROPERTY_CONTRACT_EXECUTED");
+  const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
+  const originalDefineProperty = Object.defineProperty;
+  const samples = [7];
+  originalDefineProperty(samples, 0, {
+    configurable: true,
+    get() {
+      Object.defineProperty = () => { throw new Error("hostile defineProperty"); };
+      return 7;
+    }
+  });
+  let result;
+  try {
+    result = mapping.mapUnsigned32SampleBatchToBoundedTicket(samples, 10);
+  } finally {
+    Object.defineProperty = originalDefineProperty;
+  }
+  assert.deepEqual(result, { state: "accepted", ticket: 7, consumedSamples: 1 }, "CAPTURED_DEFINE_PROPERTY_MUST_PRESERVE_EXACT_TICKET");
+});
+
+const capturedFreezeContract = "finite batch rejects forged mapper output and uses captured freeze";
+test(capturedFreezeContract, async () => {
+  console.log("FINITE_BATCH_CAPTURED_FREEZE_CONTRACT_EXECUTED");
+  const mapping = await import(process.env[mutationModuleKey] ?? sourcePath.href);
+  const originalFreeze = Object.freeze;
+  const forgedSamples = [7];
+  Object.defineProperty(forgedSamples, 0, {
+    configurable: true,
+    get() {
+      let calls = 0;
+      Object.freeze = (value) => ++calls === 1 ? { state: "accepted", ticket: 999 } : value;
+      return 7;
+    }
+  });
+  try {
+    assert.throws(
+      () => mapping.mapUnsigned32SampleBatchToBoundedTicket(forgedSamples, 10),
+      (error) => error instanceof UnbiasedUint32TicketMappingError,
+      "FORGED_MAPPER_TICKET_MUST_BE_REJECTED"
+    );
+  } finally {
+    Object.freeze = originalFreeze;
+  }
+
+  const unfrozenMapperSamples = [7];
+  Object.defineProperty(unfrozenMapperSamples, 0, {
+    configurable: true,
+    get() {
+      Object.freeze = (value) => value;
+      return 7;
+    }
+  });
+  let result;
+  try {
+    result = mapping.mapUnsigned32SampleBatchToBoundedTicket(unfrozenMapperSamples, 10);
+  } finally {
+    Object.freeze = originalFreeze;
+  }
+  assert.deepEqual(result, { state: "accepted", ticket: 7, consumedSamples: 1 });
+  assert.equal(Object.isFrozen(result), true, "BATCH_RESULT_MUST_USE_CAPTURED_FREEZE");
+});
+
 const hostileProxyContract = "finite batch snapshots hostile Proxy length for bounded consumption";
 test(hostileProxyContract, async () => {
   console.log("FINITE_BATCH_HOSTILE_PROXY_CONTRACT_EXECUTED");
@@ -309,8 +373,8 @@ test(hostileProxyContract, async () => {
   assert.deepEqual(Object.fromEntries(elementReads), { 0: 1, 1: 1 }, "HOSTILE_PROXY_MUST_READ_ONLY_CAPTURED_ELEMENTS");
 });
 test("hostile-Proxy length semantic mutation fails its exact named contract", () => {
-  const before = "index < sampleCount";
-  const after = "index < suppliedSamples.length";
+  const before = "for (let index = 0; index < sampleCount; index++) {\n      defineOwnDataProperty";
+  const after = "for (let index = 0; index < suppliedSamples.length; index++) {\n      defineOwnDataProperty";
   const original = readFileSync(sourcePath, "utf8");
   assert.equal(original.split(before).length - 1, 1);
   const mutated = original.replace(before, after);
@@ -355,8 +419,8 @@ test(retryFallbackContract, async () => {
   assert.deepEqual(mapping.mapUnsigned32SampleBatchToBoundedTicket([UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END - 1, 12], 7), { state: "accepted", ticket: 5, consumedSamples: 2 }, "RETRY_MUST_CONTINUE_TO_NEXT_SUPPLIED_SAMPLE");
 });
 test("retry-fallback semantic mutation fails its exact named contract", () => {
-  const before = "if (mapping.state === \"retry\") continue;";
-  const after = "if (mapping.state === \"retry\") return frozen({ state: \"accepted\", ticket: 0, consumedSamples: index + 1 });";
+  const before = "if (state === \"retry\") continue;";
+  const after = "if (state === \"retry\") return frozen({ state: \"accepted\", ticket: 0, consumedSamples: index + 1 });";
   const original = readFileSync(sourcePath, "utf8");
   assert.equal(original.split(before).length - 1, 1);
   const mutated = original.replace(before, after);
@@ -401,8 +465,8 @@ test(firstAcceptanceContract, async () => {
   assert.deepEqual(mapping.mapUnsigned32SampleBatchToBoundedTicket([12, 13], 7), { state: "accepted", ticket: 5, consumedSamples: 1 }, "FIRST_ACCEPTANCE_MUST_STOP_SELECTION");
 });
 test("first-acceptance semantic mutation fails its exact named contract", () => {
-  const before = "if (mapping.state === \"accepted\") return frozen({\n        state: \"accepted\", ticket: mapping.ticket, consumedSamples: index + 1\n      });";
-  const after = "if (mapping.state === \"accepted\") {\n        frozen({\n          state: \"accepted\", ticket: mapping.ticket, consumedSamples: index + 1\n        });\n        continue;\n      }";
+  const before = "return frozen({ state: \"accepted\", ticket, consumedSamples: index + 1 });";
+  const after = "frozen({ state: \"accepted\", ticket, consumedSamples: index + 1 });\n        continue;";
   const original = readFileSync(sourcePath, "utf8");
   assert.equal(original.split(before).length - 1, 1);
   const mutated = original.replace(before, after);
@@ -591,8 +655,8 @@ test(ownResultPropertiesContract, async () => {
   }
 });
 test("own-result-properties semantic mutation fails its exact named contract", () => {
-  const before = "if (mapping.state === \"accepted\") return frozen({\n        state: \"accepted\", ticket: mapping.ticket, consumedSamples: index + 1\n      });\n      if (mapping.state === \"retry\") continue;\n      return fail();\n    }\n    return frozen({ state: \"needs-sample\", consumedSamples: samples.length });";
-  const after = "if (mapping.state === \"accepted\") {\n        const result = {} as { state: \"accepted\"; ticket: number; consumedSamples: number };\n        result.state = \"accepted\";\n        result.ticket = mapping.ticket;\n        result.consumedSamples = index + 1;\n        return frozen(result);\n      }\n      if (mapping.state === \"retry\") continue;\n      return fail();\n    }\n    const result = {} as { state: \"needs-sample\"; consumedSamples: number };\n    result.state = \"needs-sample\";\n    result.consumedSamples = samples.length;\n    return frozen(result);";
+  const before = "return frozen({ state: \"accepted\", ticket, consumedSamples: index + 1 });\n      }\n      if (state === \"retry\") continue;\n      return fail();\n    }\n    return frozen({ state: \"needs-sample\", consumedSamples: sampleCount });";
+  const after = "const result = {} as { state: \"accepted\"; ticket: number; consumedSamples: number };\n        result.state = \"accepted\";\n        result.ticket = ticket;\n        result.consumedSamples = index + 1;\n        return frozen(result);\n      }\n      if (state === \"retry\") continue;\n      return fail();\n    }\n    const result = {} as { state: \"needs-sample\"; consumedSamples: number };\n    result.state = \"needs-sample\";\n    result.consumedSamples = sampleCount;\n    return frozen(result);";
   const original = readFileSync(sourcePath, "utf8");
   assert.equal(original.split(before).length - 1, 1);
   const mutated = original.replace(before, after);
@@ -621,6 +685,126 @@ test("own-result-properties semantic mutation fails its exact named contract", (
     assert.equal(lines.filter((line) => line === "# FINITE_BATCH_OWN_RESULT_PROPERTIES_CONTRACT_EXECUTED").length, 1);
     assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === ownResultPropertiesContract).length, 1);
     assert.equal(lines.filter((line) => line.includes("BATCH_RESULTS_MUST_USE_OWN_DATA_PROPERTIES")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
+});
+
+test("captured-defineProperty semantic mutation fails its exact named contract", () => {
+  const before = "defineOwnDataProperty(sampleSnapshot, index, {";
+  const after = "Object.defineProperty(sampleSnapshot, index, {";
+  const original = readFileSync(sourcePath, "utf8");
+  assert.equal(original.split(before).length - 1, 1);
+  const mutated = original.replace(before, after);
+  assert.equal(mutated.split(after).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(after) - Buffer.byteLength(before));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-uint32-sample-batch-captured-define-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "uint32-sample-batch.ts");
+    writeFileSync(mutationPath, mutated);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", `^${capturedDefinePropertyContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_CAPTURED_DEFINE_PROPERTY_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === capturedDefinePropertyContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("CAPTURED_DEFINE_PROPERTY_MUST_PRESERVE_EXACT_TICKET")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
+});
+
+test("captured-freeze semantic mutation fails its exact named contract", () => {
+  const before = "const frozen = <Value>(value: Value): Readonly<Value> => freeze(value);";
+  const after = "const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);";
+  const original = readFileSync(sourcePath, "utf8");
+  assert.equal(original.split(before).length - 1, 1);
+  const mutated = original.replace(before, after);
+  assert.equal(mutated.split(after).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(after) - Buffer.byteLength(before));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-uint32-sample-batch-captured-freeze-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "uint32-sample-batch.ts");
+    writeFileSync(mutationPath, mutated);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", `^${capturedFreezeContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_CAPTURED_FREEZE_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === capturedFreezeContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("BATCH_RESULT_MUST_USE_CAPTURED_FREEZE")).length, 1);
+  } catch (error) {
+    testError = error;
+  } finally {
+    if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  }
+  assert.equal(directory === undefined ? false : existsSync(directory), false);
+  if (testError !== undefined) throw testError;
+});
+
+test("mapper-result-validation semantic mutation fails its exact named contract", () => {
+  const before = "if (typeof ticket !== \"number\" || !isFiniteNumber(ticket) || !isSafeInteger(ticket) ||\n          ticket < 0 || ticket >= inputs[1]) return fail();";
+  const after = "if (typeof ticket !== \"number\") return fail();";
+  const original = readFileSync(sourcePath, "utf8");
+  assert.equal(original.split(before).length - 1, 1);
+  const mutated = original.replace(before, after);
+  assert.equal(mutated.split(after).length - 1, 1);
+  assert.equal(Buffer.byteLength(mutated) - Buffer.byteLength(original), Buffer.byteLength(after) - Buffer.byteLength(before));
+  let directory;
+  let testError;
+  try {
+    directory = mkdtempSync(join(tmpdir(), "draft-table-uint32-sample-batch-mapper-validation-"));
+    const sourceDirectory = fileURLToPath(new URL("../src/", import.meta.url));
+    for (const file of readdirSync(sourceDirectory).filter((file) => file.endsWith(".ts"))) copyFileSync(join(sourceDirectory, file), join(directory, file));
+    const mutationPath = join(directory, "uint32-sample-batch.ts");
+    writeFileSync(mutationPath, mutated);
+    writeFileSync(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ES2022", moduleResolution: "bundler", strict: true, noEmit: true, allowImportingTsExtensions: true }, include: ["*.ts"]
+    }));
+    const typecheck = spawnSync(join(fileURLToPath(new URL("../../..", import.meta.url)), "node_modules/.bin/tsc"), ["-p", join(directory, "tsconfig.json")], { encoding: "utf8" });
+    assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
+    const environment = { ...process.env, [mutationModuleKey]: pathToFileURL(mutationPath).href };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "--test", "--test-name-pattern", `^${capturedFreezeContract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, fileURLToPath(import.meta.url)
+    ], { encoding: "utf8", env: environment });
+    const lines = result.stdout.split(/\r?\n/u);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(lines.filter((line) => line === "# FINITE_BATCH_CAPTURED_FREEZE_CONTRACT_EXECUTED").length, 1);
+    assert.equal(lines.filter((line) => /^not ok \d+ - /u.test(line) && line.replace(/^not ok \d+ - /u, "") === capturedFreezeContract).length, 1);
+    assert.equal(lines.filter((line) => line.includes("FORGED_MAPPER_TICKET_MUST_BE_REJECTED")).length, 1);
   } catch (error) {
     testError = error;
   } finally {
