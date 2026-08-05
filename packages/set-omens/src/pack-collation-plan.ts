@@ -65,13 +65,15 @@ const validateSelectedPlan = (
     !Object.isFrozen(layoutReference) || !Object.isFrozen(layoutReference.slots) ||
     layoutReference.slots.length !== EXPECTED_POSITION_COUNT) fail();
   const compiledLayout = tables.layoutChoices.find((choice) => choice.layoutReference === layoutReference)?.layoutReference;
-  if (compiledLayout === undefined || compiledLayout.slots.length !== EXPECTED_POSITION_COUNT) fail();
+  if (compiledLayout === undefined) return fail();
+  const compiledSlots = compiledLayout.slots;
+  if (compiledSlots.length !== EXPECTED_POSITION_COUNT) fail();
   const poolTablesByReference = new Map(tables.poolTables.map((table) => [table.poolReference, table]));
   if (poolTablesByReference.size !== EXPECTED_POOL_COUNT) fail();
   const requiredByPool = new Map<OmensCollationWeightTables["poolTables"][number]["poolReference"], number>();
   if (!layoutReference.slots.every((position, index) => {
     const poolTable = poolTablesByReference.get(position.resolvedPool);
-    const compiledPosition = compiledLayout.slots[index];
+    const compiledPosition = compiledSlots[index];
     if (position !== compiledPosition || !Object.isFrozen(position) || position.position !== index + 1 ||
       position.resolvedPool !== compiledPosition.resolvedPool ||
       position.recipeStructuralRole !== compiledPosition.recipeStructuralRole ||
