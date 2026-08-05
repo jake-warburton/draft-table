@@ -115,6 +115,21 @@ const removeFromPool = (selectedPool: PoolState, selectedIdentity: OfficialIdent
   });
 };
 
+/** Narrow reader for one current pack-local pool consumed only by dynamic bounded-ticket lookup. */
+export const readOmensPackLocalPoolDrawStatePoolForTicketSelection = (
+  state: OmensPackLocalPoolDrawState,
+  poolReference: PoolReference
+): Readonly<{
+  scopedTotal: number;
+  choices: ReadonlyArray<PoolChoice>;
+}> => {
+  if (!drawStateCapabilities.has(state) || !Object.isFrozen(poolReference)) return fail();
+  const selectedPools = state.poolStates.filter((poolState) => poolState.poolReference === poolReference);
+  if (selectedPools.length !== 1 || !validPoolState(selectedPools[0])) return fail();
+  const selectedPool = selectedPools[0];
+  return frozen({ scopedTotal: selectedPool.poolTotalWeight, choices: selectedPool.officialIdentityChoices });
+};
+
 /** Removes one exact identity only from its exact pack-local pool and recompiles that pool's prefixes. */
 export const removeOmensPackLocalPoolOfficialIdentity = (
   ...inputs: [OmensPackLocalPoolDrawState, PoolReference, OfficialIdentityReference]

@@ -8,6 +8,7 @@ export const COLLATION_WEIGHT_TABLES_EVIDENCE_SUFFIX = ".collation-weight-tables
 export const COLLATION_WEIGHTED_SELECTION_EVIDENCE_SUFFIX = ".collation-weight-ticket-selection-evidence.test.mjs";
 export const COLLATION_SAMPLE_SELECTION_EVIDENCE_SUFFIX = ".collation-sample-selection-evidence.test.mjs";
 export const PACK_LOCAL_POOL_DRAW_STATE_EVIDENCE_SUFFIX = ".pack-local-pool-draw-state-evidence.test.mjs";
+export const PACK_LOCAL_POOL_TICKET_SELECTION_EVIDENCE_SUFFIX = ".pack-local-pool-ticket-selection-evidence.test.mjs";
 
 export const discoverEvidenceTests = (files) => files
   .filter((file) => file.endsWith(".test.mjs"))
@@ -20,7 +21,8 @@ export const discoverEvidenceTests = (files) => files
   .filter((file) => !file.endsWith(COLLATION_WEIGHT_TABLES_EVIDENCE_SUFFIX))
   .filter((file) => !file.endsWith(COLLATION_WEIGHTED_SELECTION_EVIDENCE_SUFFIX))
   .filter((file) => !file.endsWith(COLLATION_SAMPLE_SELECTION_EVIDENCE_SUFFIX))
-  .filter((file) => !file.endsWith(PACK_LOCAL_POOL_DRAW_STATE_EVIDENCE_SUFFIX));
+  .filter((file) => !file.endsWith(PACK_LOCAL_POOL_DRAW_STATE_EVIDENCE_SUFFIX))
+  .filter((file) => !file.endsWith(PACK_LOCAL_POOL_TICKET_SELECTION_EVIDENCE_SUFFIX));
 
 export const discoverPublicSourceEvidenceTests = (files) => files
   .filter((file) => file.endsWith(PUBLIC_SOURCE_EVIDENCE_SUFFIX));
@@ -51,3 +53,6 @@ export const discoverCollationSampleSelectionEvidenceTests = (files) => files
 
 export const discoverPackLocalPoolDrawStateEvidenceTests = (files) => files
   .filter((file) => file.endsWith(PACK_LOCAL_POOL_DRAW_STATE_EVIDENCE_SUFFIX));
+
+export const discoverPackLocalPoolTicketSelectionEvidenceTests = (files) => files
+  .filter((file) => file.endsWith(PACK_LOCAL_POOL_TICKET_SELECTION_EVIDENCE_SUFFIX));

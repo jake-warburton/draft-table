@@ -169,7 +169,7 @@ test("small-table properties conserve exact order weights recurrence and total d
 
 test("pack-local draw-state source owns no entropy selection retry layout pack treatment image or persistence behavior", () => {
   const source = readFileSync(sourcePath, "utf8");
-  assert.doesNotMatch(source, /Math\.random|crypto|sample|ticket|retry|layout|slot|pack construction|card instance|rear|treatment|printing|image|snapshot|room|simulation|setInterval|setTimeout/iu);
+  assert.doesNotMatch(source, /Math\.random|crypto|sample|retry|layout|slot|pack construction|card instance|rear|treatment|printing|image|snapshot|room|simulation|setInterval|setTimeout/iu);
 });
 
 const mutationModuleKey = "DRAFT_TABLE_TEST_PACK_LOCAL_POOL_DRAW_STATE_MODULE";
