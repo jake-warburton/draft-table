@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "build": "node scripts/build-static.mjs"
+    "build": "node scripts/build-static.mjs",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs"
   }
 }
