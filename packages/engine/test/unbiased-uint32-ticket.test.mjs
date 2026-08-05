@@ -8,6 +8,7 @@ import test from "node:test";
 import {
   UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END,
   UnbiasedUint32TicketMappingError,
+  mapUnsigned32SampleBatchToBoundedTicket,
   mapUnsigned32SampleToBoundedTicket
 } from "../src/index.ts";
 import { mapExactIntegerSampleToBoundedTicketForTest } from "../src/unbiased-uint32-ticket.ts";
@@ -163,10 +164,10 @@ test("external runtime consumers receive only the supported platform-independent
   try {
     mkdirSync(dirname(packageLink), { recursive: true });
     symlinkSync(packageDirectory, packageLink, "dir");
-    writeFileSync(join(directory, "consumer.mjs"), 'import { UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END, UnbiasedUint32TicketMappingError, mapUnsigned32SampleToBoundedTicket } from "@draft-table/engine";\nconsole.log(UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END, typeof UnbiasedUint32TicketMappingError, typeof mapUnsigned32SampleToBoundedTicket);');
+    writeFileSync(join(directory, "consumer.mjs"), 'import { UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END, UnbiasedUint32TicketMappingError, mapUnsigned32SampleBatchToBoundedTicket, mapUnsigned32SampleToBoundedTicket } from "@draft-table/engine";\nconsole.log(UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END, typeof UnbiasedUint32TicketMappingError, typeof mapUnsigned32SampleBatchToBoundedTicket, typeof mapUnsigned32SampleToBoundedTicket);');
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "consumer.mjs"], { cwd: directory, encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout.trim(), "4294967296 function function");
+    assert.equal(result.stdout.trim(), "4294967296 function function function");
     writeFileSync(join(directory, "internal-consumer.mjs"), 'import "@draft-table/engine/src/unbiased-uint32-ticket.ts";');
     const internal = spawnSync(process.execPath, ["--experimental-strip-types", "internal-consumer.mjs"], { cwd: directory, encoding: "utf8" });
     assert.notEqual(internal.status, 0);

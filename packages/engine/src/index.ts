@@ -6,3 +6,7 @@ export {
   type BoundedTicketMapping,
   type RetryBoundedTicketMapping
 } from "./unbiased-uint32-ticket.ts";
+export {
+  mapUnsigned32SampleBatchToBoundedTicket,
+  type Unsigned32SampleBatchTicketResult
+} from "./uint32-sample-batch.ts";
