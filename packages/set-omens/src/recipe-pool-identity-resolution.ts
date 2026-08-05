@@ -48,13 +48,10 @@ type MappedIdentity = OmensRecipeOfficialIdentityReconciliation["mapped"][number
 type Eligibility = OmensDraftEligibilityClassification[number];
 
 const resolve = (
-  poolsCapability: OmensPools,
-  identityCapability: OmensRecipeOfficialIdentityReconciliation,
-  eligibilityCapability: OmensDraftEligibilityClassification
+  pools: ReturnType<typeof readCompletedOmensRecipePoolsForIdentityResolution>,
+  identities: ReturnType<typeof readOmensRecipeOfficialIdentityReconciliationForPoolResolution>,
+  eligibility: OmensDraftEligibilityClassification
 ): OmensRecipePoolOfficialIdentityResolution => {
-  const pools = readCompletedOmensRecipePoolsForIdentityResolution(poolsCapability);
-  const identities = readOmensRecipeOfficialIdentityReconciliationForPoolResolution(identityCapability);
-  const eligibility = readOmensDraftEligibilityForPoolIdentityResolution(eligibilityCapability, identities);
 
   const identityByRecipeCollector = new Map<string, MappedIdentity>();
   const ownedOfficialBases = new Set<string>();
@@ -111,8 +108,29 @@ export const resolveOmensRecipePoolsToDraftableOfficialIdentitiesForTest = (
   ...inputs: [OmensPools, OmensRecipeOfficialIdentityReconciliation, OmensDraftEligibilityClassification]
 ): OmensRecipePoolOfficialIdentityResolution => {
   if (inputs.length !== 3) return fail();
-  try { return resolve(inputs[0], inputs[1], inputs[2]); }
-  catch (error) { if (error instanceof OmensRecipePoolIdentityResolutionError) throw error; return fail(); }
+  try {
+    const identities = readOmensRecipeOfficialIdentityReconciliationForPoolResolution(inputs[1]);
+    return resolve(readCompletedOmensRecipePoolsForIdentityResolution(inputs[0]), identities,
+      readOmensDraftEligibilityForPoolIdentityResolution(inputs[2], identities));
+  } catch (error) { if (error instanceof OmensRecipePoolIdentityResolutionError) throw error; return fail(); }
+};
+
+/**
+ * Package-internal synthetic seam for the guard contract. It preserves the validated
+ * pool/identity chain while presenting the core with one non-draftable eligibility fact.
+ */
+export const resolveOmensRecipePoolsWithSyntheticEligibilityForTest = (
+  ...inputs: [OmensPools, OmensRecipeOfficialIdentityReconciliation, OmensDraftEligibilityClassification, "excluded" | "unclassified"]
+): OmensRecipePoolOfficialIdentityResolution => {
+  if (inputs.length !== 4) return fail();
+  try {
+    const identities = readOmensRecipeOfficialIdentityReconciliationForPoolResolution(inputs[1]);
+    const eligibility = readOmensDraftEligibilityForPoolIdentityResolution(inputs[2], identities);
+    const synthetic = eligibility.map((fact) => fact.officialPrintId === "OMN100"
+      ? Object.freeze({ ...fact, draftEligibility: inputs[3], classificationBasis: inputs[3] === "excluded" ? "captain-approved-IAR-exclusion" : "recipe-source-absence-open" })
+      : fact);
+    return resolve(readCompletedOmensRecipePoolsForIdentityResolution(inputs[0]), identities, synthetic);
+  } catch (error) { if (error instanceof OmensRecipePoolIdentityResolutionError) throw error; return fail(); }
 };
 
 /** Build-time-only staged recipe-pool ownership to accepted draftable official identity resolution. */
