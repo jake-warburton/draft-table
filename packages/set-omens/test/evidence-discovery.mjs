@@ -6,6 +6,7 @@ export const RECIPE_POOL_IDENTITY_EVIDENCE_SUFFIX = ".recipe-pool-identity-evide
 export const RECIPE_LAYOUT_POOL_RESOLUTION_EVIDENCE_SUFFIX = ".recipe-layout-pool-resolution-evidence.test.mjs";
 export const COLLATION_WEIGHT_TABLES_EVIDENCE_SUFFIX = ".collation-weight-tables-evidence.test.mjs";
 export const COLLATION_WEIGHTED_SELECTION_EVIDENCE_SUFFIX = ".collation-weight-ticket-selection-evidence.test.mjs";
+export const COLLATION_SAMPLE_SELECTION_EVIDENCE_SUFFIX = ".collation-sample-selection-evidence.test.mjs";
 
 export const discoverEvidenceTests = (files) => files
   .filter((file) => file.endsWith(".test.mjs"))
@@ -16,7 +17,8 @@ export const discoverEvidenceTests = (files) => files
   .filter((file) => !file.endsWith(RECIPE_POOL_IDENTITY_EVIDENCE_SUFFIX))
   .filter((file) => !file.endsWith(RECIPE_LAYOUT_POOL_RESOLUTION_EVIDENCE_SUFFIX))
   .filter((file) => !file.endsWith(COLLATION_WEIGHT_TABLES_EVIDENCE_SUFFIX))
-  .filter((file) => !file.endsWith(COLLATION_WEIGHTED_SELECTION_EVIDENCE_SUFFIX));
+  .filter((file) => !file.endsWith(COLLATION_WEIGHTED_SELECTION_EVIDENCE_SUFFIX))
+  .filter((file) => !file.endsWith(COLLATION_SAMPLE_SELECTION_EVIDENCE_SUFFIX));
 
 export const discoverPublicSourceEvidenceTests = (files) => files
   .filter((file) => file.endsWith(PUBLIC_SOURCE_EVIDENCE_SUFFIX));
@@ -41,3 +43,6 @@ export const discoverCollationWeightTablesEvidenceTests = (files) => files
 
 export const discoverCollationWeightedSelectionEvidenceTests = (files) => files
   .filter((file) => file.endsWith(COLLATION_WEIGHTED_SELECTION_EVIDENCE_SUFFIX));
+
+export const discoverCollationSampleSelectionEvidenceTests = (files) => files
+  .filter((file) => file.endsWith(COLLATION_SAMPLE_SELECTION_EVIDENCE_SUFFIX));

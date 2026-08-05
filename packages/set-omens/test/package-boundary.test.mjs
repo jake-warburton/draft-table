@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const canonicalSourceModules = Object.freeze([
-  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "collation-weight-tables.ts", "collation-weight-ticket-selection.ts", "custom-cards.ts", "descriptor.ts", "draft-eligibility-classification.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "recipe-layout-pool-resolution.ts", "recipe-official-identity-reconciliation.ts", "recipe-pool-identity-resolution.ts", "recipe-rarity-correspondence.ts", "recipe-rarity-domain.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
+  "card-vault-face-projection.ts", "card-vault-official-membership.ts", "card-vault-print-id-forms.ts", "card-vault-product-checksum.ts", "card-vault-product-descriptor.ts", "checksum.ts", "collation-sample-selection.ts", "collation-weight-tables.ts", "collation-weight-ticket-selection.ts", "custom-cards.ts", "descriptor.ts", "draft-eligibility-classification.ts", "index.ts", "layouts.ts", "official-face-printing-multiplicity-reconciliation.ts", "official-suffix-foiling-classification.ts", "official-upstream-id-reconciliation.ts", "official-upstream-printing-copy.ts", "omn-source-projection.ts", "pools.ts", "public-source-checksum.ts", "public-source-descriptor.ts", "public-source-document.ts", "public-source-schema-validation.ts", "recipe-layout-pool-resolution.ts", "recipe-official-identity-reconciliation.ts", "recipe-pool-identity-resolution.ts", "recipe-rarity-correspondence.ts", "recipe-rarity-domain.ts", "schema-validation.ts", "settings.ts", "sha256.ts"
 ]);
 
 const copyCanonicalPackage = (directory, sourceDirectory = packageDirectory, copyModule = copyFileSync) => {
@@ -95,6 +95,7 @@ test("tracked semantic mutation probers allocate outside the repository and neve
     "card-vault-face-projection.test.mjs",
     "card-vault-official-membership.test.mjs",
     "collation-weight-tables.test.mjs",
+    "collation-sample-selection.test.mjs",
     "card-vault-print-id-forms.test.mjs",
     "draft-eligibility-classification.test.mjs",
     "official-face-printing-multiplicity-reconciliation.test.mjs",
@@ -119,6 +120,21 @@ test("tracked semantic mutation probers allocate outside the repository and neve
   }
 });
 
+test("one exact workspace dependency points importer to engine without reversing or broadening package dependencies", () => {
+  const repository = resolve(packageDirectory, "../..");
+  const omensManifest = JSON.parse(readFileSync(join(packageDirectory, "package.json"), "utf8"));
+  const engineDirectory = join(repository, "packages", "engine");
+  const engineManifest = JSON.parse(readFileSync(join(engineDirectory, "package.json"), "utf8"));
+  const lock = JSON.parse(readFileSync(join(repository, "package-lock.json"), "utf8"));
+  assert.deepEqual(omensManifest.dependencies, { "@draft-table/engine": "0.0.0" });
+  assert.deepEqual(lock.packages["packages/set-omens"].dependencies, { "@draft-table/engine": "0.0.0" });
+  assert.equal(engineManifest.dependencies, undefined);
+  assert.equal(engineManifest.devDependencies, undefined);
+  for (const file of readdirSync(join(engineDirectory, "src")).filter((entry) => entry.endsWith(".ts"))) {
+    assert.doesNotMatch(readFileSync(join(engineDirectory, "src", file), "utf8"), /set-omens|ajv|evidence/iu);
+  }
+});
+
 test("external consumers can import the supported Omens package root without build-time dependencies", () => {
   const source = 'import { parseVerifiedOmensCustomCards, parseVerifiedOmensLayouts, parseVerifiedOmensPools, parseVerifiedOmensSettings, validateVerifiedFabCardSchemaDocument, validateVerifiedFabEnglishCardDocument, verifyCardVaultOmensProductBytes, verifyFabCardSchemaBytes, verifyFabEnglishCardBytes, verifyOmensRecipeBytes } from "@draft-table/set-omens";\nconsole.log(typeof parseVerifiedOmensCustomCards, typeof parseVerifiedOmensLayouts, typeof parseVerifiedOmensPools, typeof parseVerifiedOmensSettings, typeof validateVerifiedFabCardSchemaDocument, typeof validateVerifiedFabEnglishCardDocument, typeof verifyCardVaultOmensProductBytes, typeof verifyFabCardSchemaBytes, typeof verifyFabEnglishCardBytes, typeof verifyOmensRecipeBytes);';
   const result = runIsolatedPackageConsumer(source);
@@ -128,10 +144,10 @@ test("external consumers can import the supported Omens package root without bui
 });
 
 test("external build-time consumers can import only the schema-validation subpath when dependencies are installed", () => {
-  const result = runConsumer('import { DraftEligibilityClassificationError, FabCardSourceSchemaValidationError, OmensCollationWeightTablesError, OmensCollationWeightTicketSelectionError, OmensRecipeLayoutPoolResolutionError, OmensRecipeOfficialIdentityReconciliationError, OmensRecipePoolIdentityResolutionError, OmensRecipeRarityCorrespondenceError, OmnSourceProjectionError, classifyOmensOfficialDraftEligibility, compileOmensCollationWeightTables, projectSchemaValidatedFabEnglishCardDataForOmn, reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities, reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings, resolveOmensRecipeLayoutsToOfficialIdentityPools, resolveOmensRecipePoolsToDraftableOfficialIdentities, selectOmensCollationLayoutByTicket, selectOmensCollationPoolOfficialIdentityByTicket, validateFabEnglishCardDataAgainstSchema } from "@draft-table/set-omens/schema-validation";\nconsole.log(typeof DraftEligibilityClassificationError, typeof FabCardSourceSchemaValidationError, typeof OmensCollationWeightTablesError, typeof OmensCollationWeightTicketSelectionError, typeof OmensRecipeLayoutPoolResolutionError, typeof OmensRecipeOfficialIdentityReconciliationError, typeof OmensRecipePoolIdentityResolutionError, typeof OmensRecipeRarityCorrespondenceError, typeof OmnSourceProjectionError, typeof classifyOmensOfficialDraftEligibility, typeof compileOmensCollationWeightTables, typeof projectSchemaValidatedFabEnglishCardDataForOmn, typeof reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities, typeof reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings, typeof resolveOmensRecipeLayoutsToOfficialIdentityPools, typeof resolveOmensRecipePoolsToDraftableOfficialIdentities, typeof selectOmensCollationLayoutByTicket, typeof selectOmensCollationPoolOfficialIdentityByTicket, typeof validateFabEnglishCardDataAgainstSchema);');
+  const result = runConsumer('import { DraftEligibilityClassificationError, FabCardSourceSchemaValidationError, OmensCollationSampleSelectionError, OmensCollationWeightTablesError, OmensCollationWeightTicketSelectionError, OmensRecipeLayoutPoolResolutionError, OmensRecipeOfficialIdentityReconciliationError, OmensRecipePoolIdentityResolutionError, OmensRecipeRarityCorrespondenceError, OmnSourceProjectionError, classifyOmensOfficialDraftEligibility, compileOmensCollationWeightTables, projectSchemaValidatedFabEnglishCardDataForOmn, reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities, reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings, resolveOmensRecipeLayoutsToOfficialIdentityPools, resolveOmensRecipePoolsToDraftableOfficialIdentities, selectOmensCollationLayoutByTicket, selectOmensCollationLayoutFromOneUnsigned32Sample, selectOmensCollationPoolOfficialIdentityByTicket, selectOmensCollationPoolOfficialIdentityFromOneUnsigned32Sample, validateFabEnglishCardDataAgainstSchema } from "@draft-table/set-omens/schema-validation";\nconsole.log(typeof DraftEligibilityClassificationError, typeof FabCardSourceSchemaValidationError, typeof OmensCollationSampleSelectionError, typeof OmensCollationWeightTablesError, typeof OmensCollationWeightTicketSelectionError, typeof OmensRecipeLayoutPoolResolutionError, typeof OmensRecipeOfficialIdentityReconciliationError, typeof OmensRecipePoolIdentityResolutionError, typeof OmensRecipeRarityCorrespondenceError, typeof OmnSourceProjectionError, typeof classifyOmensOfficialDraftEligibility, typeof compileOmensCollationWeightTables, typeof projectSchemaValidatedFabEnglishCardDataForOmn, typeof reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities, typeof reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings, typeof resolveOmensRecipeLayoutsToOfficialIdentityPools, typeof resolveOmensRecipePoolsToDraftableOfficialIdentities, typeof selectOmensCollationLayoutByTicket, typeof selectOmensCollationLayoutFromOneUnsigned32Sample, typeof selectOmensCollationPoolOfficialIdentityByTicket, typeof selectOmensCollationPoolOfficialIdentityFromOneUnsigned32Sample, typeof validateFabEnglishCardDataAgainstSchema);');
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "function function function function function function function function function function function function function function function function function function function");
+  assert.equal(result.stdout.trim(), Array.from({ length: 22 }, () => "function").join(" "));
 });
 
 test("external consumers cannot import Omens internal source modules or the raw parser", () => {
