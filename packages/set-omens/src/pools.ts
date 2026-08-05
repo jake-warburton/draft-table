@@ -1,4 +1,10 @@
-import { parseOmensLayoutsFromTrustedBytes, validateOmensRecipeLayoutsAggregate, type OmensLayouts } from "./layouts.ts";
+import {
+  completeOmensRecipeLayoutsForPoolResolutionForTest,
+  completeValidatedOmensRecipeLayoutsForPoolResolution,
+  parseOmensLayoutsFromTrustedBytes,
+  validateOmensRecipeLayoutsAggregate,
+  type OmensLayouts
+} from "./layouts.ts";
 import {
   readCompletedOmensRecipeCustomCardsForIdentityReconciliation,
   validateOmensRecipeCustomCardsAggregate,
@@ -50,6 +56,7 @@ const POOL_RARITIES: Readonly<Record<string, FabNativeRecipeRarity>> = Object.fr
 const parsedPoolCapabilities = new WeakSet<object>();
 const completedPoolOwnership = new WeakMap<object, Readonly<{
   owners: WeakMap<object, OmensRecipeCardReference>;
+  sourceOwner: object;
 }>>();
 
 const invalidPools = (): never => {
@@ -108,7 +115,9 @@ export const validateOmensRecipeReferences = (
 const completePools = (
   pools: OmensPools,
   layouts: OmensLayouts,
-  cards: ReadonlyArray<OmensRecipeCardReference>
+  cards: ReadonlyArray<OmensRecipeCardReference>,
+  sourceOwner: object,
+  pinned: boolean
 ): OmensPools => {
   if (!parsedPoolCapabilities.has(pools)) return invalidPools();
   const completedCards = readCompletedOmensRecipeCustomCardsForIdentityReconciliation(cards);
@@ -118,7 +127,9 @@ const completePools = (
   for (const pool of pools.pools) {
     for (const entry of pool.entries) owners.set(entry, cardsByName.get(entry.reference) ?? invalidPools());
   }
-  completedPoolOwnership.set(pools, Object.freeze({ owners }));
+  if (pinned) completeValidatedOmensRecipeLayoutsForPoolResolution(layouts, sourceOwner);
+  else completeOmensRecipeLayoutsForPoolResolutionForTest(layouts, sourceOwner);
+  completedPoolOwnership.set(pools, Object.freeze({ owners, sourceOwner }));
   return pools;
 };
 
@@ -127,22 +138,29 @@ export const completeOmensRecipePoolsForTest = (
   pools: OmensPools,
   layouts: OmensLayouts,
   cards: ReadonlyArray<OmensRecipeCardReference>
-): OmensPools => completePools(pools, layouts, cards);
+): OmensPools => completePools(pools, layouts, cards, pools, false);
 
 /** Completes the pinned pool capability only after all aggregate and cross-reference contracts pass. */
 export const completeValidatedOmensRecipePools = (
   pools: OmensPools,
   layouts: OmensLayouts,
-  cards: ReadonlyArray<OmensRecipeCardReference>
+  cards: ReadonlyArray<OmensRecipeCardReference>,
+  sourceOwner: object
 ): OmensPools => completePools(
   validateOmensRecipePoolsAggregate(pools),
   validateOmensRecipeLayoutsAggregate(layouts),
-  validateOmensRecipeCustomCardsAggregate(cards)
+  validateOmensRecipeCustomCardsAggregate(cards),
+  sourceOwner,
+  true
 );
 
 /** Reads only the exact completed opaque pool result for identity resolution. */
 export const readCompletedOmensRecipePoolsForIdentityResolution = (pools: OmensPools): OmensPools =>
   completedPoolOwnership.has(pools) ? pools : invalidPools();
+
+/** Returns only the opaque source-owner token shared by a completed layout and its pools. */
+export const readCompletedOmensRecipePoolsSourceOwner = (pools: OmensPools): object =>
+  completedPoolOwnership.get(pools)?.sourceOwner ?? invalidPools();
 
 /** Resolves one exact parser-owned entry through its already-validated same-source CustomCards owner. */
 export const readCompletedOmensRecipePoolEntryOwner = (

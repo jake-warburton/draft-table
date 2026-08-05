@@ -5,6 +5,7 @@ import {
 import {
   readCompletedOmensRecipePoolEntryOwner,
   readCompletedOmensRecipePoolsForIdentityResolution,
+  readCompletedOmensRecipePoolsSourceOwner,
   readOmensRecipePoolDomainFact,
   type OmensPools
 } from "./pools.ts";
@@ -42,6 +43,7 @@ export type OmensRecipePoolOfficialIdentityResolution = ReadonlyArray<Readonly<{
   }>>;
 }>>;
 
+const resolutionCapabilities = new WeakMap<object, object>();
 const fail = (): never => { throw new OmensRecipePoolIdentityResolutionError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
 type MappedIdentity = OmensRecipeOfficialIdentityReconciliation["mapped"][number];
@@ -100,7 +102,9 @@ const resolve = (
 
   if (normalOwnership.size !== identityByRecipeCollector.size ||
     [...identityByRecipeCollector.keys()].some((collector) => normalOwnership.get(collector) !== 1)) fail();
-  return frozen(output);
+  const capability = frozen(output);
+  resolutionCapabilities.set(capability, readCompletedOmensRecipePoolsSourceOwner(pools));
+  return capability;
 };
 
 /** Package-internal compact fictional seam; accepts no policy or aggregate override. */
@@ -132,6 +136,16 @@ export const resolveOmensRecipePoolsWithSyntheticEligibilityForTest = (
     return resolve(readCompletedOmensRecipePoolsForIdentityResolution(inputs[0]), identities, synthetic);
   } catch (error) { if (error instanceof OmensRecipePoolIdentityResolutionError) throw error; return fail(); }
 };
+
+/** Reads only the exact completed opaque pool resolution for layout resolution. */
+export const readOmensRecipePoolOfficialIdentityResolutionForLayouts = (
+  resolution: OmensRecipePoolOfficialIdentityResolution
+): OmensRecipePoolOfficialIdentityResolution => resolutionCapabilities.has(resolution) ? resolution : fail();
+
+/** Returns only the opaque source-owner token of an exact completed pool resolution. */
+export const readOmensRecipePoolOfficialIdentityResolutionSourceOwner = (
+  resolution: OmensRecipePoolOfficialIdentityResolution
+): object => resolutionCapabilities.get(resolution) ?? fail();
 
 /** Build-time-only staged recipe-pool ownership to accepted draftable official identity resolution. */
 export const resolveOmensRecipePoolsToDraftableOfficialIdentities = (
