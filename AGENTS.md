@@ -26,6 +26,8 @@ When updating this file, preserve this bar for all agents and keep entries conci
   line. No loaders, interception, or shared harnesses. See
   `packages/set-omens/test/official-suffix-foiling-classification.test.mjs` for the reference
   implementation. The module path must target a file-local OS-temp isolated canonical-source
-  snapshot that cleans setup and body failures and preserves dependency resolution. Never write
-  mutation modules beside production source; loaders, interception, and shared mutation harnesses
-  remain prohibited. Existing inline-duplicate proofs are follow-up candidates, not blessed.
+  snapshot that cleans setup and body failures and preserves dependency resolution. Every semantic
+  mutation must assert successful TypeScript checking of that isolated mutated snapshot before its
+  expected failing contract. Never write mutation modules beside production source; loaders,
+  interception, and shared mutation harnesses remain prohibited. Existing inline-duplicate proofs
+  are follow-up candidates, not blessed.
