@@ -132,6 +132,28 @@ test("finite uint32 batches snapshot hostile array length and elements exactly o
   assert.deepEqual(shrinkingElementReads, [1, 1]);
   assert.equal(shrinkingFirstReads, 1);
 
+  const originalPush = Array.prototype.push;
+  const corrupting = [0, UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END];
+  Object.defineProperty(corrupting, 0, {
+    configurable: true,
+    get() {
+      Array.prototype.push = () => 0;
+      return 0;
+    }
+  });
+  Object.defineProperty(corrupting, 1, {
+    configurable: true,
+    get() {
+      Array.prototype.push = originalPush;
+      return UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
+    }
+  });
+  try {
+    safe(() => mapUnsigned32SampleBatchToBoundedTicket(corrupting, 1));
+  } finally {
+    Array.prototype.push = originalPush;
+  }
+
   const getterReads = [0, 0];
   const mutating = [12, 13];
   Object.defineProperty(mutating, 0, {
