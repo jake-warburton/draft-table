@@ -33,6 +33,7 @@ export type OmensPackLocalPoolDrawState = Readonly<{
 type PoolState = OmensPackLocalPoolDrawState["poolStates"][number];
 const EXPECTED_POOL_COUNT = 11;
 const drawStateCapabilities = new WeakSet<object>();
+const drawStateTables = new WeakMap<object, OmensCollationWeightTables>();
 const fail = (): never => { throw new OmensPackLocalPoolDrawStateError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
 
@@ -57,10 +58,14 @@ const validPoolState = (poolState: PoolState): boolean => {
   return prior === poolState.poolTotalWeight && (poolState.officialIdentityChoices.length > 0 || poolState.poolTotalWeight === 0);
 };
 
-const register = (poolStates: ReadonlyArray<PoolState>): OmensPackLocalPoolDrawState => {
+const register = (
+  poolStates: ReadonlyArray<PoolState>,
+  tables: OmensCollationWeightTables
+): OmensPackLocalPoolDrawState => {
   if (poolStates.length !== EXPECTED_POOL_COUNT || !poolStates.every(validPoolState)) fail();
   const state = frozen({ poolStates: frozen(poolStates) });
   drawStateCapabilities.add(state);
+  drawStateTables.set(state, tables);
   return state;
 };
 
@@ -77,7 +82,7 @@ const initialize = (tables: OmensCollationWeightTables): OmensPackLocalPoolDrawS
       officialIdentityChoices: table.officialIdentityChoices
     });
   });
-  return register(poolStates);
+  return register(poolStates, tables);
 };
 
 /** Creates a fresh immutable pack-local projection of all registered identity-pool weight tables. */
@@ -88,6 +93,12 @@ export const initializeOmensPackLocalPoolDrawState = (
   try { return initialize(inputs[0]); }
   catch (error) { if (error instanceof OmensPackLocalPoolDrawStateError) throw error; return fail(); }
 };
+
+/** Narrow capability check consumed only by selected pack-collation-plan initialization. */
+export const isOmensPackLocalPoolDrawStateRegisteredForPlanInitialization = (
+  tables: OmensCollationWeightTables,
+  state: OmensPackLocalPoolDrawState
+): boolean => drawStateCapabilities.has(state) && drawStateTables.get(state) === tables;
 
 const removeFromPool = (selectedPool: PoolState, selectedIdentity: OfficialIdentityReference): PoolState => {
   const choices = selectedPool.officialIdentityChoices;
@@ -145,6 +156,8 @@ export const removeOmensPackLocalPoolOfficialIdentity = (
     const nextPoolStates = state.poolStates.map((poolState) => poolState === selectedPool
       ? removeFromPool(poolState, selectedIdentity)
       : poolState);
-    return register(nextPoolStates);
+    const tables = drawStateTables.get(state);
+    if (tables === undefined) return fail();
+    return register(nextPoolStates, tables);
   } catch (error) { if (error instanceof OmensPackLocalPoolDrawStateError) throw error; return fail(); }
 };

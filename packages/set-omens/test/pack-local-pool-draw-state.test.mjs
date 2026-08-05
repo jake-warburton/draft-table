@@ -215,7 +215,7 @@ test("selected-weight subtraction semantic mutation fails its exact named contra
   const original = readFileSync(sourcePath, "utf8"); const mutated = original
     .replace("const nextTotal = selectedPool.poolTotalWeight - selectedChoice.weight;", "const nextTotal = selectedPool.poolTotalWeight - choices[0].weight;")
     .replace("if (cumulativeExclusiveEnd !== nextTotal) fail();", "if (false) fail();")
-    .replace("return register(nextPoolStates);", "return frozen({ poolStates: frozen(nextPoolStates) });");
+    .replace("return register(nextPoolStates, tables);", "return frozen({ poolStates: frozen(nextPoolStates) });");
   assert.notEqual(mutated, original); runMutation(mutated, subtractionContract, subtractionMarker, "EXACT_SELECTED_WEIGHT_MUST_BE_SUBTRACTED");
 });
 
@@ -229,7 +229,7 @@ test("prefix restart semantic mutation fails its exact named contract", () => {
   const original = readFileSync(sourcePath, "utf8"), mutated = original
     .replace("let cumulativeExclusiveEnd = 0;", "let cumulativeExclusiveEnd = selectedChoice.weight;")
     .replace("if (cumulativeExclusiveEnd !== nextTotal) fail();", "if (false) fail();")
-    .replace("return register(nextPoolStates);", "return frozen({ poolStates: frozen(nextPoolStates) });");
+    .replace("return register(nextPoolStates, tables);", "return frozen({ poolStates: frozen(nextPoolStates) });");
   assert.notEqual(mutated, original); runMutation(mutated, prefixContract, prefixMarker, "EVERY_PREFIX_MUST_RESTART_AND_RECOMPILE");
 });
 

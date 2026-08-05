@@ -101,6 +101,15 @@ import {
   drawOmensPackLocalPoolOfficialIdentityFromOneUnsigned32Sample as drawPackLocalPoolOfficialIdentityFromOneSample,
   type OmensPackLocalPoolSampleDrawTransition
 } from "./pack-local-pool-sample-draw-transition.ts";
+import {
+  OmensPackCollationPlanInitializationError,
+  initializeOmensPackCollationPlanFromOneUnsigned32Sample as initializePackCollationPlanFromOneSample,
+  readOmensPackCollationPlanLayoutForTransition,
+  readOmensPackCollationPlanNextPositionForTransition,
+  readOmensPackCollationPlanPoolDrawStateForTransition,
+  type OmensPackCollationPlan,
+  type OmensPackCollationPlanInitialization
+} from "./pack-collation-plan.ts";
 
 export {
   FabCardSourceSchemaValidationError,
@@ -121,6 +130,7 @@ export {
   OmensPackLocalPoolTicketSelectionError,
   OmensPackLocalPoolSampleSelectionError,
   OmensPackLocalPoolSampleDrawTransitionError,
+  OmensPackCollationPlanInitializationError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -137,6 +147,8 @@ export {
   type OmensPackLocalPoolDrawState,
   type OmensPackLocalPoolSampleSelection,
   type OmensPackLocalPoolSampleDrawTransition,
+  type OmensPackCollationPlan,
+  type OmensPackCollationPlanInitialization,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -266,6 +278,14 @@ export const drawOmensPackLocalPoolOfficialIdentityFromOneUnsigned32Sample = (
     number
   ]
 ): OmensPackLocalPoolSampleDrawTransition => drawPackLocalPoolOfficialIdentityFromOneSample(...inputs);
+
+/** Initializes one selected-layout fresh all-pool plan or explicit retry; it draws neither position nor card. */
+export const initializeOmensPackCollationPlanFromOneUnsigned32Sample = (
+  ...inputs: [OmensCollationWeightTables, number]
+): OmensPackCollationPlanInitialization => initializePackCollationPlanFromOneSample(...inputs);
+
+/** Narrow future-transition reader for the exact selected layout bound to a plan. */
+export { readOmensPackCollationPlanLayoutForTransition, readOmensPackCollationPlanNextPositionForTransition, readOmensPackCollationPlanPoolDrawStateForTransition };
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (
