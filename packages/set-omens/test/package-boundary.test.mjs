@@ -108,6 +108,8 @@ test("tracked semantic mutation probers allocate outside the repository and neve
     "pack-local-pool-ticket-selection.test.mjs",
     "pack-local-pool-sample-selection.test.mjs",
     "pack-local-pool-sample-draw-transition.test.mjs",
+    "pack-collation-plan-selection-history-hardening-mutations.test.mjs",
+    "pack-collation-plan-selection-history-mutations.test.mjs",
     "recipe-layout-pool-resolution.test.mjs",
     "recipe-official-identity-reconciliation.test.mjs",
     "recipe-pool-identity-resolution.test.mjs",

@@ -14,6 +14,7 @@ export const PACK_LOCAL_POOL_SAMPLE_DRAW_TRANSITION_EVIDENCE_SUFFIX = ".pack-loc
 export const PACK_COLLATION_PLAN_EVIDENCE_SUFFIX = ".pack-collation-plan-evidence.test.mjs";
 export const FINITE_BATCH_COLLATION_PLAN_EVIDENCE_SUFFIX = ".finite-batch-collation-plan-evidence.test.mjs";
 export const FINITE_BATCH_PLAN_POSITION_TRANSITION_EVIDENCE_SUFFIX = ".finite-batch-plan-position-transition-evidence.test.mjs";
+export const PACK_COLLATION_PLAN_SELECTION_HISTORY_EVIDENCE_SUFFIX = ".pack-collation-plan-selection-history-evidence.test.mjs";
 
 export const discoverEvidenceTests = (files) => files
   .filter((file) => file.endsWith(".test.mjs"))
@@ -32,7 +33,8 @@ export const discoverEvidenceTests = (files) => files
   .filter((file) => !file.endsWith(PACK_LOCAL_POOL_SAMPLE_DRAW_TRANSITION_EVIDENCE_SUFFIX))
   .filter((file) => !file.endsWith(PACK_COLLATION_PLAN_EVIDENCE_SUFFIX))
   .filter((file) => !file.endsWith(FINITE_BATCH_COLLATION_PLAN_EVIDENCE_SUFFIX))
-  .filter((file) => !file.endsWith(FINITE_BATCH_PLAN_POSITION_TRANSITION_EVIDENCE_SUFFIX));
+  .filter((file) => !file.endsWith(FINITE_BATCH_PLAN_POSITION_TRANSITION_EVIDENCE_SUFFIX))
+  .filter((file) => !file.endsWith(PACK_COLLATION_PLAN_SELECTION_HISTORY_EVIDENCE_SUFFIX));
 
 export const discoverPublicSourceEvidenceTests = (files) => files
   .filter((file) => file.endsWith(PUBLIC_SOURCE_EVIDENCE_SUFFIX));
@@ -81,3 +83,6 @@ export const discoverFiniteBatchCollationPlanEvidenceTests = (files) => files
 
 export const discoverFiniteBatchPlanPositionTransitionEvidenceTests = (files) => files
   .filter((file) => file.endsWith(FINITE_BATCH_PLAN_POSITION_TRANSITION_EVIDENCE_SUFFIX));
+
+export const discoverPackCollationPlanSelectionHistoryEvidenceTests = (files) => files
+  .filter((file) => file.endsWith(PACK_COLLATION_PLAN_SELECTION_HISTORY_EVIDENCE_SUFFIX));
