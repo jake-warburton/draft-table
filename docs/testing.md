@@ -22,8 +22,9 @@ Additional future test layers (tool choice finalized when each layer is introduc
 ## Determinism and fixtures
 
 - Fixed set snapshot and `rantaways-omn-draft-3.8-fixed-layout-probabilities` recipe versions/checksums in every collation fixture; byte mismatch fails before parse.
-- Test `RandomSource` seeded explicitly and serializable.
-- Production random source adapter tested separately for server ownership/domain separation, never for predictable output.
+- PCG known-answer and replay tests pin `pcg-xsh-rr-64-32-v1`; it is non-cryptographic, not a multiplayer unpredictability guarantee.
+- The draft runtime receives its local uint32 source from callers; malformed timeout batches reject before entropy reads, and rejection sampling remains unbiased.
+- Production source custody, cryptographic requirements, and stream separation are separately tested when that architecture is chosen.
 - Fake monotonic/server clock; no test sleeps for engine timing.
 - Golden snapshots are small reviewed outcomes, never opaque generated all-card dumps.
 - Property failures print seed and minimal command trace for exact replay.
@@ -43,7 +44,7 @@ Additional future test layers (tool choice finalized when each layer is introduc
 | Rear exclusion | Exactly positions 15/16 removed atomically; no fabricated rear card identity; no rear marker can enter projection/pool/fallback/export; every known Basic/token/expansion/L/F/V/CF/other extra treatment remains classified with reason metadata. |
 | Visible collation | Exactly 14 from one validated weighted layout; 11 standard C + 1 standard R + 1 standard R/M + 1 legal RF; normal-slot M/RF draftable; integer weighted selection reaches every eligible outcome and no ineligible one; repeated same-pool draws obey no-replacement. |
 | Correlations | The checksum-pinned layout correlation/weight model is reproduced exactly; unknown/partial recipe refuses generation; no test or product copy calls it an official print-run model. |
-| Random bounds | One exact uint32 sample maps to an immutable accepted ticket in `[0,n)` or explicit retry through rejection sampling; exhaustive analogous-domain preimage checks prove no modulo bias. A finite caller-supplied uint32 batch validates every sample first, then composes the public mapper in source order and returns the first accepted ticket with exact consumption or explicit exhaustion. Build-time one-sample collation composition uses the exact capability-owned layout or selected-pool bound, propagates retry without lookup, and otherwise returns only the selected reference. Build-time finite-batch plan initialization composes the batch mapper only with exact capability-bound layout lookup and fresh-plan registration, preserving exact consumption and returning need-more without registration. A following finite-batch position transition maps against only the current recipe position's exact dynamic-pool bound, preserves need-more without effects, or performs one exact same-pool identity removal, immutable cursor advance, and exact position/official-identity reference append to the private plan history. Caller entropy ownership, generation, reseeding, infinite retry policy, pack/card construction, cross-pool duplicate policy, card-presentation integration and selection, treatment semantics, snapshots, physical-slot semantics, and runtime behavior remain later layers. |
+| Random bounds | One exact uint32 sample maps to an immutable accepted ticket in `[0,n)` or explicit retry through rejection sampling; exhaustive analogous-domain preimage checks prove no modulo bias. A finite caller-supplied uint32 batch validates every sample first, then composes the public mapper in source order and returns the first accepted ticket with exact consumption or explicit exhaustion. Build-time one-sample collation composition uses the exact capability-owned layout or selected-pool bound, propagates retry without lookup, and otherwise returns only the selected reference. Build-time finite-batch plan initialization composes the batch mapper only with exact capability-bound layout lookup and fresh-plan registration, preserving exact consumption and returning need-more without registration. A following finite-batch position transition maps against only the current recipe position's exact dynamic-pool bound, preserves need-more without effects, or performs one exact same-pool identity removal, immutable cursor advance, and exact position/official-identity reference append to the private plan history. Complete finite-batch construction covers all 14 positions with caller-owned retry/accounting, immutable continuation/history/pool state, and legal normal/Rainbow-Foil overlap without deduplication. Card-presentation integration, physical instances/rears, treatment semantics, snapshots, and room integration remain later layers. |
 | Pack count | For N=2..8, pre-generate `3N` packs, `48N` physical positions (`42N` card instances + `6N` rear markers), and `42N` visible card instances. |
 | Pass direction | N=2..8; pack 1 left, pack 2 right, pack 3 left; origin/current-holder mapping; no pack duplication/loss. |
 | Pool conservation | At completion every seat has 42 instances; union equals all visible instances; intersections empty; rear set disjoint. |
@@ -66,6 +67,14 @@ Additional future test layers (tool choice finalized when each layer is introduc
 | Protocol validation | Unknown version/type/field policy, oversized payload, invalid Unicode/control names, non-finite/bounds, role/phase errors, stable safe codes. |
 | Command dedupe | Duplicate ID same ack/no mutation; bounded eviction; ID scoped participant; stale version returns resync-safe response. |
 | Export | Deep link URL-encodes name/IDs, collapses treatments, includes `Draft`; below URL cap fixture; text parser form exact; no room/password/identity leakage. |
+
+## Implemented-package contracts
+
+- Deterministic-source tests pin replay state serialization, PCG vectors, immutable transitions, and exact uncapped retry transcripts.
+- Complete-pack tests cover all 14 source-order positions, finite caller batches/retries/accounting, immutable continuations/history, and the accepted normal-plus-Rainbow-Foil overlap witness; PR 66 captain acceptance is the private evidence authority.
+- Card-presentation tests cover capability ownership, source attribution, unresolved `null` fields, and public-evidence command boundaries without runtime fetches.
+- Draft-runtime tests cover provisional barriers, same-card idempotency, vacancy/disconnect ordering, automatic final-card commits, unbiased timeout fallback with zero entropy on invalid fallback input, L/R/L passing, deterministic bots, serialization, and package isolation.
+- Web-shell tests cover the readable fixture walkthrough, native buttons, live status/focus, reduced motion, phone layout, deterministic inline build, and cleanup. The shell is not real-card playability.
 
 ## Durable Object / Worker integration matrix
 
@@ -121,7 +130,7 @@ Use Chromium for Edge-equivalent engine coverage, Firefox, and WebKit for Safari
 - Type checking and lint are clean; zero ignored warnings without recorded rationale.
 - Unit/property suite has deterministic repeatability and no wall-clock sleeps.
 - Critical engine branches and protocol validators have high coverage; coverage is a diagnostic, not a replacement for matrix behavior.
-- The scaffold follows the [web build and size-reporting contract](streams/web-playable-shell.md#build-ownership-and-evidence); the server remains under the 3 MB Free limit [CF-1].
+- `npm run size` measures completed `apps/web/dist` output and rejects missing artifacts; it has no client-size ceiling or size gate. The server remains under the 3 MB Free limit [CF-1].
 - Lighthouse CI agreed thresholds: recommend Performance ≥90 and Accessibility/Best Practices/SEO ≥95 on representative desktop and tablet, with any exception captain-reviewed.
 - axe has zero serious/critical findings; manual keyboard and screen-reader gates pass.
 - Load: one object with 16 sockets, burst queue/replacement/POV traffic, alarms, reconnect storm, and sustained room churn.
