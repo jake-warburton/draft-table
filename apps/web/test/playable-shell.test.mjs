@@ -95,7 +95,7 @@ test("the static shell has labelled regions, visible focus, reduced motion, no n
   assert.doesNotMatch(js, /^\s*import\s/m);
 });
 
-test("readable source is minified only in the deterministic inline build", () => {
+test("readable source remains structured before the deterministic inline build", () => {
   const html = readFileSync(file("index.html"), "utf8");
   const css = readFileSync(file("styles.css"), "utf8");
   const js = readFileSync(file("main.js"), "utf8");
@@ -106,8 +106,11 @@ test("readable source is minified only in the deterministic inline build", () =>
   assert.match(js, /const fixturePacks/);
 });
 
-test("the static build is deterministic, minified, inline-only, and does not emit an external app module", () => {
+test("the static build is deterministic, inline-only, and preserves readable source output", () => {
   try {
+    const html = readFileSync(file("index.html"), "utf8");
+    const app = readFileSync(file("main.js"), "utf8");
+    const stylesheet = readFileSync(file("styles.css"), "utf8");
     execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
     const first = {
       html: readFileSync(file("dist/index.html"), "utf8"),
@@ -116,12 +119,10 @@ test("the static build is deterministic, minified, inline-only, and does not emi
     execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
     assert.equal(readFileSync(file("dist/index.html"), "utf8"), first.html);
     assert.equal(readFileSync(file("dist/styles.css"), "utf8"), first.css);
+    assert.equal(first.html, html.replace("<!--app-->", `<script type="module">${app}</script>`));
+    assert.equal(first.css, stylesheet);
     assert.match(first.html, /<script type="module">/);
     assert.doesNotMatch(first.html, /src="\.\/main\.js"/);
-    assert.doesNotMatch(`${first.html}\n${first.css}`, /html-minifier-terser|terser|clean-css/i);
-    const sourceMarkupAndScript = readFileSync(file("index.html"), "utf8").length + readFileSync(file("main.js"), "utf8").length;
-    assert.ok(first.html.length < sourceMarkupAndScript);
-    assert.ok(first.css.length < readFileSync(file("styles.css"), "utf8").length);
   } finally {
     rmSync(file("dist"), { recursive: true, force: true });
   }

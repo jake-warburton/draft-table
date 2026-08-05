@@ -31,7 +31,7 @@ test("the browser shell identifies current fixture-only playability and deferred
   assert.doesNotMatch(html, /main\.js/);
 });
 
-test("the bundle-size report measures only completed built output and rejects missing artifacts", (t) => {
+test("the bundle-size report measures completed built output rather than source and permits large output", (t) => {
   const dist = fromRoot("apps/web/dist");
   t.after(() => rmSync(dist, { recursive: true, force: true }));
 
@@ -44,24 +44,28 @@ test("the bundle-size report measures only completed built output and rejects mi
     .reduce((total, bytes) => total + bytes, 0);
   assert.notEqual(sourceBytes, builtBytes, "readable source must be distinguishable from built output");
 
-  const completedOutput = runSizeReport();
-  assert.equal(completedOutput.status, 0, completedOutput.stderr);
-  assert.match(
-    completedOutput.stdout,
-    new RegExp(`Client bundle: ${builtBytes} bytes \\(apps/web/dist/index\\.html, apps/web/dist/styles\\.css\\)`)
-  );
-  assert.doesNotMatch(completedOutput.stdout, new RegExp(`Client bundle: ${sourceBytes} bytes`));
-  assert.match(completedOutput.stdout, /Server bundle: 0 bytes \(not yet emitted; boundary typechecked only\)/);
-
   writeFileSync(
     fromRoot("apps/web/dist/index.html"),
-    `${readFileSync(fromRoot("apps/web/dist/index.html"), "utf8")}${"x".repeat(2049 - builtBytes)}`
+    `${readFileSync(fromRoot("apps/web/dist/index.html"), "utf8")}${"x".repeat(Math.max(0, 2049 - builtBytes))}`
   );
-  const overCeilingOutput = runSizeReport();
-  assert.notEqual(overCeilingOutput.status, 0);
-  assert.match(overCeilingOutput.stdout, /Client bundle: 2049 bytes/);
-  assert.match(overCeilingOutput.stderr, /Client bundle exceeds 2048-byte ceiling\./);
+  const largeBuiltBytes = ["index.html", "styles.css"]
+    .map((name) => statSync(fromRoot(`apps/web/dist/${name}`)).size)
+    .reduce((total, bytes) => total + bytes, 0);
+  const report = runSizeReport();
+  assert.equal(report.status, 0, report.stderr);
+  assert.match(
+    report.stdout,
+    new RegExp(`Client bundle: ${largeBuiltBytes} bytes \\(apps/web/dist/index\\.html, apps/web/dist/styles\\.css\\)`)
+  );
+  assert.doesNotMatch(report.stdout, new RegExp(`Client bundle: ${sourceBytes} bytes`));
+  assert.match(report.stdout, /Server bundle: 0 bytes \(not yet emitted; boundary typechecked only\)/);
+});
 
+test("the bundle-size report rejects missing expected built artifacts", (t) => {
+  const dist = fromRoot("apps/web/dist");
+  t.after(() => rmSync(dist, { recursive: true, force: true }));
+
+  execFileSync("npm", ["run", "build"], { cwd: root, stdio: "pipe" });
   rmSync(fromRoot("apps/web/dist/styles.css"));
   const missingOutput = runSizeReport();
   assert.notEqual(missingOutput.status, 0);

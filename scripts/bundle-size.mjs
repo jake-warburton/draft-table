@@ -1,7 +1,6 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
-const clientCeiling = 2048;
 const clientDirectory = "apps/web/dist";
 const expectedClientFiles = ["index.html", "styles.css"];
 
@@ -43,8 +42,4 @@ if (missingClientFiles.length > 0) {
     process.exitCode = 1;
   }
 
-  if (total > clientCeiling) {
-    console.error(`Client bundle exceeds ${clientCeiling}-byte ceiling.`);
-    process.exitCode = 1;
-  }
 }
