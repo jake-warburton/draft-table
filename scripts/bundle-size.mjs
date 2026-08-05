@@ -2,7 +2,8 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 const clientCeiling = 2048;
-const clientDirectory = process.env.BUNDLE_SIZE_CLIENT_DIR ?? "apps/web/dist";
+const clientDirectory = "apps/web/dist";
+const expectedClientFiles = ["index.html", "styles.css"];
 
 const listFiles = async (directory) => {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -15,22 +16,35 @@ const listFiles = async (directory) => {
   return files.flat();
 };
 
-const clientFiles = (await listFiles(clientDirectory)).sort();
-const sizes = await Promise.all(clientFiles.map(async (path) => (await stat(path)).size));
-const total = sizes.reduce((sum, size) => sum + size, 0);
-
-const emittedContents = await Promise.all(clientFiles.map((path) => readFile(path, "utf8")));
-const forbiddenBuildTimeModules = /\bajv(?:-draft-04)?\b/i;
-
-console.log(`Client bundle: ${total} bytes (${clientFiles.join(", ")})`);
-console.log("Server bundle: 0 bytes (not yet emitted; boundary typechecked only)");
-
-if (emittedContents.some((content) => forbiddenBuildTimeModules.test(content))) {
-  console.error("Emitted client/server artifacts must not contain Ajv module identifiers.");
-  process.exitCode = 1;
+const missingClientFiles = [];
+for (const path of expectedClientFiles.map((file) => join(clientDirectory, file))) {
+  try {
+    await stat(path);
+  } catch {
+    missingClientFiles.push(path);
+  }
 }
 
-if (total > clientCeiling) {
-  console.error(`Client bundle exceeds ${clientCeiling}-byte ceiling.`);
+if (missingClientFiles.length > 0) {
+  console.error(`Built client output is incomplete: missing ${missingClientFiles.join(", ")}.`);
   process.exitCode = 1;
+} else {
+  const clientFiles = (await listFiles(clientDirectory)).sort();
+  const sizes = await Promise.all(clientFiles.map(async (path) => (await stat(path)).size));
+  const total = sizes.reduce((sum, size) => sum + size, 0);
+  const emittedContents = await Promise.all(clientFiles.map((path) => readFile(path, "utf8")));
+  const forbiddenBuildTimeModules = /\bajv(?:-draft-04)?\b/i;
+
+  console.log(`Client bundle: ${total} bytes (${clientFiles.join(", ")})`);
+  console.log("Server bundle: 0 bytes (not yet emitted; boundary typechecked only)");
+
+  if (emittedContents.some((content) => forbiddenBuildTimeModules.test(content))) {
+    console.error("Emitted client/server artifacts must not contain Ajv module identifiers.");
+    process.exitCode = 1;
+  }
+
+  if (total > clientCeiling) {
+    console.error(`Client bundle exceeds ${clientCeiling}-byte ceiling.`);
+    process.exitCode = 1;
+  }
 }

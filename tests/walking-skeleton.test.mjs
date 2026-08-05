@@ -1,25 +1,16 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import test from "node:test";
 
 const root = new URL("..", import.meta.url);
 const fromRoot = (path) => new URL(path, root);
 
-const runSizeReport = (clientDirectory) =>
+const runSizeReport = () =>
   spawnSync("node", ["scripts/bundle-size.mjs"], {
     cwd: root,
-    encoding: "utf8",
-    env: { ...process.env, BUNDLE_SIZE_CLIENT_DIR: clientDirectory }
+    encoding: "utf8"
   });
-
-const writeClientShell = (directory, bytes) => {
-  for (const file of ["index.html", "styles.css", "main.js"]) {
-    writeFileSync(join(directory, file), "x".repeat(bytes[file] ?? 0));
-  }
-};
 
 test("the browser shell permanently identifies Draft Table as unofficial and non-affiliated", () => {
   const html = readFileSync(fromRoot("apps/web/index.html"), "utf8");
@@ -41,21 +32,40 @@ test("the browser shell identifies current fixture-only playability and deferred
 });
 
 test("the bundle-size report deterministically accepts the 2,048-byte client ceiling and rejects overflow", (t) => {
-  const directory = mkdtempSync(join(tmpdir(), "draft-table-size-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const dist = fromRoot("apps/web/dist");
+  t.after(() => rmSync(dist, { recursive: true, force: true }));
 
-  writeClientShell(directory, { "index.html": 1024, "styles.css": 1024, "main.js": 0 });
-  const atCeiling = runSizeReport(directory);
+  execFileSync("npm", ["run", "build"], { cwd: root, stdio: "pipe" });
+  const atCeiling = runSizeReport();
   assert.equal(atCeiling.status, 0, atCeiling.stderr);
-  assert.match(atCeiling.stdout, /Client bundle: 2048 bytes/);
+  assert.match(atCeiling.stdout, /Client bundle: 2043 bytes \(apps\/web\/dist\/index\.html, apps\/web\/dist\/styles\.css\)/);
   assert.match(atCeiling.stdout, /Server bundle: 0 bytes \(not yet emitted; boundary typechecked only\)/);
 
-  mkdirSync(join(directory, "assets"));
-  writeFileSync(join(directory, "assets", "extra.js"), "x");
-  const overCeiling = runSizeReport(directory);
+  appendFileSync(fromRoot("apps/web/dist/styles.css"), "123456");
+  const overCeiling = runSizeReport();
   assert.notEqual(overCeiling.status, 0);
   assert.match(overCeiling.stdout, /Client bundle: 2049 bytes/);
   assert.match(overCeiling.stderr, /exceeds 2048-byte ceiling/);
+});
+
+test("the bundle-size report measures only completed built output and rejects missing artifacts", (t) => {
+  const dist = fromRoot("apps/web/dist");
+  t.after(() => rmSync(dist, { recursive: true, force: true }));
+
+  execFileSync("npm", ["run", "build"], { cwd: root, stdio: "pipe" });
+  const sourceBytes = ["index.html", "styles.css", "main.js"]
+    .map((name) => readFileSync(fromRoot(`apps/web/${name}`)).length)
+    .reduce((total, bytes) => total + bytes, 0);
+  assert.ok(sourceBytes > 2048, "readable source must be distinguishable from built output");
+
+  const completedOutput = runSizeReport();
+  assert.equal(completedOutput.status, 0, completedOutput.stderr);
+  assert.match(completedOutput.stdout, /Client bundle: \d+ bytes \(apps\/web\/dist\/index\.html, apps\/web\/dist\/styles\.css\)/);
+
+  rmSync(fromRoot("apps/web/dist/styles.css"));
+  const missingOutput = runSizeReport();
+  assert.notEqual(missingOutput.status, 0);
+  assert.match(missingOutput.stderr, /Built client output is incomplete: missing apps\/web\/dist\/styles\.css\./);
 });
 
 test("CI validates pull requests and main with read-only permissions and the quality commands", () => {
@@ -72,7 +82,9 @@ test("CI validates pull requests and main with read-only permissions and the qua
   }
 });
 
-test("the approved workspaces build without product implementations", () => {
+test("the approved workspaces build without product implementations", (t) => {
+  t.after(() => rmSync(fromRoot("apps/web/dist"), { recursive: true, force: true }));
+
   for (const workspace of [
     "apps/web",
     "apps/server",

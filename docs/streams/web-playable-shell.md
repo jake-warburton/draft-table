@@ -8,16 +8,19 @@
 
 Cards are labelled native buttons, so mouse click and standard Enter/Space button activation choose a card. A captured pack index rejects stale and repeated activation. The picked pool is an ordered list. The live status names the current fixture pack and announces completion; completion moves focus to that status. Regions and lists have labels, keyboard focus has a high-contrast visible outline, the layout changes from a three-card desktop/tablet grid to one column on phones, and reduced-motion preferences disable animation and transition.
 
-## Commands and evidence
+## Build ownership and evidence
+
+`apps/web/index.html`, `apps/web/main.js`, and `apps/web/styles.css` are readable, structured source files. The exact-versioned, root dev-only `html-minifier-terser` build dependency minifies HTML, inline module JavaScript, and CSS deterministically into the uncommitted `apps/web/dist` output; it is absent from emitted client files and runtime graphs. The build emits only `index.html` and `styles.css`, with the application inlined into the former.
 
 ```sh
 npm --workspace @draft-table/web test
 npm run build
+node scripts/bundle-size.mjs
 npm run size
 ```
 
-The web contract test checks initial render, click and keyboard activation, reload reset, removal/recording, the two-seat three-pack progression, stale/double rejection, completion/focus, labels/status/focus styling, reduced motion, deterministic output, no network calls, no app imports, and inline-only output. The emitted client is **2,037 bytes** against the root 2,048-byte ceiling (11 bytes spare); the build emits `index.html` and `styles.css` only.
+The root size contract measures only the completed `apps/web/dist/index.html` and `apps/web/dist/styles.css` artifacts; it rejects missing built artifacts rather than reading committed source. Current readable source totals **3,347 bytes** (`index.html` 999, `main.js` 1,768, `styles.css` 580). Current minified built output totals **2,043 bytes** (`index.html` 1,591, `styles.css` 452) against the root 2,048-byte ceiling (5 bytes spare). The web contract checks deterministic repeated output, inline-only minification, source readability, and cleanup; the root contract distinguishes built-output measurement from source measurement and requires the expected artifacts.
 
 ## Integration owed
 
-The unofficial and non-affiliation notice is permanent; fixture-only playability is temporary pending integration. The shell has no engine or `set-omens` integration. Replacing fixtures through a reviewed engine/`set-omens` runtime-facing boundary is later work. Real packs, card identities/images, draft authority, multiplayer state, entropy, persistence, and product treatment semantics remain out of scope.
+The unofficial and non-affiliation notice is permanent; fixture-only playability is temporary pending integration. The shell has no engine or `set-omens` integration. Replacing fixtures through a reviewed engine/`set-omens` runtime-facing boundary is later work. Real packs, card identities/images, draft authority, multiplayer state, entropy, persistence, and product treatment semantics remain out of scope. A separate captain-held decision will revisit the ceiling once a real measured UI renders 14-card packs, images, seats, picks, and pools.

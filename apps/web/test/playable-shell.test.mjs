@@ -90,17 +90,39 @@ test("the static shell has labelled regions, visible focus, reduced motion, no n
   assert.match(html, /aria-label="Cards in fixture pack"/);
   assert.match(html, /aria-label="Picked cards"/);
   assert.match(css, /:focus-visible/);
-  assert.match(css, /prefers-reduced-motion:reduce/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(`${html}\n${css}\n${js}`, /fetch\(|XMLHttpRequest|https?:\/\//);
   assert.doesNotMatch(js, /^\s*import\s/m);
 });
 
-test("the static build is deterministic, inline-only, and does not emit an external app module", () => {
-  execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
-  const first = readFileSync(file("dist/index.html"), "utf8");
-  execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
-  assert.equal(readFileSync(file("dist/index.html"), "utf8"), first);
-  assert.match(first, /<script type="module">/);
-  assert.doesNotMatch(first, /src="\.\/main\.js"/);
-  rmSync(file("dist"), { recursive: true, force: true });
+test("readable source is minified only in the deterministic inline build", () => {
+  const html = readFileSync(file("index.html"), "utf8");
+  const css = readFileSync(file("styles.css"), "utf8");
+  const js = readFileSync(file("main.js"), "utf8");
+  assert.ok(html.split("\n").length > 15, "HTML source should retain its structure");
+  assert.ok(css.split("\n").length > 20, "CSS source should retain its structure");
+  assert.ok(js.split("\n").length > 35, "JavaScript source should retain its structure");
+  assert.match(js, /function renderFixturePack/);
+  assert.match(js, /const fixturePacks/);
+});
+
+test("the static build is deterministic, minified, inline-only, and does not emit an external app module", () => {
+  try {
+    execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
+    const first = {
+      html: readFileSync(file("dist/index.html"), "utf8"),
+      css: readFileSync(file("dist/styles.css"), "utf8")
+    };
+    execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
+    assert.equal(readFileSync(file("dist/index.html"), "utf8"), first.html);
+    assert.equal(readFileSync(file("dist/styles.css"), "utf8"), first.css);
+    assert.match(first.html, /<script type="module">/);
+    assert.doesNotMatch(first.html, /src="\.\/main\.js"/);
+    assert.doesNotMatch(`${first.html}\n${first.css}`, /html-minifier-terser|terser|clean-css/i);
+    const sourceMarkupAndScript = readFileSync(file("index.html"), "utf8").length + readFileSync(file("main.js"), "utf8").length;
+    assert.ok(first.html.length < sourceMarkupAndScript);
+    assert.ok(first.css.length < readFileSync(file("styles.css"), "utf8").length);
+  } finally {
+    rmSync(file("dist"), { recursive: true, force: true });
+  }
 });
