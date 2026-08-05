@@ -43,6 +43,11 @@ import {
 } from "./recipe-official-identity-reconciliation.ts";
 import type { OmensRecipeCardReference } from "./custom-cards.ts";
 import {
+  DraftEligibilityClassificationError,
+  classifyOmensOfficialDraftEligibility as classifyDraftEligibility,
+  type OmensDraftEligibilityClassification
+} from "./draft-eligibility-classification.ts";
+import {
   OmensRecipeRarityCorrespondenceError,
   reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings as reconcileRecipeRarities,
   type OmensRecipeRarityCorrespondence
@@ -57,6 +62,7 @@ export {
   OfficialFacePrintingMultiplicityReconciliationError,
   OmensRecipeOfficialIdentityReconciliationError,
   OmensRecipeRarityCorrespondenceError,
+  DraftEligibilityClassificationError,
   type OmnSourceProjection,
   type OfficialUpstreamIdReconciliation,
   type OfficialSuffixFoilingClassification,
@@ -64,6 +70,7 @@ export {
   type OfficialFacePrintingMultiplicityReconciliation,
   type OmensRecipeOfficialIdentityReconciliation,
   type OmensRecipeRarityCorrespondence,
+  type OmensDraftEligibilityClassification,
   type SchemaValidatedFabEnglishCardData
 };
 
@@ -112,6 +119,11 @@ export const reconcileOmensRecipeRaritiesWithOfficialUpstreamPrintings = (
   identities: OmensRecipeOfficialIdentityReconciliation,
   official: OfficialUpstreamIdReconciliation
 ): OmensRecipeRarityCorrespondence => reconcileRecipeRarities(identities, official);
+
+/** Build-time-only Omens product-policy facts; no runtime pool or treatment behavior is implied. */
+export const classifyOmensOfficialDraftEligibility = (
+  ...inputs: [OmensRecipeOfficialIdentityReconciliation, OfficialUpstreamIdReconciliation]
+): OmensDraftEligibilityClassification => classifyDraftEligibility(...inputs);
 
 /** Build-time-only observed suffix-to-upstream-foiling correspondence from reconciliation only. */
 export const classifyOfficialCardVaultSuffixFoiling = (

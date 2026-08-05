@@ -170,6 +170,11 @@ export const readOmensRecipeOfficialIdentityReconciliationForRarityCorrespondenc
   reconciliation: OmensRecipeOfficialIdentityReconciliation
 ): OmensRecipeOfficialIdentityReconciliation => reconciliationCapabilities.has(reconciliation) ? reconciliation : fail();
 
+/** Reads only the completed identity partition for Omens product-policy classification. */
+export const readOmensRecipeOfficialIdentityReconciliationForDraftEligibility = (
+  reconciliation: OmensRecipeOfficialIdentityReconciliation
+): OmensRecipeOfficialIdentityReconciliation => reconciliationCapabilities.has(reconciliation) ? reconciliation : fail();
+
 /** Build-time-only exact identity membership reconciliation over both opaque capabilities. */
 export const reconcileOmensRecipeCustomCardsWithOfficialUpstreamIdentities = (
   recipe: ReadonlyArray<OmensRecipeCardReference>,

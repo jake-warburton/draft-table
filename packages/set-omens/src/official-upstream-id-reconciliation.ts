@@ -170,6 +170,11 @@ export const readOfficialUpstreamIdReconciliationForSuffixFoiling = (
   records: OfficialUpstreamIdReconciliation
 ): OfficialUpstreamIdReconciliation => reconciliationCapabilities.has(records) ? records : fail();
 
+/** Reads only the opaque official identity capability for Omens product-policy classification. */
+export const readOfficialUpstreamIdReconciliationForDraftEligibility = (
+  records: OfficialUpstreamIdReconciliation
+): OfficialUpstreamIdReconciliation => reconciliationCapabilities.has(records) ? records : fail();
+
 /** Package-internal fictional seam for focused reconciliation contracts. */
 export const reconcileOfficialUpstreamIdRecordsForTest = (forms: readonly CardVaultPrintIdForm[], source: unknown, expected: ExpectedAggregate): OfficialUpstreamIdReconciliation => {
   try { return reconcile(forms, source, expected); } catch (error) { if (error instanceof OfficialUpstreamIdReconciliationError) throw error; return fail(); }
