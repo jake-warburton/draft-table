@@ -38,6 +38,7 @@ export type OmensRecipeLayoutOfficialIdentityPoolResolution = Readonly<{
   }>>;
 }>;
 
+const layoutResolutionCapabilities = new WeakMap<object, OmensRecipePoolOfficialIdentityResolution>();
 const fail = (): never => { throw new OmensRecipeLayoutPoolResolutionError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
 
@@ -111,7 +112,9 @@ const resolve = (
   }
   if (output.length !== layouts.layouts.length || usedPools.size !== pools.length || [...ownedPools].some((pool) => !usedPools.has(pool))) fail();
   validateOmensRecipeStructuralOutcomeCountsForTest(output.length, rareSecondOutcomes, majesticSecondOutcomes);
-  return frozen({ withReplacement: false, layouts: frozen(output) });
+  const capability = frozen({ withReplacement: false as const, layouts: frozen(output) });
+  layoutResolutionCapabilities.set(capability, poolCapability);
+  return capability;
 };
 
 /** Package-internal compact fictional seam; accepts no policy or aggregate override. */
@@ -122,6 +125,12 @@ export const resolveOmensRecipeLayoutsToOfficialIdentityPoolsForTest = (
   try { return resolve(inputs[0], inputs[1]); }
   catch (error) { if (error instanceof OmensRecipeLayoutPoolResolutionError) throw error; return fail(); }
 };
+
+/** Narrow reader joining only an exact layout-resolution capability to its exact source pool capability. */
+export const readOmensRecipeLayoutOfficialIdentityPoolResolutionForCollationWeightCompilation = (
+  resolution: OmensRecipeLayoutOfficialIdentityPoolResolution,
+  poolCapability: OmensRecipePoolOfficialIdentityResolution
+): OmensRecipeLayoutOfficialIdentityPoolResolution => layoutResolutionCapabilities.get(resolution) === poolCapability ? resolution : fail();
 
 /** Build-time-only resolution of every completed weighted layout slot to its exact resolved official-identity pool. */
 export const resolveOmensRecipeLayoutsToOfficialIdentityPools = (

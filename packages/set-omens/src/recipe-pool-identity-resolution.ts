@@ -43,7 +43,10 @@ export type OmensRecipePoolOfficialIdentityResolution = ReadonlyArray<Readonly<{
   }>>;
 }>>;
 
-const resolutionCapabilities = new WeakMap<object, object>();
+const resolutionCapabilities = new WeakMap<object, Readonly<{
+  sourceOwner: object;
+  poolTotalWeights: WeakMap<object, number>;
+}>>();
 const fail = (): never => { throw new OmensRecipePoolIdentityResolutionError(); };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
 type MappedIdentity = OmensRecipeOfficialIdentityReconciliation["mapped"][number];
@@ -77,11 +80,15 @@ const resolve = (
   }
 
   const normalOwnership = new Map<string, number>();
+  const poolTotalWeights = new WeakMap<object, number>();
   const output: OmensRecipePoolOfficialIdentityResolution[number][] = [];
   for (const pool of pools.pools) {
     const domain = readOmensRecipePoolDomainFact(pool);
     const entries: OmensRecipePoolOfficialIdentityResolution[number]["entries"][number][] = [];
+    let poolTotalWeight = 0;
     for (const entry of pool.entries) {
+      if (!Number.isSafeInteger(entry.weight) || entry.weight <= 0 || poolTotalWeight > Number.MAX_SAFE_INTEGER - entry.weight) fail();
+      poolTotalWeight += entry.weight;
       // Stage 1: exact same-source pool reference -> its unique validated CustomCards owner.
       const owner = readCompletedOmensRecipePoolEntryOwner(pools, entry);
       // Stage 2: the owner's exact recipe collector -> its accepted official identity.
@@ -97,13 +104,16 @@ const resolve = (
         cardUniqueId: identity.officialCardUniqueId
       }) }));
     }
-    output.push(frozen({ sourcePoolLabel: pool.name, fabRarity: domain.fabRarity, recipePoolCategory: domain.category, entries: frozen(entries) }));
+    if (!Number.isSafeInteger(poolTotalWeight) || poolTotalWeight <= 0 || entries.length === 0) fail();
+    const resolvedPool = frozen({ sourcePoolLabel: pool.name, fabRarity: domain.fabRarity, recipePoolCategory: domain.category, entries: frozen(entries) });
+    poolTotalWeights.set(resolvedPool, poolTotalWeight);
+    output.push(resolvedPool);
   }
 
   if (normalOwnership.size !== identityByRecipeCollector.size ||
     [...identityByRecipeCollector.keys()].some((collector) => normalOwnership.get(collector) !== 1)) fail();
   const capability = frozen(output);
-  resolutionCapabilities.set(capability, readCompletedOmensRecipePoolsSourceOwner(pools));
+  resolutionCapabilities.set(capability, frozen({ sourceOwner: readCompletedOmensRecipePoolsSourceOwner(pools), poolTotalWeights }));
   return capability;
 };
 
@@ -145,7 +155,18 @@ export const readOmensRecipePoolOfficialIdentityResolutionForLayouts = (
 /** Returns only the opaque source-owner token of an exact completed pool resolution. */
 export const readOmensRecipePoolOfficialIdentityResolutionSourceOwner = (
   resolution: OmensRecipePoolOfficialIdentityResolution
-): object => resolutionCapabilities.get(resolution) ?? fail();
+): object => resolutionCapabilities.get(resolution)?.sourceOwner ?? fail();
+
+/** Narrow reader for exact completed pool resolution consumed only by collation-weight compilation. */
+export const readOmensRecipePoolOfficialIdentityResolutionForCollationWeightCompilation = (
+  resolution: OmensRecipePoolOfficialIdentityResolution
+): OmensRecipePoolOfficialIdentityResolution => resolutionCapabilities.has(resolution) ? resolution : fail();
+
+/** Reads the established exact total for one exact capability-owned resolved pool. */
+export const readOmensRecipePoolOfficialIdentityResolutionPoolTotalWeightForCollationWeightCompilation = (
+  resolution: OmensRecipePoolOfficialIdentityResolution,
+  pool: OmensRecipePoolOfficialIdentityResolution[number]
+): number => resolutionCapabilities.get(resolution)?.poolTotalWeights.get(pool) ?? fail();
 
 /** Build-time-only staged recipe-pool ownership to accepted draftable official identity resolution. */
 export const resolveOmensRecipePoolsToDraftableOfficialIdentities = (
