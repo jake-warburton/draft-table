@@ -11,10 +11,9 @@ export type Unsigned32SampleBatchTicketResult = Readonly<
 >;
 
 const defineOwnDataProperty: typeof Object.defineProperty = Object.defineProperty;
-const freezeResult: typeof Object.freeze = Object.freeze;
 const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
 const fail = (): never => { throw new UnbiasedUint32TicketMappingError(); };
-const frozen = <Value>(value: Value): Readonly<Value> => freezeResult(value);
+const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
 const isUint32Sample = (value: unknown): value is number =>
   typeof value === "number" && isSafeInteger(value) && value >= 0 && value < UINT32_SAMPLE_DOMAIN_EXCLUSIVE_END;
 const isAcceptedTicketBound = (value: unknown): value is number =>
@@ -36,7 +35,7 @@ export const mapUnsigned32SampleBatchToBoundedTicket = (
     const sampleSnapshot: unknown[] = [];
     for (let index = 0; index < sampleCount; index++) {
       defineOwnDataProperty(sampleSnapshot, index, {
-        value: suppliedSamples[index], writable: true, enumerable: true, configurable: true
+        value: suppliedSamples[index], writable: false, enumerable: true, configurable: false
       });
     }
     for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
