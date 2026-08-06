@@ -54,6 +54,10 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /never calls Fabrary's private authenticated endpoints/);
   assert.match(readme, /## Room codes[\s\S]*eight Crockford-Base32 symbols[\s\S]*forty random bits/);
   assert.match(readme, /a refusal never echoes the rejected text/);
+  assert.match(readme, /## Room routes[\s\S]*`POST \/api\/rooms`[\s\S]*`GET \/api\/rooms\/<code>\/socket` with `Upgrade: websocket`/);
+  assert.match(readme, /a bad request forwarded to an object spends two of the day's requests instead of one/);
+  assert.match(readme, /an upgrade does not survive being rebuilt/);
+  assert.match(readme, /Not there yet: the room object itself, the per-room and per-network rate limits[\s\S]*does not yet refuse repeated traffic/);
   assert.match(readme, /## Reviewed set snapshot[\s\S]*neither CI nor the browser needs the captain-held recipe/);
   assert.match(readme, /set snapshot acceptance passed[\s\S]*compares byte for byte with the committed snapshot/);
   assert.match(readme, /completed `apps\/web\/dist` bytes[\s\S]*no client byte ceiling[\s\S]*size gate[\s\S]*accessibility and responsive declarations/);

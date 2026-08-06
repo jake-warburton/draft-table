@@ -252,6 +252,21 @@ Reading a code follows Crockford's own rules, because people retype these from a
 
 A code is an unlisted address, not authorization, and a refusal never echoes the rejected text back into a message, log, or stack trace.
 
+## Room routes
+
+`apps/server` is the Cloudflare Worker. It has exactly two dynamic routes, and everything else a browser asks for is a static asset:
+
+- `POST /api/rooms` — mint a code and initialize one room under it.
+- `GET /api/rooms/<code>/socket` with `Upgrade: websocket` — open a socket into that room.
+
+The router is deliberately thin. It mints and reads codes and then gets out of the way: room state, passwords, identity credentials, and every rule of the draft belong to the room object rather than to the Worker.
+
+What it does own is turning away traffic a room object should never have to see, because a bad request forwarded to an object spends two of the day's requests instead of one. It refuses a request that did not come from this origin, including one that names no origin at all, a method the route does not have, a content type it does not speak, a body over 4 KiB whether the length is declared, understated, or never declared at all, anything that is not one JSON object, a socket request that is not an upgrade, and a code that could never have been minted. Only the room object can say a code is already *taken*, because only the object is serialized; the Worker's part is to mint another and to give up after a few attempts rather than spin.
+
+Two habits run all the way through it. A refusal never repeats the request back — a create body may carry a room password and a code is an unlisted address, so neither reaches a response body, a header, or a status line. And a socket upgrade is forwarded exactly as it arrived rather than rebuilt, because an upgrade does not survive being rebuilt; the object learns its own code when it is initialized and never needs it handed back.
+
+Not there yet: the room object itself, the per-room and per-network rate limits [security and privacy](docs/security-and-privacy.md#room-codes-and-abuse) calls for, and the optional `GET /api/health`. The router refuses malformed traffic cheaply, but it does not yet refuse repeated traffic.
+
 ## Reading your drafted pool
 
 The pool starts in collector order and can be regrouped without changing it. Buttons offer **Set number**, **Class**, **Colour**, and **Type**; cards stay in collector order inside every group, empty groups are left out, and each heading carries its own count.
