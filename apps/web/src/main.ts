@@ -1,5 +1,11 @@
-import { OMENS_SET_SNAPSHOT } from "./cards.ts";
+import { OMENS_SET_SNAPSHOT, imageIndex } from "./cards.ts";
 import { DEFAULT_SEAT_COUNT, chooseCard, createTable, viewTable } from "./table.ts";
+
+/** The official art is 376×526, so declaring it reserves each card's space before the art arrives. */
+const ART_WIDTH = 376;
+const ART_HEIGHT = 526;
+
+const images = imageIndex(OMENS_SET_SNAPSHOT);
 
 const element = (selector: string): HTMLElement => {
   const found = document.querySelector(selector);
@@ -28,11 +34,34 @@ const listItem = (text: string): HTMLElement => {
   return item;
 };
 
-const cardControl = (label: string, instanceId: string, round: number, pick: number): HTMLElement => {
+/**
+ * Card art is decorative: the visible name beside it is already the button's accessible name, so a
+ * failed image simply gets out of the way rather than leaving an unreadable card.
+ */
+const cardArt = (cardId: string): HTMLElement | null => {
+  const source = images.get(cardId);
+  if (source === undefined) return null;
+  const art = document.createElement("img");
+  art.setAttribute("src", source);
+  art.setAttribute("alt", "");
+  art.setAttribute("loading", "lazy");
+  art.setAttribute("decoding", "async");
+  art.setAttribute("referrerpolicy", "no-referrer");
+  art.setAttribute("width", String(ART_WIDTH));
+  art.setAttribute("height", String(ART_HEIGHT));
+  art.onerror = () => { art.hidden = true; };
+  return art;
+};
+
+const cardControl = (card: { cardId: string; label?: string }, instanceId: string, round: number, pick: number): HTMLElement => {
   const control = document.createElement("button");
   control.setAttribute("type", "button");
   control.className = "card";
-  control.textContent = label;
+  const name = document.createElement("span");
+  name.className = "card-name";
+  name.textContent = card.label ?? card.cardId;
+  const art = cardArt(card.cardId);
+  control.replaceChildren(...(art === null ? [name] : [art, name]));
   control.onclick = () => choose(instanceId, round, pick);
   return control;
 };
@@ -45,7 +74,7 @@ const render = (): void => {
   poolCount.textContent = String(view.pool.length);
   poolRegion.replaceChildren(...view.pool.map((card) => listItem(card.label ?? card.cardId)));
   packRegion.replaceChildren(
-    ...view.cards.map((card) => cardControl(card.label ?? card.cardId, card.instanceId, view.round, view.pick))
+    ...view.cards.map((card) => cardControl(card, card.instanceId, view.round, view.pick))
   );
   if (view.complete) {
     statusRegion.tabIndex = -1;

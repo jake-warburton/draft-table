@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https://legendstory-production-s3-public.s3.amazonaws.com; style-src 'self'; script-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta name="referrer" content="no-referrer">
     <title>Draft Table</title>
     <link rel="stylesheet" href="./styles.css">
   </head>
@@ -11,7 +13,7 @@
       <header>
         <h1>Draft Table</h1>
         <p>Unofficial; not affiliated with Legend Story Studios.</p>
-        <p>A full three-round draft against bots, dealt from the reviewed Omens set snapshot with its real collation weights. Card names only; card images are not used.</p>
+        <p>A full three-round draft against bots, dealt from the reviewed Omens set snapshot with its real collation weights. Card images are served by Legend Story Studios from their own public host; a card that cannot load its art still shows its name.</p>
       </header>
 
       <section aria-labelledby="pack-title">

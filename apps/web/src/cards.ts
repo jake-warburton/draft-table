@@ -1,6 +1,7 @@
 import { mapUnsigned32SampleToBoundedTicket } from "@draft-table/engine";
 import {
   OMENS_SET_SNAPSHOT,
+  OMENS_SNAPSHOT_IMAGE_ORIGIN,
   OMENS_SNAPSHOT_PACK_SIZE,
   OMENS_SNAPSHOT_SLOT_ROLES,
   type OmensSetSnapshot,
@@ -16,11 +17,19 @@ import type { DraftCard, DraftPack } from "@draft-table/draft";
  * that position's pool without replacement *within that pool*. Cross-pool overlap is legal, so a
  * normal card and its Rainbow Foil counterpart may both appear and are never deduplicated.
  *
- * The snapshot itself carries no image, URL, or upstream byte, and this module reaches no network.
+ * Card art stays remote: the snapshot carries each identity's official image URL, and nothing here
+ * fetches it. The browser requests art directly from the pinned origin when it paints a card.
  */
 
-export { OMENS_SET_SNAPSHOT, OMENS_SNAPSHOT_SLOT_ROLES };
+export { OMENS_SET_SNAPSHOT, OMENS_SNAPSHOT_IMAGE_ORIGIN, OMENS_SNAPSHOT_SLOT_ROLES };
 export type { OmensSetSnapshot, OmensSnapshotIdentity };
+
+/**
+ * Indexes each identity's official image by the `cardId` a dealt card carries, because the draft
+ * transitions deliberately keep no presentation material of their own.
+ */
+export const imageIndex = (snapshot: OmensSetSnapshot): ReadonlyMap<string, string> =>
+  new Map(snapshot.identities.map((identity) => [identity.id, identity.image]));
 
 /** Caller-owned entropy. The client never generates its own randomness inside a transition. */
 export type Uint32Source = () => number;

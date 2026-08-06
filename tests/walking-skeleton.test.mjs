@@ -26,7 +26,7 @@ test("the browser shell identifies a real bot draft dealt from the reviewed snap
   assert.match(html, /<h1>Draft Table<\/h1>/);
   assert.match(html, /three-round draft against bots/i);
   assert.match(html, /reviewed Omens set snapshot/i);
-  assert.match(html, /card images are not used/i);
+  assert.match(html, /card images are served by Legend Story Studios/i);
   assert.match(html, /<main[^>]*>/);
   assert.doesNotMatch(html, /hello world/i);
   assert.doesNotMatch(html, /invented fixtures|placeholder/i);
