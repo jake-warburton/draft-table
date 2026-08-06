@@ -248,6 +248,17 @@ The pool starts in collector order and can be regrouped without changing it. But
 
 Grouping is presentation only — `apps/web/src/pool.ts` is pure, never drops or duplicates a card, and a test proves every grouping returns the same pool it was given. Class grouping names its class-less bucket **No class** rather than inventing one: 60 of the 209 identities carry the Lightning talent and no class of their own. Drafted cards show their art alongside their name, the same as cards in the pack.
 
+## Handing your pool to Fabrary
+
+When the draft finishes, the page offers two ways into [Fabrary](https://fabrary.net):
+
+- **A pre-filled import link** — `https://fabrary.net/decks?tab=import&format=Draft&name=…&cards=…`, carrying one collector identifier per physical copy.
+- **A copyable text list** in the form Fabrary's own import tab already parses, plus a plain link to that tab.
+
+The fallback is not optional. Fabrary's import query is public client behaviour rather than a documented API, and a signed-out visitor is shown a sign-in wall rather than the import form, so the copyable list is the path that always works. DT-7 in [risks and decisions](docs/risks-and-decisions.md) owns that boundary.
+
+Draft Table never signs you in, never chooses your hero, never creates a deck on your behalf, and never calls Fabrary's private authenticated endpoints. `apps/web/src/fabrary.ts` is pure: it builds a link and a string, and opens no connection. Normal and Rainbow Foil copies of one card collapse to a single counted entry, because deckbuilding treats them alike.
+
 ## Copied card images
 
 `scripts/migrate-card-images.mjs` copies the official card art into Draft Table's own storage so it can be served from Draft Table's own host rather than sending every viewer's browser to Legend Story Studios' bucket. That reversal, and what it obliges, is recorded as DT-9 in [risks and decisions](docs/risks-and-decisions.md).

@@ -1,4 +1,5 @@
 import { OMENS_SET_SNAPSHOT } from "./cards.ts";
+import { FABRARY_IMPORT_URL, fabraryEntries, fabraryImportLink, fabraryTextList } from "./fabrary.ts";
 import { POOL_GROUPINGS, groupPool, identityIndex, type PoolGrouping } from "./pool.ts";
 import { DEFAULT_SEAT_COUNT, chooseCard, createTable, viewTable } from "./table.ts";
 import type { DraftCard } from "@draft-table/draft";
@@ -23,6 +24,11 @@ const poolCount = element("#pool-count");
 const roundNumber = element("#round");
 const pickNumber = element("#pick");
 const restartControl = element("#restart");
+const exportRegion = element("#export");
+const exportLink = element("#export-link");
+const exportList = element("#export-list") as HTMLTextAreaElement;
+const exportCopy = element("#export-copy");
+const exportStatus = element("#export-status");
 
 /** The browser owns the entropy; every transition only maps caller-supplied samples. */
 const nextUint32 = (): number => crypto.getRandomValues(new Uint32Array(1))[0] as number;
@@ -119,10 +125,35 @@ const render = (): void => {
     ...groupPool(view.pool, grouping, identities).map(({ label, cards }) => poolGroup(label, cards))
   );
   packRegion.replaceChildren(...view.cards.map((card) => cardControl(card, view.round, view.pick)));
+  renderExport(view.complete, view.pool);
   if (view.complete) {
     statusRegion.tabIndex = -1;
     statusRegion.focus();
   }
+};
+
+/** The export appears only once there is a finished pool to export, and clears on a fresh deal. */
+const renderExport = (complete: boolean, pool: readonly DraftCard[]): void => {
+  exportRegion.hidden = !complete;
+  exportStatus.textContent = "";
+  if (!complete) return;
+  const entries = fabraryEntries(pool, identities);
+  exportList.value = fabraryTextList(entries);
+  exportLink.setAttribute("href", fabraryImportLink(entries) ?? FABRARY_IMPORT_URL);
+};
+
+/** Copying is a convenience; the list stays selectable so a refusal never strands the drafter. */
+exportCopy.onclick = () => {
+  exportList.select();
+  const copied = navigator.clipboard?.writeText(exportList.value);
+  if (copied === undefined) {
+    exportStatus.textContent = "Your browser would not copy it. The list is selected, so copy it yourself.";
+    return;
+  }
+  copied.then(
+    () => { exportStatus.textContent = "Copied."; },
+    () => { exportStatus.textContent = "Your browser would not copy it. The list is selected, so copy it yourself."; }
+  );
 };
 
 /** A captured round and pick reject any activation left over from a superseded pack. */

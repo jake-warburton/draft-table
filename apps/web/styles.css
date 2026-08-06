@@ -154,6 +154,24 @@ button:focus-visible {
   line-height: 1.3;
 }
 
+#export-list {
+  display: block;
+  width: 100%;
+  max-width: 32rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  color: inherit;
+  background: var(--panel);
+  border: 2px solid var(--edge);
+  border-radius: 0.5rem;
+  font: 0.9rem/1.5 ui-monospace, monospace;
+  resize: vertical;
+}
+
+#export-status {
+  margin-left: 0.75rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
