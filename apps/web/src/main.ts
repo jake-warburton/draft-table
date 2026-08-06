@@ -1,11 +1,13 @@
-import { OMENS_SET_SNAPSHOT, imageIndex } from "./cards.ts";
+import { OMENS_SET_SNAPSHOT } from "./cards.ts";
+import { POOL_GROUPINGS, groupPool, identityIndex, type PoolGrouping } from "./pool.ts";
 import { DEFAULT_SEAT_COUNT, chooseCard, createTable, viewTable } from "./table.ts";
+import type { DraftCard } from "@draft-table/draft";
 
 /** The official art is 376×526, so declaring it reserves each card's space before the art arrives. */
 const ART_WIDTH = 376;
 const ART_HEIGHT = 526;
 
-const images = imageIndex(OMENS_SET_SNAPSHOT);
+const identities = identityIndex(OMENS_SET_SNAPSHOT);
 
 const element = (selector: string): HTMLElement => {
   const found = document.querySelector(selector);
@@ -16,6 +18,7 @@ const element = (selector: string): HTMLElement => {
 const packRegion = element("#pack");
 const statusRegion = element("#status");
 const poolRegion = element("#pool");
+const poolGroupingRegion = element("#pool-grouping");
 const poolCount = element("#pool-count");
 const roundNumber = element("#round");
 const pickNumber = element("#pick");
@@ -27,22 +30,17 @@ const nextUint32 = (): number => crypto.getRandomValues(new Uint32Array(1))[0] a
 const deal = () => createTable(DEFAULT_SEAT_COUNT, OMENS_SET_SNAPSHOT, nextUint32);
 
 let state = deal();
-
-const listItem = (text: string): HTMLElement => {
-  const item = document.createElement("li");
-  item.textContent = text;
-  return item;
-};
+let grouping: PoolGrouping = "number";
 
 /**
- * Card art is decorative: the visible name beside it is already the button's accessible name, so a
- * failed image simply gets out of the way rather than leaving an unreadable card.
+ * Card art is decorative: the visible name beside it is already the accessible name, so a failed
+ * image simply gets out of the way rather than leaving an unreadable card.
  */
 const cardArt = (cardId: string): HTMLElement | null => {
-  const source = images.get(cardId);
-  if (source === undefined) return null;
+  const identity = identities.get(cardId);
+  if (identity === undefined) return null;
   const art = document.createElement("img");
-  art.setAttribute("src", source);
+  art.setAttribute("src", identity.image);
   art.setAttribute("alt", "");
   art.setAttribute("loading", "lazy");
   art.setAttribute("decoding", "async");
@@ -53,16 +51,60 @@ const cardArt = (cardId: string): HTMLElement | null => {
   return art;
 };
 
-const cardControl = (card: { cardId: string; label?: string }, instanceId: string, round: number, pick: number): HTMLElement => {
-  const control = document.createElement("button");
-  control.setAttribute("type", "button");
-  control.className = "card";
+const named = (card: DraftCard): HTMLElement => {
   const name = document.createElement("span");
   name.className = "card-name";
   name.textContent = card.label ?? card.cardId;
+  return name;
+};
+
+/** Art first, then the name, so a card reads the same way whether or not its image loaded. */
+const withArt = (host: HTMLElement, card: DraftCard): HTMLElement => {
   const art = cardArt(card.cardId);
-  control.replaceChildren(...(art === null ? [name] : [art, name]));
-  control.onclick = () => choose(instanceId, round, pick);
+  host.replaceChildren(...(art === null ? [named(card)] : [art, named(card)]));
+  return host;
+};
+
+const cardControl = (card: DraftCard, round: number, pick: number): HTMLElement => {
+  const control = document.createElement("button");
+  control.setAttribute("type", "button");
+  control.className = "card";
+  control.onclick = () => choose(card.instanceId, round, pick);
+  return withArt(control, card);
+};
+
+const poolCard = (card: DraftCard): HTMLElement => {
+  const item = document.createElement("li");
+  item.className = "pool-card";
+  return withArt(item, card);
+};
+
+const poolGroup = (label: string, cards: readonly DraftCard[]): HTMLElement => {
+  const group = document.createElement("div");
+  group.className = "pool-group";
+  const list = document.createElement("ol");
+  list.replaceChildren(...cards.map(poolCard));
+  if (label === "") {
+    group.replaceChildren(list);
+    return group;
+  }
+  const heading = document.createElement("h3");
+  heading.textContent = `${label} (${cards.length})`;
+  list.setAttribute("aria-label", label);
+  group.replaceChildren(heading, list);
+  return group;
+};
+
+const groupingControl = (choice: { id: PoolGrouping; label: string }): HTMLElement => {
+  const control = document.createElement("button");
+  control.setAttribute("type", "button");
+  control.className = "grouping";
+  control.setAttribute("aria-pressed", String(choice.id === grouping));
+  control.textContent = choice.label;
+  control.onclick = () => {
+    grouping = choice.id;
+    render();
+  };
   return control;
 };
 
@@ -72,10 +114,11 @@ const render = (): void => {
   pickNumber.textContent = String(view.pick);
   statusRegion.textContent = view.status;
   poolCount.textContent = String(view.pool.length);
-  poolRegion.replaceChildren(...view.pool.map((card) => listItem(card.label ?? card.cardId)));
-  packRegion.replaceChildren(
-    ...view.cards.map((card) => cardControl(card, card.instanceId, view.round, view.pick))
+  poolGroupingRegion.replaceChildren(...POOL_GROUPINGS.map(groupingControl));
+  poolRegion.replaceChildren(
+    ...groupPool(view.pool, grouping, identities).map(({ label, cards }) => poolGroup(label, cards))
   );
+  packRegion.replaceChildren(...view.cards.map((card) => cardControl(card, view.round, view.pick)));
   if (view.complete) {
     statusRegion.tabIndex = -1;
     statusRegion.focus();

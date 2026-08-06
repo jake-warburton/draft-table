@@ -23,6 +23,11 @@ export type OmnSourcePrinting = Readonly<{
 export type OmnSourceCard = Readonly<{
   unique_id: string;
   name: string;
+  /**
+   * Exact source-order upstream type tokens, uninterpreted. One card's tokens mix class, talent,
+   * type, and subtype in one list; this projection preserves them and classifies none of them.
+   */
+  types: ReadonlyArray<string>;
   printings: ReadonlyArray<OmnSourcePrinting>;
 }>;
 
@@ -51,6 +56,19 @@ const httpsUrl = (value: unknown): string => {
   } catch { return fail(); }
 };
 const frozen = <Value>(value: Value): Readonly<Value> => Object.freeze(value);
+const typeTokens = (value: unknown): ReadonlyArray<string> => {
+  if (!Array.isArray(value) || value.length === 0) return fail();
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (let index = 0; index < value.length; index++) {
+    if (!(index in value)) return fail();
+    const entry = normalizedText(value[index]);
+    if (seen.has(entry)) return fail();
+    seen.add(entry);
+    result.push(entry);
+  }
+  return frozen(result);
+};
 
 const project = (data: unknown): OmnSourceProjection => {
   if (!Array.isArray(data)) return fail();
@@ -90,7 +108,9 @@ const project = (data: unknown): OmnSourceProjection => {
     const unique_id = normalizedText(card.unique_id);
     if (cardIds.has(unique_id)) fail();
     cardIds.add(unique_id);
-    cards.push(frozen({ unique_id, name: normalizedText(card.name), printings: frozen(printings) }));
+    cards.push(frozen({
+      unique_id, name: normalizedText(card.name), types: typeTokens(card.types), printings: frozen(printings)
+    }));
   }
   if (cards.length === 0) fail();
   return frozen(cards);

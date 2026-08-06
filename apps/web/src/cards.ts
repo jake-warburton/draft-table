@@ -24,13 +24,6 @@ import type { DraftCard, DraftPack } from "@draft-table/draft";
 export { OMENS_SET_SNAPSHOT, OMENS_SNAPSHOT_IMAGE_ORIGIN, OMENS_SNAPSHOT_SLOT_ROLES };
 export type { OmensSetSnapshot, OmensSnapshotIdentity };
 
-/**
- * Indexes each identity's official image by the `cardId` a dealt card carries, because the draft
- * transitions deliberately keep no presentation material of their own.
- */
-export const imageIndex = (snapshot: OmensSetSnapshot): ReadonlyMap<string, string> =>
-  new Map(snapshot.identities.map((identity) => [identity.id, identity.image]));
-
 /** Caller-owned entropy. The client never generates its own randomness inside a transition. */
 export type Uint32Source = () => number;
 

@@ -17,6 +17,34 @@ const isSafeInteger: typeof Number.isSafeInteger = Number.isSafeInteger;
 
 export type OmensSnapshotRarity = "common" | "rare" | "majestic";
 export type OmensSnapshotPoolCategory = "normal" | "rainbow-foil";
+
+/** The primary card type. Every draftable Omens identity has exactly one. */
+export type OmensSnapshotCardType = "action" | "instant" | "defense-reaction" | "equipment";
+
+/** The hero class a card belongs to. A card with a talent but no class has none. */
+export type OmensSnapshotClass = "wizard" | "illusionist" | "runeblade" | "generic";
+
+/**
+ * The exhaustive reviewed upstream token domain.
+ *
+ * Upstream mixes class, talent, type, and subtype into one list, so classification is a decision
+ * rather than a field. Naming every token this set uses means a future token cannot be silently
+ * mistaken for one of these: the snapshot refuses to load instead.
+ */
+const CARD_TYPE_BY_TOKEN = new Map<string, OmensSnapshotCardType>([
+  ["Action", "action"], ["Instant", "instant"], ["Defense Reaction", "defense-reaction"], ["Equipment", "equipment"]
+]);
+const CLASS_BY_TOKEN = new Map<string, OmensSnapshotClass>([
+  ["Wizard", "wizard"], ["Illusionist", "illusionist"], ["Runeblade", "runeblade"], ["Generic", "generic"]
+]);
+const TALENT_TOKENS: readonly string[] = freeze(["Lightning"]);
+const SUBTYPE_TOKENS: readonly string[] = freeze(["Attack", "Aura", "Arms", "Chest", "Head", "Legs"]);
+
+/** The reviewed order groups are presented in, so a grouped view never reorders unpredictably. */
+export const OMENS_SNAPSHOT_CARD_TYPE_ORDER: readonly OmensSnapshotCardType[] =
+  freeze(["action", "instant", "defense-reaction", "equipment"]);
+export const OMENS_SNAPSHOT_CLASS_ORDER: readonly OmensSnapshotClass[] =
+  freeze(["wizard", "illusionist", "runeblade", "generic"]);
 export type OmensSnapshotSlotRole = "common-rarity" | "fixed-rare" | "rare-or-majestic" | "rainbow-foil";
 
 /** The reviewed fourteen-position recipe layout shape, identical for every layout. */
@@ -51,6 +79,12 @@ export interface OmensSnapshotIdentity {
    * a remote URL: no image byte is ever copied into this repository, and nothing fetches it here.
    */
   readonly image: string;
+  /** Exact source-order upstream type tokens, uninterpreted: class, talent, type, and subtype. */
+  readonly types: readonly string[];
+  /** Derived by the validator from `types`, never read from the data, so the two cannot disagree. */
+  readonly cardType: OmensSnapshotCardType;
+  /** Derived the same way. `null` means the card carries a talent but no class of its own. */
+  readonly cardClass: OmensSnapshotClass | null;
 }
 
 export interface OmensSnapshotPoolEntry {
@@ -91,7 +125,7 @@ export interface OmensSnapshotProvenance {
 }
 
 export interface OmensSetSnapshot {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 3;
   readonly set: "OMN";
   readonly provenance: OmensSnapshotProvenance;
   readonly identities: readonly OmensSnapshotIdentity[];
@@ -163,12 +197,36 @@ const identity = (value: unknown, index: number, seen: Set<string>): OmensSnapsh
   if (image !== `${IMAGE_PREFIX}${id}${IMAGE_SUFFIX}`) {
     fail(`identity ${id} does not carry its own official card image on the pinned origin`);
   }
+  const types = freeze(arrayOf(candidate.types, `identity ${id} types`)
+    .map((value, index) => nonEmptyText(value, `identity ${id} type ${index}`)));
+
+  let cardType: OmensSnapshotCardType | null = null;
+  let cardClass: OmensSnapshotClass | null = null;
+  const seenTokens = new Set<string>();
+  for (const token of types) {
+    if (seenTokens.has(token)) fail(`identity ${id} repeats the type ${token}`);
+    seenTokens.add(token);
+    const asType = CARD_TYPE_BY_TOKEN.get(token);
+    const asClass = CLASS_BY_TOKEN.get(token);
+    if (asType !== undefined) {
+      if (cardType !== null) fail(`identity ${id} carries more than one card type`);
+      cardType = asType;
+    } else if (asClass !== undefined) {
+      if (cardClass !== null) fail(`identity ${id} carries more than one class`);
+      cardClass = asClass;
+    } else if (!TALENT_TOKENS.includes(token) && !SUBTYPE_TOKENS.includes(token)) {
+      fail(`identity ${id} carries the unreviewed type ${token}`);
+    }
+  }
   return freeze({
     id,
     name: nonEmptyText(candidate.name, `identity ${id} name`),
     pitch: pitch as 0 | 1 | 2 | 3,
     rarity: rarity as OmensSnapshotRarity,
-    image
+    image,
+    types,
+    cardType: cardType ?? fail(`identity ${id} carries no card type`),
+    cardClass
   });
 };
 
@@ -229,7 +287,7 @@ const layout = (value: unknown, index: number, pools: readonly OmensSnapshotPool
  */
 export const validateOmensSetSnapshot = (candidate: unknown): OmensSetSnapshot => {
   const source = record(candidate, "snapshot");
-  if (source.schemaVersion !== 2) fail("only schema version 2 is supported");
+  if (source.schemaVersion !== 3) fail("only schema version 3 is supported");
   if (source.set !== "OMN") fail("only the Omens set is supported");
 
   const provenanceSource = record(source.provenance, "provenance");
@@ -258,7 +316,7 @@ export const validateOmensSetSnapshot = (candidate: unknown): OmensSetSnapshot =
   for (const entry of pools) for (const poolEntry of entry.entries) covered.add(poolEntry.identity);
   if (covered.size !== identities.length) fail("some identity belongs to no pool");
 
-  return freeze({ schemaVersion: 2, set: "OMN", provenance, identities, pools, layouts });
+  return freeze({ schemaVersion: 3, set: "OMN", provenance, identities, pools, layouts });
 };
 
 /** The exact total layout weight, recomputed rather than trusted from the snapshot. */

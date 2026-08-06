@@ -60,7 +60,7 @@ test("the stylesheet keeps visible focus, reduced motion, and a phone layout", (
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /scroll-behavior:\s*auto\s*!important/);
   assert.match(css, /@media \(max-width:\s*42rem\)[\s\S]*main\s*{\s*padding:\s*1rem/);
-  assert.match(css, /@media \(max-width:\s*42rem\)[\s\S]*button\s*{\s*min-height:\s*4rem/);
+  assert.match(css, /@media \(max-width:\s*42rem\)[\s\S]*\.card\s*{\s*min-height:\s*4rem/);
 });
 
 test("the client makes no scripted request and hard-codes no card material", () => {

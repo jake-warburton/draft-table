@@ -21,6 +21,10 @@ const bundleOf = (html) => {
 
 const cleanDist = () => rmSync(file("dist"), { recursive: true, force: true });
 
+/** Every card in the pool, flattened out of whatever grouping is currently rendered. */
+const pooledCards = (pool) => pool.children.flatMap((group) =>
+  group.children.filter((child) => child.tag === "ol").flatMap((list) => list.children));
+
 /** A minimal node whose `textContent` follows the real rule: writing it replaces every child. */
 class Element {
   constructor(tag) {
@@ -48,7 +52,7 @@ class Element {
  * activations after its first render.
  */
 const openBuiltClient = (t) => {
-  const ids = ["pack", "status", "pool", "pool-count", "round", "pick", "restart"];
+  const ids = ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Element("div")]));
   const previousDocument = globalThis.document;
   globalThis.document = {
@@ -97,7 +101,7 @@ test("the bundle carries every workspace module the client actually imports", (t
   build();
   const bundle = bundleOf(builtHtml());
 
-  for (const id of ["apps/web/src/main.ts", "apps/web/src/table.ts", "apps/web/src/cards.ts",
+  for (const id of ["apps/web/src/main.ts", "apps/web/src/table.ts", "apps/web/src/cards.ts", "apps/web/src/pool.ts",
     "packages/draft/src/index.ts", "packages/engine/src/unbiased-uint32-ticket.ts",
     "packages/set-omens/src/set-snapshot.ts", "packages/set-omens/src/set-snapshot.generated.ts"]) {
     assert.ok(bundle.includes(`modules["${id}"]`), `${id} must be bundled`);
@@ -120,7 +124,7 @@ test("the built client renders a real opening pack, pool, and live status", (t) 
   assert.equal(nodes.round.textContent, "1");
   assert.equal(nodes.pick.textContent, "1");
   assert.equal(nodes.pack.children.length, 14);
-  assert.equal(nodes.pool.children.length, 0);
+  assert.equal(pooledCards(nodes.pool).length, 0);
   assert.equal(nodes["pool-count"].textContent, "0");
   assert.match(nodes.status.textContent, /Choose one of 14 cards/);
   assert.ok(nodes.pack.children.every((card) => / · (Common|Rare|Majestic)/.test(card.textContent)));
@@ -166,8 +170,8 @@ test("clicking a card in the built client drafts it and passes a fresh pack", (t
   const chosen = nodes.pack.children[2];
   chosen.onclick();
 
-  assert.equal(nodes.pool.children.length, 1);
-  assert.equal(nodes.pool.children[0].textContent, chosen.textContent);
+  assert.equal(pooledCards(nodes.pool).length, 1);
+  assert.equal(pooledCards(nodes.pool)[0].textContent, chosen.textContent);
   assert.equal(nodes["pool-count"].textContent, "1");
   assert.equal(nodes.pick.textContent, "2");
   assert.equal(nodes.pack.children.length, 13);
@@ -179,14 +183,14 @@ test("a stale card activation from a superseded pack cannot draft twice", (t) =>
   stale.onclick();
   stale.onclick();
 
-  assert.equal(nodes.pool.children.length, 1);
+  assert.equal(pooledCards(nodes.pool).length, 1);
 });
 
 test("the built client can play a whole three-round draft to forty-two cards", (t) => {
   const nodes = openBuiltClient(t);
 
   for (let choice = 0; choice < 39; choice += 1) nodes.pack.firstChild.onclick();
-  assert.equal(nodes.pool.children.length, 42);
+  assert.equal(pooledCards(nodes.pool).length, 42);
   assert.equal(nodes.pack.children.length, 0);
   assert.match(nodes.status.textContent, /Draft complete\. You drafted 42 cards\./);
   assert.equal(nodes.status.focused, true);
@@ -197,9 +201,82 @@ test("restarting deals a new draft from an empty pool", (t) => {
   nodes.pack.firstChild.onclick();
   nodes.restart.onclick();
 
-  assert.equal(nodes.pool.children.length, 0);
+  assert.equal(pooledCards(nodes.pool).length, 0);
   assert.equal(nodes.pick.textContent, "1");
   assert.equal(nodes.pack.children.length, 14);
+});
+
+/** Drafts `count` cards by always taking the first card offered. */
+const draftCards = (nodes, count) => {
+  for (let taken = 0; taken < count; taken += 1) nodes.pack.firstChild.onclick();
+};
+
+const pressed = (nodes) => nodes["pool-grouping"].children
+  .filter((control) => control.attributes["aria-pressed"] === "true")
+  .map((control) => control.textContent);
+
+test("the pool offers every grouping and starts ungrouped in collector order", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 6);
+
+  assert.deepEqual(
+    nodes["pool-grouping"].children.map((control) => control.textContent),
+    ["Set number", "Class", "Colour", "Type"]
+  );
+  assert.deepEqual(pressed(nodes), ["Set number"], "exactly one grouping is active at a time");
+  assert.equal(nodes.pool.children.length, 1, "set number is a single ungrouped run");
+  assert.equal(nodes.pool.children[0].children.filter((child) => child.tag === "h3").length, 0, "no heading");
+
+  const numbers = pooledCards(nodes.pool).map((item) => Number(item.textContent.replace(/\D/gu, "")));
+  assert.deepEqual(numbers, [...numbers].sort((left, right) => left - right));
+});
+
+test("choosing a grouping regroups the same pool rather than changing it", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 10);
+  const before = pooledCards(nodes.pool).map((item) => item.textContent).sort();
+
+  for (const label of ["Class", "Colour", "Type"]) {
+    const control = nodes["pool-grouping"].children.find((entry) => entry.textContent === label);
+    control.onclick();
+
+    assert.deepEqual(pressed(nodes), [label]);
+    assert.ok(nodes.pool.children.length >= 1, label);
+    assert.deepEqual(pooledCards(nodes.pool).map((item) => item.textContent).sort(), before, label);
+    for (const group of nodes.pool.children) {
+      const [heading] = group.children.filter((child) => child.tag === "h3");
+      const [list] = group.children.filter((child) => child.tag === "ol");
+      assert.ok(heading !== undefined, `${label} groups are headed`);
+      assert.match(heading.textContent, /^[A-Za-z ]+ \(\d+\)$/, heading.textContent);
+      assert.equal(Number(/\((\d+)\)$/.exec(heading.textContent)[1]), list.children.length, "the count is real");
+      const numbers = list.children.map((item) => Number(item.textContent.replace(/\D/gu, "")));
+      assert.deepEqual(numbers, [...numbers].sort((left, right) => left - right), "collector order inside a group");
+    }
+  }
+});
+
+test("a grouped pool survives drafting more cards into it", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 4);
+  nodes["pool-grouping"].children.find((entry) => entry.textContent === "Type").onclick();
+  draftCards(nodes, 4);
+
+  assert.deepEqual(pressed(nodes), ["Type"], "the chosen grouping is kept across picks");
+  assert.equal(pooledCards(nodes.pool).length, 8);
+});
+
+test("drafted cards show their own art in the pool as well as in the pack", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 5);
+
+  for (const item of pooledCards(nodes.pool)) {
+    const art = item.children.find((child) => child.tag === "img");
+    assert.ok(art !== undefined, "a drafted card carries its art too");
+    assert.match(art.attributes.src, new RegExp(`^${IMAGE_ORIGIN}/media/cards/normal/OMN\\d+\\.webp$`));
+    assert.equal(art.attributes.alt, "");
+    assert.equal(art.attributes.loading, "lazy");
+    assert.equal(art.attributes.referrerpolicy, "no-referrer");
+  }
 });
 
 test("the build refuses a module specifier it cannot resolve inside the workspace", (t) => {
