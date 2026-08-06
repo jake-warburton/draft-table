@@ -12,6 +12,7 @@ const clientSources = readdirSync(file("src"))
   .map((name) => read(`src/${name}`));
 
 const IMAGE_ORIGIN = "https://legendstory-production-s3-public.s3.amazonaws.com";
+const FABRARY_ORIGIN = "https://fabrary.net";
 
 test("the shell states exactly what card material it uses and where images come from", () => {
   const html = read("index.html");
@@ -48,9 +49,27 @@ test("the shell keeps labelled regions and one live status region", () => {
   assert.match(html, /aria-label="Cards you have drafted"/);
   assert.match(html, /aria-labelledby="pack-title"/);
   assert.match(html, /aria-labelledby="pool-title"/);
-  for (const id of ["pack", "status", "pool", "pool-count", "round", "pick", "restart"]) {
+  for (const id of ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart", "export", "export-link", "export-list", "export-copy", "export-status"]) {
     assert.match(html, new RegExp(`id="${id}"`), id);
   }
+});
+
+test("the Fabrary hand-off is honest about what it cannot do", () => {
+  const html = read("index.html");
+  assert.match(html, /<section id="export"[^>]*hidden>/, "nothing to export until the draft finishes");
+  assert.match(html, /sign in and choose a hero yourself/i, "the sign-in limit is stated rather than implied");
+  assert.match(html, /never sees your Fabrary account/i);
+  assert.match(html, /If that opens empty, copy this list/i, "the fallback is offered, not hidden");
+  for (const link of html.matchAll(/<a [^>]*href="https:\/\/fabrary\.net[^"]*"[^>]*>/gu)) {
+    assert.match(link[0], /rel="noopener noreferrer"/, link[0]);
+    assert.match(link[0], /target="_blank"/, link[0]);
+  }
+});
+
+test("the export never opens a connection of its own", () => {
+  const source = read("src/fabrary.ts");
+  assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|WebSocket|graphql/i, "no private Fabrary endpoint is called");
+  assert.match(source, /DT-7/, "the decision that governs this is named where it is implemented");
 });
 
 test("the stylesheet keeps visible focus, reduced motion, and a phone layout", () => {
@@ -67,7 +86,8 @@ test("the client makes no scripted request and hard-codes no card material", () 
   const surfaces = [read("index.html"), read("styles.css"), ...clientSources].join("\n");
   assert.doesNotMatch(surfaces, /fetch\(|XMLHttpRequest|WebSocket/);
   const origins = new Set([...surfaces.matchAll(/https?:\/\/[^\s"');/]+/gu)].map((match) => match[0]));
-  assert.deepEqual([...origins], [IMAGE_ORIGIN], "the image host is the only origin the client names");
+  assert.deepEqual([...origins].sort(), [FABRARY_ORIGIN, IMAGE_ORIGIN].sort(),
+    "card art and the Fabrary hand-off are the only origins the client names");
 });
 
 test("images degrade to text rather than leaving a card unreadable", () => {

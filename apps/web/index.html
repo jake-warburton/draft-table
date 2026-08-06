@@ -28,6 +28,18 @@
         <div id="pool" role="group" aria-label="Cards you have drafted"></div>
       </section>
 
+      <section id="export" aria-labelledby="export-title" hidden>
+        <h2 id="export-title">Take your pool to Fabrary</h2>
+        <p>Fabrary asks you to sign in and choose a hero yourself. Draft Table cannot do either for you, and never sees your Fabrary account.</p>
+        <p><a id="export-link" href="https://fabrary.net/decks?tab=import" target="_blank" rel="noopener noreferrer">Open a pre-filled import in Fabrary</a></p>
+        <p>If that opens empty, copy this list and paste it into <a href="https://fabrary.net/decks?tab=import" target="_blank" rel="noopener noreferrer">Fabrary's import tab</a> instead:</p>
+        <textarea id="export-list" rows="12" readonly aria-label="Your drafted pool as a Fabrary list"></textarea>
+        <p>
+          <button id="export-copy" type="button">Copy list</button>
+          <span id="export-status" role="status" aria-live="polite"></span>
+        </p>
+      </section>
+
       <section aria-labelledby="table-title">
         <h2 id="table-title">Table</h2>
         <p>You hold seat one. Seven bots fill the remaining seats and pass with you.</p>

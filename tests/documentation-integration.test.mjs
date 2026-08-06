@@ -49,6 +49,9 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /## Reviewed set snapshot[\s\S]*209 draftable identities[\s\S]*228 weighted 14-position layouts totalling 460,800/);
   assert.match(readme, /## Reading your drafted pool[\s\S]*Set number\*\*, \*\*Class\*\*, \*\*Colour\*\*, and \*\*Type[\s\S]*collector order inside every group/);
   assert.match(readme, /the validator derives each identity's `cardType` and `cardClass` from those tokens/);
+  assert.match(readme, /## Handing your pool to Fabrary[\s\S]*pre-filled import link[\s\S]*copyable text list/);
+  assert.match(readme, /The fallback is not optional[\s\S]*sign-in wall[\s\S]*DT-7/);
+  assert.match(readme, /never calls Fabrary's private authenticated endpoints/);
   assert.match(readme, /## Reviewed set snapshot[\s\S]*neither CI nor the browser needs the captain-held recipe/);
   assert.match(readme, /set snapshot acceptance passed[\s\S]*compares byte for byte with the committed snapshot/);
   assert.match(readme, /completed `apps\/web\/dist` bytes[\s\S]*no client byte ceiling[\s\S]*size gate[\s\S]*accessibility and responsive declarations/);

@@ -9,6 +9,7 @@ import test from "node:test";
 const app = new URL("../", import.meta.url);
 const file = (name) => fileURLToPath(new URL(name, app));
 const IMAGE_ORIGIN = "https://legendstory-production-s3-public.s3.amazonaws.com";
+const FABRARY_ORIGIN = "https://fabrary.net";
 
 const build = () => execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
 const builtHtml = () => readFileSync(file("dist/index.html"), "utf8");
@@ -35,7 +36,10 @@ class Element {
     this.disabled = false;
     this.focused = false;
     this.hidden = false;
+    this.value = "";
+    this.selected = false;
   }
+  select() { this.selected = true; }
   get textContent() { return this.text + this.children.map((child) => child.textContent).join(""); }
   set textContent(value) { this.children = []; this.text = value; }
   append(...children) { this.children.push(...children); }
@@ -52,18 +56,34 @@ class Element {
  * activations after its first render.
  */
 const openBuiltClient = (t) => {
-  const ids = ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart"];
+  const ids = ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart",
+    "export", "export-link", "export-list", "export-copy", "export-status"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Element("div")]));
   const previousDocument = globalThis.document;
+  const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const clipboard = { written: [], reject: false };
   globalThis.document = {
     querySelector: (selector) => nodes[selector.slice(1)] ?? null,
     createElement: (tag) => new Element(tag)
   };
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: {
+      clipboard: {
+        writeText: (text) => clipboard.reject
+          ? Promise.reject(new Error("refused"))
+          : (clipboard.written.push(text), Promise.resolve())
+      }
+    }
+  });
   t.after(() => {
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;
+    if (previousNavigator === undefined) delete globalThis.navigator;
+    else Object.defineProperty(globalThis, "navigator", previousNavigator);
     cleanDist();
   });
+  nodes.clipboard = clipboard;
   build();
   new Function(bundleOf(builtHtml()))();
   return nodes;
@@ -82,7 +102,8 @@ test("the build inlines one self-contained module script and copies the styleshe
   assert.doesNotMatch(bundle, /<\/script>/i, "the inline script must not be closable from its own text");
   assert.doesNotMatch(bundle, /fetch\(|XMLHttpRequest|WebSocket/, "the client opens no connection of its own");
   const origins = new Set([...bundle.matchAll(/https?:\/\/[^/"']+/gu)].map((match) => match[0]));
-  assert.deepEqual([...origins], [IMAGE_ORIGIN], "images are the only thing the page loads from elsewhere");
+  assert.deepEqual([...origins].sort(), [FABRARY_ORIGIN, IMAGE_ORIGIN].sort(),
+    "card art and the Fabrary hand-off are the only origins in the bundle");
 });
 
 test("the build is byte-for-byte deterministic and clears stale output", (t) => {
@@ -101,7 +122,7 @@ test("the bundle carries every workspace module the client actually imports", (t
   build();
   const bundle = bundleOf(builtHtml());
 
-  for (const id of ["apps/web/src/main.ts", "apps/web/src/table.ts", "apps/web/src/cards.ts", "apps/web/src/pool.ts",
+  for (const id of ["apps/web/src/main.ts", "apps/web/src/table.ts", "apps/web/src/cards.ts", "apps/web/src/pool.ts", "apps/web/src/fabrary.ts",
     "packages/draft/src/index.ts", "packages/engine/src/unbiased-uint32-ticket.ts",
     "packages/set-omens/src/set-snapshot.ts", "packages/set-omens/src/set-snapshot.generated.ts"]) {
     assert.ok(bundle.includes(`modules["${id}"]`), `${id} must be bundled`);
@@ -277,6 +298,61 @@ test("drafted cards show their own art in the pool as well as in the pack", (t) 
     assert.equal(art.attributes.loading, "lazy");
     assert.equal(art.attributes.referrerpolicy, "no-referrer");
   }
+});
+
+test("the Fabrary hand-off stays hidden until there is a finished pool to hand off", (t) => {
+  const nodes = openBuiltClient(t);
+  assert.equal(nodes.export.hidden, true, "nothing to export before the draft starts");
+
+  draftCards(nodes, 20);
+  assert.equal(nodes.export.hidden, true, "a part-drafted pool is not a finished one");
+
+  draftCards(nodes, 19);
+  assert.equal(nodes.export.hidden, false);
+});
+
+test("the finished export carries all forty-two drafted copies", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 39);
+
+  const link = new URL(nodes["export-link"].attributes.href);
+  assert.equal(link.origin, FABRARY_ORIGIN);
+  assert.equal(link.searchParams.get("format"), "Draft");
+  const identifiers = link.searchParams.get("cards").split(",");
+  assert.equal(identifiers.length, 42, "one identifier per physical copy");
+  assert.ok(identifiers.every((id) => /^OMN\d+$/u.test(id)), "every identifier is a real collector id");
+
+  const counted = nodes["export-list"].value.split("\n").filter((line) => /^\d+x /u.test(line));
+  assert.equal(counted.reduce((total, line) => total + Number(/^(\d+)x/u.exec(line)[1]), 0), 42);
+  assert.equal(counted.length, new Set(identifiers).size, "duplicates collapse to one counted line");
+  assert.match(nodes["export-list"].value, /^Name: .+\nFormat: Draft\n\nDeck cards\n/u);
+});
+
+test("dealing a new draft withdraws the previous export", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 39);
+  assert.equal(nodes.export.hidden, false);
+
+  nodes.restart.onclick();
+  assert.equal(nodes.export.hidden, true, "a finished pool must not outlive the draft that made it");
+});
+
+test("copying the list reports what happened either way", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 39);
+
+  nodes["export-copy"].onclick();
+  return Promise.resolve().then(() => {
+    assert.deepEqual(nodes.clipboard.written, [nodes["export-list"].value]);
+    assert.equal(nodes["export-list"].selected, true, "the list is selected so a refusal is still recoverable");
+    assert.equal(nodes["export-status"].textContent, "Copied.");
+
+    nodes.clipboard.reject = true;
+    nodes["export-copy"].onclick();
+    return Promise.resolve().then(() => {
+      assert.match(nodes["export-status"].textContent, /copy it yourself/i);
+    });
+  });
 });
 
 test("the build refuses a module specifier it cannot resolve inside the workspace", (t) => {
