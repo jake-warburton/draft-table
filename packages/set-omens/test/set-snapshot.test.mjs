@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { OMENS_SET_SNAPSHOT } from "../src/set-snapshot.generated.ts";
 import {
+  OMENS_SNAPSHOT_IMAGE_ORIGIN,
   OMENS_SNAPSHOT_PACK_SIZE,
   OMENS_SNAPSHOT_SLOT_ROLES,
   OmensSetSnapshotError,
@@ -22,8 +23,10 @@ const ACCEPTED = Object.freeze({
   layoutTotalWeight: 460_800
 });
 
+const image = (id) => `${OMENS_SNAPSHOT_IMAGE_ORIGIN}/media/cards/normal/${id}.webp`;
+
 const minimal = () => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   set: "OMN",
   provenance: {
     recipe: { id: "recipe", sha256: "a".repeat(64), provenance: "community-not-official" },
@@ -32,10 +35,10 @@ const minimal = () => ({
     cardVault: { id: "vault", sha256: "d".repeat(64), provenance: "official-observed" }
   },
   identities: [
-    { id: "OMN001", name: "Common One", pitch: 1, rarity: "common" },
-    { id: "OMN002", name: "Common Two", pitch: 0, rarity: "common" },
-    { id: "OMN003", name: "Rare One", pitch: 2, rarity: "rare" },
-    { id: "OMN004", name: "Majestic One", pitch: 3, rarity: "majestic" }
+    { id: "OMN001", name: "Common One", pitch: 1, rarity: "common", image: image("OMN001") },
+    { id: "OMN002", name: "Common Two", pitch: 0, rarity: "common", image: image("OMN002") },
+    { id: "OMN003", name: "Rare One", pitch: 2, rarity: "rare", image: image("OMN003") },
+    { id: "OMN004", name: "Majestic One", pitch: 3, rarity: "majestic", image: image("OMN004") }
   ],
   pools: [
     { label: "Common", rarity: "common", category: "normal", entries: [{ identity: 0, weight: 3 }, { identity: 1, weight: 1 }] },
@@ -128,10 +131,22 @@ test("the snapshot records the exact digest of every source it was generated fro
   assert.equal(recipe.provenance, "community-not-official");
 });
 
-test("the snapshot carries no recipe text, image URL, or other upstream byte", () => {
+test("every identity carries the official card image for its own collector identifier", () => {
+  assert.equal(OMENS_SNAPSHOT_IMAGE_ORIGIN, "https://legendstory-production-s3-public.s3.amazonaws.com");
+  for (const identity of OMENS_SET_SNAPSHOT.identities) {
+    assert.equal(identity.image, image(identity.id), identity.id);
+  }
+});
+
+test("the only external origin the snapshot names is the pinned official image host", () => {
   const serialized = JSON.stringify(OMENS_SET_SNAPSHOT);
-  assert.doesNotMatch(serialized, /https?:\/\//);
-  assert.doesNotMatch(serialized, /\.webp|image_url|unique_id/i);
+  const origins = new Set([...serialized.matchAll(/https?:\/\/[^/"]+/gu)].map((match) => match[0]));
+  assert.deepEqual([...origins], [OMENS_SNAPSHOT_IMAGE_ORIGIN]);
+});
+
+test("the snapshot carries no recipe text or other upstream byte", () => {
+  const serialized = JSON.stringify(OMENS_SET_SNAPSHOT);
+  assert.doesNotMatch(serialized, /image_url|unique_id|tcgplayer|mana_cost|image_uris/i);
 });
 
 test("the handed-out snapshot is deeply immutable", () => {
@@ -148,8 +163,22 @@ test("a well-formed minimal snapshot is accepted", () => {
   assert.equal(totalOmensLayoutWeight(validated), 7);
 });
 
+test("the validator refuses every image that is not this identity's own official rendition", () => {
+  const other = `${OMENS_SNAPSHOT_IMAGE_ORIGIN}/media/cards/normal/OMN002.webp`;
+  rejects((s) => { delete s.identities[0].image; }, "missing image");
+  rejects((s) => { s.identities[0].image = other; }, "another identity's art");
+  rejects((s) => { s.identities[0].image = image("OMN001").replace("https:", "http:"); }, "cleartext scheme");
+  rejects(
+    (s) => { s.identities[0].image = image("OMN001").replace(".amazonaws.com", ".amazonaws.com.example.test"); },
+    "a host that merely starts with the pinned origin"
+  );
+  rejects((s) => { s.identities[0].image = image("OMN001").replace("normal", "large"); }, "an unreviewed rendition");
+  rejects((s) => { s.identities[0].image = `${image("OMN001")}?tracking=1`; }, "an appended query");
+  rejects((s) => { s.identities[0].image = image("OMN001").replace(".webp", ".svg"); }, "a scriptable image format");
+});
+
 test("the validator refuses every way a snapshot can contradict itself", () => {
-  rejects((s) => { s.schemaVersion = 2; }, "unsupported schema version");
+  rejects((s) => { s.schemaVersion = 3; }, "unsupported schema version");
   rejects((s) => { s.set = "IAR"; }, "unsupported set");
   rejects((s) => { s.provenance.recipe.sha256 = "not-a-digest"; }, "malformed digest");
   rejects((s) => { delete s.provenance.cardVault; }, "missing source record");

@@ -28,6 +28,16 @@ export const OMENS_SNAPSHOT_SLOT_ROLES: readonly OmensSnapshotSlotRole[] = freez
 
 export const OMENS_SNAPSHOT_PACK_SIZE = OMENS_SNAPSHOT_SLOT_ROLES.length;
 
+/**
+ * The single origin any snapshot image may be served from, so a viewer's browser can only ever be
+ * sent to Legend Story Studios' own public host. Consumers reuse this to pin their own `img-src`.
+ */
+export const OMENS_SNAPSHOT_IMAGE_ORIGIN = "https://legendstory-production-s3-public.s3.amazonaws.com";
+
+/** The exact reviewed rendition path. `normal` is the rendition the accepted evidence projects. */
+const IMAGE_PREFIX = `${OMENS_SNAPSHOT_IMAGE_ORIGIN}/media/cards/normal/`;
+const IMAGE_SUFFIX = ".webp";
+
 export interface OmensSnapshotIdentity {
   /** Official base collector identifier, for example `OMN004`. */
   readonly id: string;
@@ -36,6 +46,11 @@ export interface OmensSnapshotIdentity {
   /** 0 marks a card with no pitch value; 1, 2, and 3 are red, yellow, and blue. */
   readonly pitch: 0 | 1 | 2 | 3;
   readonly rarity: OmensSnapshotRarity;
+  /**
+   * The exact official card image copied from the Card Vault face this identity resolves to. It is
+   * a remote URL: no image byte is ever copied into this repository, and nothing fetches it here.
+   */
+  readonly image: string;
 }
 
 export interface OmensSnapshotPoolEntry {
@@ -76,7 +91,7 @@ export interface OmensSnapshotProvenance {
 }
 
 export interface OmensSetSnapshot {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly set: "OMN";
   readonly provenance: OmensSnapshotProvenance;
   readonly identities: readonly OmensSnapshotIdentity[];
@@ -144,11 +159,16 @@ const identity = (value: unknown, index: number, seen: Set<string>): OmensSnapsh
   if (pitch !== 0 && pitch !== 1 && pitch !== 2 && pitch !== 3) fail(`identity ${id} has an unsupported pitch`);
   const rarity = nonEmptyText(candidate.rarity, `identity ${id} rarity`);
   if (!RARITIES.includes(rarity)) fail(`identity ${id} has an unsupported rarity`);
+  const image = nonEmptyText(candidate.image, `identity ${id} image`);
+  if (image !== `${IMAGE_PREFIX}${id}${IMAGE_SUFFIX}`) {
+    fail(`identity ${id} does not carry its own official card image on the pinned origin`);
+  }
   return freeze({
     id,
     name: nonEmptyText(candidate.name, `identity ${id} name`),
     pitch: pitch as 0 | 1 | 2 | 3,
-    rarity: rarity as OmensSnapshotRarity
+    rarity: rarity as OmensSnapshotRarity,
+    image
   });
 };
 
@@ -209,7 +229,7 @@ const layout = (value: unknown, index: number, pools: readonly OmensSnapshotPool
  */
 export const validateOmensSetSnapshot = (candidate: unknown): OmensSetSnapshot => {
   const source = record(candidate, "snapshot");
-  if (source.schemaVersion !== 1) fail("only schema version 1 is supported");
+  if (source.schemaVersion !== 2) fail("only schema version 2 is supported");
   if (source.set !== "OMN") fail("only the Omens set is supported");
 
   const provenanceSource = record(source.provenance, "provenance");
@@ -238,7 +258,7 @@ export const validateOmensSetSnapshot = (candidate: unknown): OmensSetSnapshot =
   for (const entry of pools) for (const poolEntry of entry.entries) covered.add(poolEntry.identity);
   if (covered.size !== identities.length) fail("some identity belongs to no pool");
 
-  return freeze({ schemaVersion: 1, set: "OMN", provenance, identities, pools, layouts });
+  return freeze({ schemaVersion: 2, set: "OMN", provenance, identities, pools, layouts });
 };
 
 /** The exact total layout weight, recomputed rather than trusted from the snapshot. */

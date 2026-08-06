@@ -60,8 +60,31 @@ button {
 }
 
 .card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
   min-height: 6rem;
   cursor: pointer;
+}
+
+/* The declared 376x526 keeps each card's space reserved whether or not its art ever arrives. */
+.card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 376 / 526;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--edge) 12%, transparent);
+}
+
+.card img[hidden] {
+  display: none;
+}
+
+.card-name {
+  font-size: 0.9rem;
+  line-height: 1.35;
 }
 
 .card:hover {

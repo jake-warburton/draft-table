@@ -8,6 +8,7 @@ import test from "node:test";
 
 const app = new URL("../", import.meta.url);
 const file = (name) => fileURLToPath(new URL(name, app));
+const IMAGE_ORIGIN = "https://legendstory-production-s3-public.s3.amazonaws.com";
 
 const build = () => execFileSync("node", ["scripts/build-static.mjs"], { cwd: file(""), stdio: "pipe" });
 const builtHtml = () => readFileSync(file("dist/index.html"), "utf8");
@@ -20,18 +21,22 @@ const bundleOf = (html) => {
 
 const cleanDist = () => rmSync(file("dist"), { recursive: true, force: true });
 
+/** A minimal node whose `textContent` follows the real rule: writing it replaces every child. */
 class Element {
   constructor(tag) {
     this.tag = tag;
     this.children = [];
     this.attributes = {};
-    this.textContent = "";
+    this.text = "";
     this.disabled = false;
     this.focused = false;
+    this.hidden = false;
   }
+  get textContent() { return this.text + this.children.map((child) => child.textContent).join(""); }
+  set textContent(value) { this.children = []; this.text = value; }
   append(...children) { this.children.push(...children); }
-  replaceChildren(...children) { this.children = children; }
-  setAttribute(name, value) { this.attributes[name] = value; }
+  replaceChildren(...children) { this.text = ""; this.children = children; }
+  setAttribute(name, value) { this.attributes[name] = String(value); }
   focus() { this.focused = true; }
   get firstChild() { return this.children[0]; }
 }
@@ -71,7 +76,9 @@ test("the build inlines one self-contained module script and copies the styleshe
   const bundle = bundleOf(html);
   assert.doesNotMatch(bundle, /^\s*(?:import|export)\s/m, "no unresolved module syntax may survive");
   assert.doesNotMatch(bundle, /<\/script>/i, "the inline script must not be closable from its own text");
-  assert.doesNotMatch(bundle, /fetch\(|XMLHttpRequest|https?:\/\//, "the client performs no network access");
+  assert.doesNotMatch(bundle, /fetch\(|XMLHttpRequest|WebSocket/, "the client opens no connection of its own");
+  const origins = new Set([...bundle.matchAll(/https?:\/\/[^/"']+/gu)].map((match) => match[0]));
+  assert.deepEqual([...origins], [IMAGE_ORIGIN], "images are the only thing the page loads from elsewhere");
 });
 
 test("the build is byte-for-byte deterministic and clears stale output", (t) => {
@@ -118,6 +125,40 @@ test("the built client renders a real opening pack, pool, and live status", (t) 
   assert.match(nodes.status.textContent, /Choose one of 14 cards/);
   assert.ok(nodes.pack.children.every((card) => / · (Common|Rare|Majestic)/.test(card.textContent)));
   assert.match(nodes.pack.children[13].textContent, / · Rainbow Foil$/);
+});
+
+test("every dealt card shows its own official art and stays readable without it", (t) => {
+  const nodes = openBuiltClient(t);
+
+  for (const card of nodes.pack.children) {
+    const art = card.children.find((child) => child.tag === "img");
+    assert.ok(art !== undefined, "each card carries its own image");
+    assert.match(art.attributes.src, new RegExp(`^${IMAGE_ORIGIN}/media/cards/normal/OMN\\d+\\.webp$`));
+    assert.equal(art.attributes.alt, "", "the visible card name is already the accessible name");
+    assert.equal(art.attributes.loading, "lazy");
+    assert.equal(art.attributes.referrerpolicy, "no-referrer");
+    assert.ok(Number(art.attributes.width) > 0 && Number(art.attributes.height) > 0, "art reserves its own space");
+  }
+
+  const [first] = nodes.pack.children;
+  const failed = first.children.find((child) => child.tag === "img");
+  const label = first.textContent;
+  failed.onerror();
+  assert.equal(failed.hidden, true, "a failed image gets out of the way");
+  assert.equal(first.textContent, label, "the card keeps its name when its art cannot load");
+});
+
+test("the same card identity is requested from exactly one URL", (t) => {
+  const nodes = openBuiltClient(t);
+  const sources = new Map();
+  for (const card of nodes.pack.children) {
+    const art = card.children.find((child) => child.tag === "img");
+    const id = /\/(OMN\d+)\.webp$/.exec(art.attributes.src)[1];
+    const seen = sources.get(id);
+    if (seen !== undefined) assert.equal(seen, art.attributes.src, `${id} must resolve to one cacheable URL`);
+    sources.set(id, art.attributes.src);
+  }
+  assert.ok(sources.size > 0);
 });
 
 test("clicking a card in the built client drafts it and passes a fresh pack", (t) => {

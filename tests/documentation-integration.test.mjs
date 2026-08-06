@@ -43,7 +43,8 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /finite caller-provided batches[\s\S]*no entropy ownership/);
   assert.match(readme, /Same official identities may legally occur in normal and Rainbow Foil positions/);
   assert.match(readme, /replay-only[\s\S]*non-cryptographic[\s\S]*Production source custody, stream separation, and any cryptographic source remain a later architecture decision/);
-  assert.match(readme, /single-player draft client dealing \*\*real Omens cards\*\*[\s\S]*reviewed set snapshot[\s\S]*no card images, URLs, or upstream bytes/);
+  assert.match(readme, /single-player draft client dealing \*\*real Omens cards\*\*[\s\S]*reviewed set snapshot[\s\S]*no image bytes and no upstream bytes are copied into this repository/);
+  assert.match(readme, /pinned to that single origin by the page's content security policy[\s\S]*no referrer[\s\S]*replaced by the card's name if it fails/);
   assert.match(readme, /browser owns entropy through `crypto\.getRandomValues`/);
   assert.match(readme, /## Reviewed set snapshot[\s\S]*209 draftable identities[\s\S]*228 weighted 14-position layouts totalling 460,800/);
   assert.match(readme, /## Reviewed set snapshot[\s\S]*neither CI nor the browser needs the captain-held recipe/);
