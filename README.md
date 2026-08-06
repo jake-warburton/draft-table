@@ -242,6 +242,12 @@ npm --silent --workspace @draft-table/set-omens run test:pack-construction-evide
 
 Success prints only `complete Omens pack construction acceptance passed` and reports no source bytes or identities. The accepted behavior and durable private evidence authority are documented in [complete identity-only pack construction](docs/rules-and-collation.md#complete-identity-only-pack-construction).
 
+## Reading your drafted pool
+
+The pool starts in collector order and can be regrouped without changing it. Buttons offer **Set number**, **Class**, **Colour**, and **Type**; cards stay in collector order inside every group, empty groups are left out, and each heading carries its own count.
+
+Grouping is presentation only — `apps/web/src/pool.ts` is pure, never drops or duplicates a card, and a test proves every grouping returns the same pool it was given. Class grouping names its class-less bucket **No class** rather than inventing one: 60 of the 209 identities carry the Lightning talent and no class of their own. Drafted cards show their art alongside their name, the same as cards in the pack.
+
 ## Copied card images
 
 `scripts/migrate-card-images.mjs` copies the official card art into Draft Table's own storage so it can be served from Draft Table's own host rather than sending every viewer's browser to Legend Story Studios' bucket. That reversal, and what it obliges, is recorded as DT-9 in [risks and decisions](docs/risks-and-decisions.md).
@@ -259,7 +265,7 @@ The utility copies locally and uploads nothing. Publishing to the serving host i
 
 ## Reviewed set snapshot
 
-`packages/set-omens/src/set-snapshot.generated.ts` is the reviewed, versioned Omens set snapshot: the only card material the runtime ever sees. It holds the 209 draftable identities (official base collector id, official bare name, pitch, rarity, official image URL), the 11 weighted pools, and the 228 weighted 14-position layouts totalling 460,800. Each image URL is copied from that identity's own Card Vault face; `OMENS_SNAPSHOT_IMAGE_ORIGIN` pins the single origin art may be served from, and the validator refuses any image that is not that identity's own rendition on it. It carries no recipe text and no upstream byte, and tests assert both.
+`packages/set-omens/src/set-snapshot.generated.ts` is the reviewed, versioned Omens set snapshot: the only card material the runtime ever sees. It holds the 209 draftable identities (official base collector id, official bare name, pitch, rarity, official image URL, and the exact upstream type tokens), the 11 weighted pools, and the 228 weighted 14-position layouts totalling 460,800. Upstream mixes class, talent, type, and subtype into one token list, so the validator derives each identity's `cardType` and `cardClass` from those tokens rather than reading them from the data — the two cannot disagree, and an unreviewed token refuses to load instead of being silently misread. Each image URL is copied from that identity's own Card Vault face; `OMENS_SNAPSHOT_IMAGE_ORIGIN` pins the single origin art may be served from, and the validator refuses any image that is not that identity's own rendition on it. It carries no recipe text and no upstream byte, and tests assert both.
 
 The snapshot is generated at build time from all four checksum-pinned evidence sources and committed, so neither CI nor the browser needs the captain-held recipe. `packages/set-omens/src/set-snapshot.ts` owns the shape and a complete validator, which the generated module runs at load: an edit that breaks any structural invariant throws rather than shipping. Ordinary tests re-prove the accepted aggregates without any evidence file, including that the eight normal pools are pairwise disjoint over all 209 identities, that the three Rainbow Foil pools are a strict 171-identity subset, that every identity agrees with its own pool's rarity, and that every layout position draws from a pool its role permits.
 

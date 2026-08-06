@@ -3,6 +3,8 @@ import test from "node:test";
 
 import { OMENS_SET_SNAPSHOT } from "../src/set-snapshot.generated.ts";
 import {
+  OMENS_SNAPSHOT_CARD_TYPE_ORDER,
+  OMENS_SNAPSHOT_CLASS_ORDER,
   OMENS_SNAPSHOT_IMAGE_ORIGIN,
   OMENS_SNAPSHOT_PACK_SIZE,
   OMENS_SNAPSHOT_SLOT_ROLES,
@@ -26,7 +28,7 @@ const ACCEPTED = Object.freeze({
 const image = (id) => `${OMENS_SNAPSHOT_IMAGE_ORIGIN}/media/cards/normal/${id}.webp`;
 
 const minimal = () => ({
-  schemaVersion: 2,
+  schemaVersion: 3,
   set: "OMN",
   provenance: {
     recipe: { id: "recipe", sha256: "a".repeat(64), provenance: "community-not-official" },
@@ -35,10 +37,10 @@ const minimal = () => ({
     cardVault: { id: "vault", sha256: "d".repeat(64), provenance: "official-observed" }
   },
   identities: [
-    { id: "OMN001", name: "Common One", pitch: 1, rarity: "common", image: image("OMN001") },
-    { id: "OMN002", name: "Common Two", pitch: 0, rarity: "common", image: image("OMN002") },
-    { id: "OMN003", name: "Rare One", pitch: 2, rarity: "rare", image: image("OMN003") },
-    { id: "OMN004", name: "Majestic One", pitch: 3, rarity: "majestic", image: image("OMN004") }
+    { id: "OMN001", name: "Common One", pitch: 1, rarity: "common", image: image("OMN001"), types: ["Lightning", "Wizard", "Action", "Attack"] },
+    { id: "OMN002", name: "Common Two", pitch: 0, rarity: "common", image: image("OMN002"), types: ["Generic", "Equipment", "Head"] },
+    { id: "OMN003", name: "Rare One", pitch: 2, rarity: "rare", image: image("OMN003"), types: ["Lightning", "Instant"] },
+    { id: "OMN004", name: "Majestic One", pitch: 3, rarity: "majestic", image: image("OMN004"), types: ["Runeblade", "Defense Reaction"] }
   ],
   pools: [
     { label: "Common", rarity: "common", category: "normal", entries: [{ identity: 0, weight: 3 }, { identity: 1, weight: 1 }] },
@@ -144,6 +146,55 @@ test("the only external origin the snapshot names is the pinned official image h
   assert.deepEqual([...origins], [OMENS_SNAPSHOT_IMAGE_ORIGIN]);
 });
 
+test("every identity classifies into exactly one card type and at most one class", () => {
+  const byType = new Map(OMENS_SNAPSHOT_CARD_TYPE_ORDER.map((type) => [type, 0]));
+  const byClass = new Map([...OMENS_SNAPSHOT_CLASS_ORDER, null].map((entry) => [entry, 0]));
+
+  for (const identity of OMENS_SET_SNAPSHOT.identities) {
+    assert.ok(byType.has(identity.cardType), `${identity.id} has an unreviewed card type`);
+    assert.ok(byClass.has(identity.cardClass), `${identity.id} has an unreviewed class`);
+    byType.set(identity.cardType, byType.get(identity.cardType) + 1);
+    byClass.set(identity.cardClass, byClass.get(identity.cardClass) + 1);
+  }
+
+  assert.deepEqual([...byType], [["action", 130], ["instant", 61], ["defense-reaction", 4], ["equipment", 14]]);
+  assert.deepEqual([...byClass], [["wizard", 43], ["illusionist", 43], ["runeblade", 43], ["generic", 20], [null, 60]]);
+  assert.equal([...byType.values()].reduce((total, count) => total + count, 0), 209);
+  assert.equal([...byClass.values()].reduce((total, count) => total + count, 0), 209);
+});
+
+test("each identity's classification is derived from the type tokens it actually carries", () => {
+  const TYPE_TOKENS = { action: "Action", instant: "Instant", "defense-reaction": "Defense Reaction", equipment: "Equipment" };
+  const CLASS_TOKENS = { wizard: "Wizard", illusionist: "Illusionist", runeblade: "Runeblade", generic: "Generic" };
+
+  for (const identity of OMENS_SET_SNAPSHOT.identities) {
+    assert.ok(identity.types.length > 0, identity.id);
+    assert.ok(identity.types.includes(TYPE_TOKENS[identity.cardType]), identity.id);
+    if (identity.cardClass === null) {
+      assert.ok(Object.values(CLASS_TOKENS).every((token) => !identity.types.includes(token)), `${identity.id} has a class after all`);
+    } else {
+      assert.ok(identity.types.includes(CLASS_TOKENS[identity.cardClass]), identity.id);
+    }
+  }
+});
+
+test("every class-less identity carries a talent, so no card is left ungroupable", () => {
+  const classless = OMENS_SET_SNAPSHOT.identities.filter(({ cardClass }) => cardClass === null);
+  assert.equal(classless.length, 60);
+  assert.ok(classless.every(({ types }) => types.includes("Lightning")));
+});
+
+test("the validator refuses an identity it cannot classify", () => {
+  rejects((s) => { delete s.identities[0].types; }, "missing types");
+  rejects((s) => { s.identities[0].types = []; }, "empty types");
+  rejects((s) => { s.identities[0].types = ["Lightning", "Wizard", "Attack"]; }, "no card type at all");
+  rejects((s) => { s.identities[0].types = ["Wizard", "Action", "Instant"]; }, "two card types");
+  rejects((s) => { s.identities[0].types = ["Wizard", "Runeblade", "Action"]; }, "two classes");
+  rejects((s) => { s.identities[0].types = ["Wizard", "Action", "Ward"]; }, "an unreviewed token");
+  rejects((s) => { s.identities[0].types = ["Action", "Action"]; }, "a repeated token");
+  rejects((s) => { s.identities[0].types = ["Wizard", "action"]; }, "a token that differs only by case");
+});
+
 test("the snapshot carries no recipe text or other upstream byte", () => {
   const serialized = JSON.stringify(OMENS_SET_SNAPSHOT);
   assert.doesNotMatch(serialized, /image_url|unique_id|tcgplayer|mana_cost|image_uris/i);
@@ -178,7 +229,7 @@ test("the validator refuses every image that is not this identity's own official
 });
 
 test("the validator refuses every way a snapshot can contradict itself", () => {
-  rejects((s) => { s.schemaVersion = 3; }, "unsupported schema version");
+  rejects((s) => { s.schemaVersion = 4; }, "unsupported schema version");
   rejects((s) => { s.set = "IAR"; }, "unsupported set");
   rejects((s) => { s.provenance.recipe.sha256 = "not-a-digest"; }, "malformed digest");
   rejects((s) => { delete s.provenance.cardVault; }, "missing source record");

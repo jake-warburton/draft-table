@@ -96,14 +96,62 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-#pool {
-  columns: 3 14rem;
-  gap: 1rem;
-  padding-left: 1.5rem;
+.grouping-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
-#pool li {
-  break-inside: avoid;
+.grouping {
+  padding: 0.5rem 0.9rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.grouping[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
+  font-weight: 600;
+}
+
+.pool-group h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pool-group:first-child h3 {
+  margin-top: 0;
+}
+
+.pool-group ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pool-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 376 / 526;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--edge) 12%, transparent);
+}
+
+.pool-card img[hidden] {
+  display: none;
+}
+
+.pool-card {
+  font-size: 0.8rem;
+  line-height: 1.3;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -123,11 +171,11 @@ button:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  button {
+  .card {
     min-height: 4rem;
   }
 
-  #pool {
-    columns: 1;
+  .pool-group ol {
+    grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
   }
 }
