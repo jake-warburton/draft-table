@@ -15,7 +15,7 @@ import {
   PACK_SIZE,
   buildPacksByRound,
   drawBoundedTicket,
-  type CatalogueCard,
+  type OmensSetSnapshot,
   type Uint32Source
 } from "./cards.ts";
 
@@ -51,14 +51,14 @@ export const uniformBotPolicy = (random: Uint32Source): BotPolicy =>
 /** Opens a table with the drafter in seat one and every remaining seat played by a bot. */
 export const createTable = (
   seatCount: number,
-  catalogue: readonly CatalogueCard[],
+  snapshot: OmensSetSnapshot,
   random: Uint32Source
 ): DraftState => {
   const seats: readonly DraftSeat[] = Array.from({ length: seatCount }, (unused, index) => ({
     id: index === 0 ? HUMAN_SEAT_ID : `seat-${index + 1}`,
     controller: index === 0 ? "human" : "bot"
   }));
-  return createDraft({ seats, packsByRound: buildPacksByRound(seatCount, catalogue, random) });
+  return createDraft({ seats, packsByRound: buildPacksByRound(seatCount, snapshot, random) });
 };
 
 /**

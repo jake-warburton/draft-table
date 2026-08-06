@@ -19,17 +19,17 @@ test("the browser shell permanently identifies Draft Table as unofficial and non
   assert.match(html, /not affiliated with Legend Story Studios/i);
 });
 
-test("the browser shell identifies a real bot draft dealt from placeholder cards", () => {
+test("the browser shell identifies a real bot draft dealt from the reviewed snapshot", () => {
   const html = readFileSync(fromRoot("apps/web/index.html"), "utf8");
 
   assert.match(html, /<title>Draft Table<\/title>/);
   assert.match(html, /<h1>Draft Table<\/h1>/);
   assert.match(html, /three-round draft against bots/i);
-  assert.match(html, /placeholder cards only/i);
-  assert.match(html, /reviewed Omens set snapshot comes later/i);
+  assert.match(html, /reviewed Omens set snapshot/i);
+  assert.match(html, /card images are not used/i);
   assert.match(html, /<main[^>]*>/);
   assert.doesNotMatch(html, /hello world/i);
-  assert.doesNotMatch(html, /invented fixtures/i);
+  assert.doesNotMatch(html, /invented fixtures|placeholder/i);
   assert.doesNotMatch(html, /main\.js/);
 });
 

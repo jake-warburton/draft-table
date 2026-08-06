@@ -91,7 +91,8 @@ test("the bundle carries every workspace module the client actually imports", (t
   const bundle = bundleOf(builtHtml());
 
   for (const id of ["apps/web/src/main.ts", "apps/web/src/table.ts", "apps/web/src/cards.ts",
-    "packages/draft/src/index.ts", "packages/engine/src/unbiased-uint32-ticket.ts"]) {
+    "packages/draft/src/index.ts", "packages/engine/src/unbiased-uint32-ticket.ts",
+    "packages/set-omens/src/set-snapshot.ts", "packages/set-omens/src/set-snapshot.generated.ts"]) {
     assert.ok(bundle.includes(`modules["${id}"]`), `${id} must be bundled`);
   }
 });
@@ -115,7 +116,8 @@ test("the built client renders a real opening pack, pool, and live status", (t) 
   assert.equal(nodes.pool.children.length, 0);
   assert.equal(nodes["pool-count"].textContent, "0");
   assert.match(nodes.status.textContent, /Choose one of 14 cards/);
-  assert.ok(nodes.pack.children.every((card) => /Placeholder/.test(card.textContent)));
+  assert.ok(nodes.pack.children.every((card) => / · (Common|Rare|Majestic)/.test(card.textContent)));
+  assert.match(nodes.pack.children[13].textContent, / · Rainbow Foil$/);
 });
 
 test("clicking a card in the built client drafts it and passes a fresh pack", (t) => {

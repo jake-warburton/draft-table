@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DRAFTABLE_PLACEHOLDER_CATALOGUE, PACK_SIZE } from "../src/cards.ts";
+import { OMENS_SET_SNAPSHOT, PACK_SIZE } from "../src/cards.ts";
 import {
   DEFAULT_SEAT_COUNT,
   HUMAN_SEAT_ID,
@@ -23,7 +23,7 @@ const sampleSource = (seed) => {
 
 const openTable = (seed = 0x5eed_1234, seatCount = DEFAULT_SEAT_COUNT) => {
   const random = sampleSource(seed);
-  return { random, state: createTable(seatCount, DRAFTABLE_PLACEHOLDER_CATALOGUE, random) };
+  return { random, state: createTable(seatCount, OMENS_SET_SNAPSHOT, random) };
 };
 
 const takeFirst = (table, times) => {
@@ -120,6 +120,6 @@ test("smaller tables remain legal and still draft complete packs", () => {
 });
 
 test("a seat count outside the supported range is refused", () => {
-  assert.throws(() => createTable(1, DRAFTABLE_PLACEHOLDER_CATALOGUE, sampleSource(1)));
-  assert.throws(() => createTable(9, DRAFTABLE_PLACEHOLDER_CATALOGUE, sampleSource(1)));
+  assert.throws(() => createTable(1, OMENS_SET_SNAPSHOT, sampleSource(1)));
+  assert.throws(() => createTable(9, OMENS_SET_SNAPSHOT, sampleSource(1)));
 });

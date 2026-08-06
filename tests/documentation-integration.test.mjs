@@ -43,8 +43,11 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /finite caller-provided batches[\s\S]*no entropy ownership/);
   assert.match(readme, /Same official identities may legally occur in normal and Rainbow Foil positions/);
   assert.match(readme, /replay-only[\s\S]*non-cryptographic[\s\S]*Production source custody, stream separation, and any cryptographic source remain a later architecture decision/);
-  assert.match(readme, /single-player draft client[\s\S]*placeholder only[\s\S]*reviewed Omens set snapshot can replace the catalogue/);
+  assert.match(readme, /single-player draft client dealing \*\*real Omens cards\*\*[\s\S]*reviewed set snapshot[\s\S]*no card images, URLs, or upstream bytes/);
   assert.match(readme, /browser owns entropy through `crypto\.getRandomValues`/);
+  assert.match(readme, /## Reviewed set snapshot[\s\S]*209 draftable identities[\s\S]*228 weighted 14-position layouts totalling 460,800/);
+  assert.match(readme, /## Reviewed set snapshot[\s\S]*neither CI nor the browser needs the captain-held recipe/);
+  assert.match(readme, /set snapshot acceptance passed[\s\S]*compares byte for byte with the committed snapshot/);
   assert.match(readme, /completed `apps\/web\/dist` bytes[\s\S]*no client byte ceiling[\s\S]*size gate[\s\S]*accessibility and responsive declarations/);
 });
 
