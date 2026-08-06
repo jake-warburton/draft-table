@@ -1,6 +1,26 @@
+:root {
+  color-scheme: light dark;
+  --ink: #12211b;
+  --page: #f6f8f6;
+  --panel: #ffffff;
+  --edge: #285943;
+  --accent: #e07724;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8efe9;
+    --page: #121915;
+    --panel: #1b2620;
+    --edge: #7fb79b;
+  }
+}
+
 body {
   margin: 0;
   font: 1rem/1.5 system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--page);
 }
 
 main {
@@ -13,22 +33,54 @@ section {
   padding: 1rem;
 }
 
+h2 {
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+#status {
+  font-weight: 600;
+}
+
 .cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.75rem;
 }
 
 button {
-  min-height: 6rem;
   padding: 1rem;
-  background: #e7f1e8;
-  border: 2px solid #285943;
+  color: inherit;
+  background: var(--panel);
+  border: 2px solid var(--edge);
+  border-radius: 0.5rem;
   font: inherit;
+  text-align: left;
+}
+
+.card {
+  min-height: 6rem;
+  cursor: pointer;
+}
+
+.card:hover {
+  border-color: var(--accent);
 }
 
 button:focus-visible {
-  outline: 4px solid #e07724;
+  outline: 4px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#pool {
+  columns: 3 14rem;
+  gap: 1rem;
+  padding-left: 1.5rem;
+}
+
+#pool li {
+  break-inside: avoid;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -50,5 +102,9 @@ button:focus-visible {
 
   button {
     min-height: 4rem;
+  }
+
+  #pool {
+    columns: 1;
   }
 }
