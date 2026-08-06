@@ -52,6 +52,8 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /## Handing your pool to Fabrary[\s\S]*pre-filled import link[\s\S]*copyable text list/);
   assert.match(readme, /The fallback is not optional[\s\S]*sign-in wall[\s\S]*DT-7/);
   assert.match(readme, /never calls Fabrary's private authenticated endpoints/);
+  assert.match(readme, /## Room codes[\s\S]*eight Crockford-Base32 symbols[\s\S]*forty random bits/);
+  assert.match(readme, /a refusal never echoes the rejected text/);
   assert.match(readme, /## Reviewed set snapshot[\s\S]*neither CI nor the browser needs the captain-held recipe/);
   assert.match(readme, /set snapshot acceptance passed[\s\S]*compares byte for byte with the committed snapshot/);
   assert.match(readme, /completed `apps\/web\/dist` bytes[\s\S]*no client byte ceiling[\s\S]*size gate[\s\S]*accessibility and responsive declarations/);
