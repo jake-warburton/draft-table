@@ -242,6 +242,21 @@ npm --silent --workspace @draft-table/set-omens run test:pack-construction-evide
 
 Success prints only `complete Omens pack construction acceptance passed` and reports no source bytes or identities. The accepted behavior and durable private evidence authority are documented in [complete identity-only pack construction](docs/rules-and-collation.md#complete-identity-only-pack-construction).
 
+## Copied card images
+
+`scripts/migrate-card-images.mjs` copies the official card art into Draft Table's own storage so it can be served from Draft Table's own host rather than sending every viewer's browser to Legend Story Studios' bucket. That reversal, and what it obliges, is recorded as DT-9 in [risks and decisions](docs/risks-and-decisions.md).
+
+```
+npm run migrate:card-images   # copy anything not already held, then rewrite the manifest
+npm run verify:card-images    # re-hash every local copy against the manifest; no network
+```
+
+The reviewed snapshot is the only thing that decides which images exist and where each one lives. The utility invents no URL, refuses any source that is not on the pinned official origin, refuses a collector identifier that could escape the output directory, follows no redirect, and stores nothing it has not first proven to be a real WebP served as one — so an error page can never be stored under a card's name and served as its art.
+
+`apps/server/card-image-manifest.json` is committed and records each image's source, sha256, and byte length. The images themselves live in `apps/server/card-images/` and are gitignored: **no image byte is ever committed to this repository.** A second run refetches only what is missing, and a local file that no longer matches its recorded digest stops the run rather than being silently replaced.
+
+The utility copies locally and uploads nothing. Publishing to the serving host is a separate, deliberate step.
+
 ## Reviewed set snapshot
 
 `packages/set-omens/src/set-snapshot.generated.ts` is the reviewed, versioned Omens set snapshot: the only card material the runtime ever sees. It holds the 209 draftable identities (official base collector id, official bare name, pitch, rarity, official image URL), the 11 weighted pools, and the 228 weighted 14-position layouts totalling 460,800. Each image URL is copied from that identity's own Card Vault face; `OMENS_SNAPSHOT_IMAGE_ORIGIN` pins the single origin art may be served from, and the validator refuses any image that is not that identity's own rendition on it. It carries no recipe text and no upstream byte, and tests assert both.
