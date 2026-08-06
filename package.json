@@ -15,7 +15,9 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "node --test tests/*.test.mjs && npm run test --workspaces --if-present",
     "size": "npm run build && node scripts/bundle-size.mjs",
-    "dev": "npm run build && npm --workspace @draft-table/web run serve"
+    "dev": "npm run build && npm --workspace @draft-table/web run serve",
+    "migrate:card-images": "node scripts/migrate-card-images.mjs",
+    "verify:card-images": "node scripts/migrate-card-images.mjs --verify"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

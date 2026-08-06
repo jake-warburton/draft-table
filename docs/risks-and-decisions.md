@@ -17,7 +17,7 @@ External citation IDs resolve in the [research source register](research.md#sour
 
 - Proceed under the currently published upstream-source and LSS terms without requiring separate written confirmation [DATA-1][DATA-2][FAB-6].
 - Draft Table's own software is MIT-licensed under the repository `LICENSE` file. That license does not relicense third-party card data, images, names, trademarks, or LSS property.
-- Preserve source provenance, remote-image use, attribution/unofficial notice, no-logo/no-trade-dress boundary, free/non-commercial scope, and the documented revocability/terms-drift risk.
+- Preserve source provenance, attribution/unofficial notice, no-logo/no-trade-dress boundary, free/non-commercial scope, and the documented revocability/terms-drift risk. Image hosting is now governed by DT-9 rather than by remote-image use.
 
 ### DT-3 — all-disconnected cleanup accepted
 
@@ -54,6 +54,14 @@ External citation IDs resolve in the [research source register](research.md#sour
 - `pcg-xsh-rr-64-32-v1` is authorized for deterministic replay and known-answer behavior only. It is non-cryptographic and observed output may permit state reconstruction.
 - It creates no implicit competitive-multiplayer unpredictability guarantee. A later architecture decision must choose production source custody, stream separation and/or a cryptographic source.
 
+### DT-9 — self-hosted card images accepted
+
+- The captain decided on 2026-08-06 to copy the official card images into Draft Table's own storage and serve them from Draft Table's own host, rather than sending each viewer's browser to Legend Story Studios' public S3 bucket.
+- This is a deliberate reversal of the earlier "no image proxy or cache" position and of "do not persist images in Cloudflare storage without a separate rights and cost review". The captain made that call with the rights consequence stated: Draft Table becomes the host and redistributor of LSS's card art rather than a page that links to it.
+- Accepted consequences: Draft Table now carries storage and egress cost; a stale copy can drift from upstream until re-copied; and revocation under [FAB-6] means taking our own copies down rather than only removing links.
+- Retained mitigations: images are copied, never modified; every copied byte is recorded by digest in a committed manifest so what we serve is provably what upstream served; the copies are never committed to this repository; publishing remains a separate deliberate step; and the takedown path is deleting our own bucket contents.
+- `scripts/migrate-card-images.mjs` owns the copy and the verification. It copies only what the reviewed snapshot names, refuses any source off the pinned official origin, and stores nothing that is not a real WebP served as one.
+
 ## Risk register
 
 | Risk | Evidence/impact | Mitigation/gate |
@@ -66,6 +74,8 @@ External citation IDs resolve in the [research source register](research.md#sour
 | Upstream license ambiguity | Preferred data repository has no formal detected license despite broad README language [DATA-1][DATA-2]. | Accepted use is limited to current published terms; minimize redistribution, preserve provenance, and reopen review on terms change. |
 | LSS permission revocation | Current permissions are conditional and expressly revocable [FAB-6]. | Compliant minimal use, contact/disable path, required attribution, no logos/trade dress/direct monetization. |
 | Remote image outage/change | S3 URLs have no reviewed SLA; browser sends ordinary request metadata. | Text fallback, no server dependency, no-referrer, host allowlist, launch smoke. |
+| Self-hosted art redistributes LSS property | DT-9 makes Draft Table the host of copied card art rather than a page linking to it, which raises what a revocation under [FAB-6] obliges. | Copy without modification, digest manifest proving fidelity, no copies in version control, deliberate publish step, documented takedown by deleting our own copies. |
+| Copied art drifts from upstream | A local copy cannot notice an upstream re-issue or correction. | Manifest digests, re-run the copy on a reviewed cadence, verification command fails on any local drift. |
 | Free quota exhaustion | Durable Object writes are estimated tighter than requests; over-limit operations fail [CF-4]. | Measured counters, thrash limits, accepted cleanup, stop new rooms before existing, quota alerts. |
 | 10 ms CPU ceiling | Parsing, serialization, password verification, collation, and 16 projections can exceed Free Worker CPU [CF-1]. | Build-time recipe import, pre-generated packs, compact state, cached public fragments, worst-case benchmarks, no SSR/heavy KDF. |
 | WebSocket deploy disconnect | Cloudflare disconnects sockets on code updates [CF-6][CF-8]. | Persist every authority mutation; version compatibility; reconnect tests; careful deploy windows. |

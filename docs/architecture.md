@@ -17,7 +17,7 @@ Browser
                               ├─ one next-deadline alarm
                               └─ up to 16 hibernatable sockets
 
-Official card images: browser ──direct──> LSS public S3
+Official card images: browser ──> Draft Table's own host (copies made at build time by `scripts/migrate-card-images.mjs`; see DT-9)
 Fabrary: explicit completion action ───> public import UI
 ```
 
@@ -147,4 +147,4 @@ Use a CSPRNG-generated, case-insensitive alphabet without ambiguous characters. 
 - **KV room state:** eventual consistency and no Free KV-backed DO; wrong authority primitive.
 - **Third-party realtime/pub-sub:** paid/external dependency and loss of single authority.
 - **Polling/SSE:** more requests and inferior bidirectional pick commands.
-- **Image proxy/cache:** bandwidth/storage/rights complexity with no MVP need.
+- **Third-party image CDN:** a free proxy would put LSS's art on a stranger's infrastructure; DT-9 self-hosts instead.

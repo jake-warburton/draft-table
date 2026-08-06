@@ -67,14 +67,14 @@ The recipe represents the 14 cards its simulator displays. It does not publish n
 
 ## Image hosting implications
 
-Card images remain remote and are never copied into the repository. The preferred dataset points at Legend Story Studios' public S3 host [DATA-1]. Consequences:
+Card images are never copied into this repository. Under DT-9 they are copied into Draft Table's own storage at build time and served from Draft Table's own host; the copy is made from Legend Story Studios' public S3 host [DATA-1]. Consequences:
 
 - no repository/deployment image-storage footprint;
 - image host receives the viewer's network request and can observe IP/headers;
 - URLs may change, throttle, or disappear without an API SLA;
 - availability must not affect server authority—name/treatment text remains usable if an image fails;
 - use `Referrer-Policy: no-referrer`, explicit `img-src`, lazy loading, dimensions/aspect ratio, and a non-image accessible name;
-- do not proxy, transform, or persist images in Cloudflare storage without a separate rights and cost review.
+- persisting copies was reviewed and accepted as DT-9; transforming them was not, so images are copied byte for byte and never re-encoded.
 
 ## Legend Story Studios image and app terms
 
