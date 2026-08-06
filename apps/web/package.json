@@ -2,8 +2,16 @@
   "name": "@draft-table/web",
   "private": true,
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "build": "node scripts/build-static.mjs",
-    "test": "node --test --test-concurrency=1 test/*.test.mjs"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "node ../../scripts/lint.mjs src",
+    "test": "node --experimental-strip-types --test --test-concurrency=1 test/*.test.mjs",
+    "serve": "node scripts/serve.mjs"
+  },
+  "dependencies": {
+    "@draft-table/draft": "0.0.0",
+    "@draft-table/engine": "0.0.0"
   }
 }

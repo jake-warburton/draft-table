@@ -11,18 +11,24 @@
       <header>
         <h1>Draft Table</h1>
         <p>Unofficial; not affiliated with Legend Story Studios.</p>
-        <p>Playable with invented fixtures only; engine/set-omens integration comes later.</p>
+        <p>A full three-round draft against bots, dealt from placeholder cards only; the reviewed Omens set snapshot comes later.</p>
       </header>
 
       <section aria-labelledby="pack-title">
-        <h2 id="pack-title">Fixture pack <span id="round">1</span></h2>
-        <p id="status" role="status" aria-live="polite">Choose one card from this fixture pack.</p>
-        <div id="pack" class="cards" aria-label="Cards in fixture pack"></div>
+        <h2 id="pack-title">Round <span id="round">1</span>, pick <span id="pick">1</span></h2>
+        <p id="status" role="status" aria-live="polite">Dealing the first pack.</p>
+        <div id="pack" class="cards" aria-label="Cards in the current pack"></div>
       </section>
 
-      <section aria-labelledby="picks-title">
-        <h2 id="picks-title">Picked pool</h2>
-        <ol id="picks" aria-label="Picked cards"></ol>
+      <section aria-labelledby="pool-title">
+        <h2 id="pool-title">Your pool (<span id="pool-count">0</span>)</h2>
+        <ol id="pool" aria-label="Cards you have drafted"></ol>
+      </section>
+
+      <section aria-labelledby="table-title">
+        <h2 id="table-title">Table</h2>
+        <p>You hold seat one. Seven bots fill the remaining seats and pass with you.</p>
+        <button id="restart" type="button">Deal a new draft</button>
       </section>
     </main>
     <!--app-->

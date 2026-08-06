@@ -19,15 +19,17 @@ test("the browser shell permanently identifies Draft Table as unofficial and non
   assert.match(html, /not affiliated with Legend Story Studios/i);
 });
 
-test("the browser shell identifies current fixture-only playability and deferred integration", () => {
+test("the browser shell identifies a real bot draft dealt from placeholder cards", () => {
   const html = readFileSync(fromRoot("apps/web/index.html"), "utf8");
 
   assert.match(html, /<title>Draft Table<\/title>/);
   assert.match(html, /<h1>Draft Table<\/h1>/);
-  assert.match(html, /Playable with invented fixtures only/i);
-  assert.match(html, /engine\/set-omens integration comes later/i);
+  assert.match(html, /three-round draft against bots/i);
+  assert.match(html, /placeholder cards only/i);
+  assert.match(html, /reviewed Omens set snapshot comes later/i);
   assert.match(html, /<main[^>]*>/);
   assert.doesNotMatch(html, /hello world/i);
+  assert.doesNotMatch(html, /invented fixtures/i);
   assert.doesNotMatch(html, /main\.js/);
 });
 
@@ -36,7 +38,7 @@ test("the bundle-size report measures completed built output rather than source 
   t.after(() => rmSync(dist, { recursive: true, force: true }));
 
   execFileSync("npm", ["run", "build"], { cwd: root, stdio: "pipe" });
-  const sourceBytes = ["index.html", "styles.css", "main.js"]
+  const sourceBytes = ["index.html", "styles.css", "src/main.ts", "src/table.ts", "src/cards.ts"]
     .map((name) => statSync(fromRoot(`apps/web/${name}`)).size)
     .reduce((total, bytes) => total + bytes, 0);
   const builtBytes = ["index.html", "styles.css"]
@@ -86,12 +88,13 @@ test("CI validates pull requests and main with read-only permissions and the qua
   }
 });
 
-test("the approved workspaces build without product implementations", (t) => {
+test("every approved workspace builds and the client emits only referenced artifacts", (t) => {
   t.after(() => rmSync(fromRoot("apps/web/dist"), { recursive: true, force: true }));
 
   for (const workspace of [
     "apps/web",
     "apps/server",
+    "packages/draft",
     "packages/engine",
     "packages/contracts",
     "packages/set-omens"
