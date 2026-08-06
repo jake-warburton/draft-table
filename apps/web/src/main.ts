@@ -1,4 +1,4 @@
-import { DRAFTABLE_PLACEHOLDER_CATALOGUE } from "./cards.ts";
+import { OMENS_SET_SNAPSHOT } from "./cards.ts";
 import { DEFAULT_SEAT_COUNT, chooseCard, createTable, viewTable } from "./table.ts";
 
 const element = (selector: string): HTMLElement => {
@@ -18,7 +18,7 @@ const restartControl = element("#restart");
 /** The browser owns the entropy; every transition only maps caller-supplied samples. */
 const nextUint32 = (): number => crypto.getRandomValues(new Uint32Array(1))[0] as number;
 
-const deal = () => createTable(DEFAULT_SEAT_COUNT, DRAFTABLE_PLACEHOLDER_CATALOGUE, nextUint32);
+const deal = () => createTable(DEFAULT_SEAT_COUNT, OMENS_SET_SNAPSHOT, nextUint32);
 
 let state = deal();
 

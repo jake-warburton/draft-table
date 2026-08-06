@@ -23,10 +23,13 @@ const requirePattern = /require\("((?:[^"\\]|\\.)*)"\)/g;
 const moduleId = (absolutePath) => relative(repoRoot, absolutePath).split(sep).join("/");
 
 const workspaceEntry = async (specifier) => {
-  const manifestPath = resolve(repoRoot, "node_modules", specifier, "package.json");
+  const segments = specifier.split("/");
+  const packageName = segments.slice(0, 2).join("/");
+  const subpath = segments.length > 2 ? `./${segments.slice(2).join("/")}` : ".";
+  const manifestPath = resolve(repoRoot, "node_modules", packageName, "package.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  const exported = manifest.exports?.["."];
-  if (typeof exported !== "string") throw new Error(`${specifier} does not export a single entry point.`);
+  const exported = manifest.exports?.[subpath];
+  if (typeof exported !== "string") throw new Error(`${specifier} does not export "${subpath}" as a single path.`);
   return resolve(dirname(manifestPath), exported);
 };
 

@@ -11,12 +11,13 @@ const clientSources = readdirSync(file("src"))
   .filter((name) => name.endsWith(".ts"))
   .map((name) => read(`src/${name}`));
 
-test("the shell states what is real and what is still placeholder material", () => {
+test("the shell states exactly what card material it uses and what it omits", () => {
   const html = read("index.html");
   assert.match(html, /not affiliated with Legend Story Studios/i);
-  assert.match(html, /placeholder cards only/i);
-  assert.match(html, /reviewed Omens set snapshot comes later/i);
-  assert.doesNotMatch(html, /invented fixtures/i, "the shell is no longer a fixture walkthrough");
+  assert.match(html, /reviewed Omens set snapshot/i);
+  assert.match(html, /real collation weights/i);
+  assert.match(html, /card images are not used/i);
+  assert.doesNotMatch(html, /invented fixtures|placeholder/i, "the shell no longer deals invented material");
 });
 
 test("the shell keeps labelled regions and one live status region", () => {
@@ -51,5 +52,6 @@ test("readable client source stays separate from the built artifact", () => {
   assert.match(read("src/main.ts"), /const render = /);
   assert.match(read("src/table.ts"), /export const chooseCard = /);
   assert.match(read("src/cards.ts"), /export const buildPack = /);
+  assert.doesNotMatch(read("src/cards.ts"), /PLACEHOLDER/, "the invented catalogue is gone");
   assert.match(read("index.html"), /<!--app-->/, "the build inlines the client at this placeholder");
 });
