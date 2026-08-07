@@ -275,6 +275,8 @@ Grouping is presentation only — `apps/web/src/pool.ts` is pure, never drops or
 
 The table lays the pack out five cards to a row, so a fresh fourteen-card pack reads as three rows of five, five, and four. Drafted cards stack into one pile per group: each card overlaps all but the top tenth of the one before it, so the pile reads as a run of name bars, and the newest card sits on top of the pile in full. A card whose art fails keeps its place in the pile and shows its name as text instead.
 
+While you are picking, the pile is face down: the pool region shows only **Pool hidden until the next review**, and the cards are genuinely absent rather than hidden with styling. The count in the heading stays honest. When a pack runs out, the table pauses for a **pack review** under a *Pack 1 review* or *Pack 2 review* heading: the pile turns face up, the next pass direction is announced, and the next pack waits until you continue. The finished draft turns the pile face up for good. The one-minute review timer in the UX notes needs a server to hold every seat to the same clock, so it waits for multiplayer rooms.
+
 ## Handing your pool to Fabrary
 
 When the draft finishes, the page offers two ways into [Fabrary](https://fabrary.net):

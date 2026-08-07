@@ -17,9 +17,13 @@
       </header>
 
       <section aria-labelledby="pack-title">
-        <h2 id="pack-title">Round <span id="round">1</span>, pick <span id="pick">1</span></h2>
+        <h2 id="pack-title">
+          <span id="drafting-heading">Round <span id="round">1</span>, pick <span id="pick">1</span></span>
+          <span id="review-heading" hidden>Pack <span id="review-pack">1</span> review</span>
+        </h2>
         <p id="status" role="status" aria-live="polite">Dealing the first pack.</p>
         <div id="pack" class="cards" aria-label="Cards in the current pack"></div>
+        <button id="continue" type="button" hidden>Continue to pack 2</button>
       </section>
 
       <section aria-labelledby="pool-title">
