@@ -108,7 +108,16 @@ const isCanonicalCode = (segment: string): boolean => {
   }
 };
 
-const isPlainText = (value: string): boolean => !/[\u0000-\u001f\u007f-\u009f]/u.test(value);
+/**
+ * Short plain text refuses control characters and the invisible format and direction-override
+ * characters that let a name render as nothing or spoof its own reading order.
+ */
+const INVISIBLE = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff]/u;
+
+const isPlainText = (value: string): boolean => !INVISIBLE.test(value);
+
+/** A name must hold something that renders: a letter, number, punctuation, or symbol. */
+const hasVisibleText = (value: string): boolean => /[\p{L}\p{N}\p{P}\p{S}]/u.test(value);
 
 type ConfigRead = { readonly ok: true; readonly config: RoomConfig; readonly password: string | null }
   | { readonly ok: false };
@@ -133,7 +142,8 @@ const readConfig = (parsed: Record<string, unknown>): ConfigRead => {
   if (parsed.name !== undefined) {
     if (typeof parsed.name !== "string") return { ok: false };
     name = parsed.name.trim();
-    if (name.length === 0 || name.length > MAX_NAME_LENGTH || !isPlainText(name)) return { ok: false };
+    if (name.length === 0 || name.length > MAX_NAME_LENGTH) return { ok: false };
+    if (!isPlainText(name) || !hasVisibleText(name)) return { ok: false };
   }
 
   let password: string | null = null;
