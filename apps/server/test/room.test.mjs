@@ -67,10 +67,17 @@ const makeRoom = (start = CREATED_AT) => {
   const storage = makeStorage();
   const { state: clock, tools } = makeTools(start);
   const sockets = [];
+  // The real gate defers new events until the callback settles; this fake queues the same way.
+  let gate = Promise.resolve();
   const state = {
     storage,
     acceptWebSocket: (socket) => { sockets.push(socket); },
-    getWebSockets: () => sockets.filter((socket) => socket.closed === null)
+    getWebSockets: () => sockets.filter((socket) => socket.closed === null),
+    blockConcurrencyWhile: (callback) => {
+      const run = gate.then(() => callback());
+      gate = run.then(() => undefined, () => undefined);
+      return run;
+    }
   };
   const room = new RoomObject(state, undefined, tools);
   return { room, storage, clock, sockets };
@@ -613,6 +620,81 @@ test("cleanup leaves a connected lobby and a started draft alone", async () => {
   started.clock.now = CREATED_AT + LOBBY_ABANDONMENT_MS + 1;
   await started.room.alarm();
   assert.ok(started.storage.map.has("room"), "a started draft is not the lobby reaper's business");
+});
+
+test("two hellos arriving at once both join, one at a time", async () => {
+  const { room, socket, ...context } = await openRoom();
+  const second = await connect({ room, ...context });
+  await Promise.all([
+    room.webSocketMessage(socket, hello()),
+    room.webSocketMessage(second.socket, hello())
+  ]);
+
+  const snapshot = context.storage.map.get("room");
+  assert.equal(snapshot.participants.length, 2, "neither join was lost to the other");
+  assert.deepEqual(snapshot.participants.map((entry) => entry.seat), [0, 1]);
+  assert.deepEqual(snapshot.participants.map((entry) => entry.name), ["Drafter 1", "Drafter 2"]);
+});
+
+test("the host claim cannot be double-spent by a race", async () => {
+  const { room, socket, created, ...context } = await openRoom();
+  const second = await connect({ room, ...context });
+  await Promise.all([
+    room.webSocketMessage(socket, hello({ hostClaim: created.hostClaim })),
+    room.webSocketMessage(second.socket, hello({ hostClaim: created.hostClaim }))
+  ]);
+
+  const hosts = context.storage.map.get("room").participants.filter((entry) => entry.host);
+  assert.equal(hosts.length, 1, "exactly one host, however close the race");
+  const refusals = [...frames(socket, "error"), ...frames(second.socket, "error")];
+  assert.equal(refusals.length, 1);
+  assert.equal(refusals[0].payload.code, "invalid_claim");
+});
+
+test("two initializes arriving at once mint exactly one room", async () => {
+  const { room } = makeRoom();
+  const [first, second] = await Promise.all([
+    initialize(room, { name: "First" }),
+    initialize(room, { name: "Second" })
+  ]);
+  assert.deepEqual([first.status, second.status].sort(), [201, 409]);
+});
+
+test("a join books the standing liveness appointment", async () => {
+  const { room, socket, storage, clock } = await openRoom();
+  clock.now = CREATED_AT + 1_000;
+  await room.webSocketMessage(socket, hello());
+  assert.equal(storage.alarms.at(-1), CREATED_AT + 1_000 + LOBBY_ABANDONMENT_MS);
+});
+
+test("a lobby whose sockets died without goodbyes is still reaped", async () => {
+  const { room, socket, storage, clock } = await openRoom();
+  await room.webSocketMessage(socket, hello());
+  // The deploy scenario: the socket is simply gone, and no close event ever arrives.
+  socket.closed = { code: 1006, reason: "" };
+
+  clock.now = CREATED_AT + LOBBY_ABANDONMENT_MS;
+  await room.alarm();
+  const swept = storage.map.get("room");
+  assert.equal(swept.participants[0].connected, false, "the ghost is found out");
+  assert.equal(swept.abandonAt, clock.now + LOBBY_ABANDONMENT_MS, "and the abandonment clock starts");
+  assert.equal(storage.alarms.at(-1), swept.abandonAt);
+
+  clock.now = swept.abandonAt;
+  await room.alarm();
+  assert.equal(storage.map.size, 0, "the leak is closed");
+});
+
+test("the liveness sweep leaves a live lobby alone and keeps watching", async () => {
+  const { room, socket, storage, clock } = await openRoom();
+  await room.webSocketMessage(socket, hello());
+
+  clock.now = CREATED_AT + LOBBY_ABANDONMENT_MS;
+  await room.alarm();
+  const snapshot = storage.map.get("room");
+  assert.equal(snapshot.participants[0].connected, true);
+  assert.equal(snapshot.abandonAt, null);
+  assert.equal(storage.alarms.at(-1), clock.now + LOBBY_ABANDONMENT_MS, "the watch continues");
 });
 
 test("duplicate due alarms cannot resurrect or damage anything", async () => {

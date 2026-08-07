@@ -38,6 +38,7 @@ export interface RoomStateSlice {
   readonly storage: RoomStorageSlice;
   acceptWebSocket(socket: RoomSocketSlice): void;
   getWebSockets(): readonly RoomSocketSlice[];
+  blockConcurrencyWhile<T>(callback: () => Promise<T>): Promise<T>;
 }
 
 /**
@@ -297,13 +298,23 @@ export class RoomObject {
     this.tools = tools;
   }
 
+  /**
+   * The platform's input gate holds new events only across storage awaits, and these handlers
+   * also await crypto digests between reading the snapshot and writing it back. Every handler
+   * therefore runs whole inside the concurrency gate, which is what actually delivers the
+   * protocol's promise that the room serializes all commands.
+   */
+  private serialized<T>(work: () => Promise<T>): Promise<T> {
+    return this.state.blockConcurrencyWhile(work);
+  }
+
   async fetch(request: Request): Promise<Response> {
     const path = new URL(request.url).pathname;
 
     const initialize = INITIALIZE_PATH.exec(path);
     if (initialize !== null) {
       if (request.method !== "POST") return refuse(405, "method_not_allowed");
-      return this.initialize(initialize[1], request);
+      return this.serialized(() => this.initialize(initialize[1], request));
     }
 
     if (SOCKET_PATH.exec(path) !== null) {
@@ -444,7 +455,11 @@ export class RoomObject {
     };
   }
 
-  async webSocketMessage(socket: RoomSocketSlice, message: unknown): Promise<void> {
+  webSocketMessage(socket: RoomSocketSlice, message: unknown): Promise<void> {
+    return this.serialized(() => this.handleMessage(socket, message));
+  }
+
+  private async handleMessage(socket: RoomSocketSlice, message: unknown): Promise<void> {
     if (typeof message !== "string" || message.length > MAX_MESSAGE_BYTES) {
       this.turnAway(socket, "malformed_message");
       return;
@@ -595,6 +610,8 @@ export class RoomObject {
       abandonAt: null
     };
     await this.storage.put("room", updated);
+    // Someone is connected now, so the standing appointment becomes the liveness sweep.
+    await this.storage.setAlarm(this.tools.now() + LOBBY_ABANDONMENT_MS);
 
     // An older socket for the same identity loses to this one, after the state is safe.
     for (const { socket: other, attachment } of this.authenticatedSockets()) {
@@ -622,7 +639,11 @@ export class RoomObject {
     }
   }
 
-  async webSocketClose(socket: RoomSocketSlice): Promise<void> {
+  webSocketClose(socket: RoomSocketSlice): Promise<void> {
+    return this.serialized(() => this.handleClose(socket));
+  }
+
+  private async handleClose(socket: RoomSocketSlice): Promise<void> {
     const attachment = this.attachmentOf(socket);
     if (attachment === null) return;
     const room = await this.room();
@@ -660,13 +681,20 @@ export class RoomObject {
    * rebook the appointment; late and duplicate wakes are harmless; a reconnect has already
    * cleared the deadline before any of them fire.
    */
-  async alarm(): Promise<void> {
+  alarm(): Promise<void> {
+    return this.serialized(() => this.handleAlarm());
+  }
+
+  private async handleAlarm(): Promise<void> {
     const room = await this.room();
     if (room === undefined) return;
     if (room.phase !== "lobby") return;
-    // The recorded deadline is the single abandonment authority: it is only ever set while
-    // nobody is connected, and any join clears it, so no connectedness re-check belongs here.
-    if (room.abandonAt === null) return;
+    // The recorded deadline is the abandonment authority: it is only ever set while nobody is
+    // connected, and any join clears it and books the liveness sweep below instead.
+    if (room.abandonAt === null) {
+      await this.reconcileLiveness(room);
+      return;
+    }
     if (this.tools.now() < room.abandonAt) {
       // Fired early: keep the appointment rather than losing it.
       await this.storage.setAlarm(room.abandonAt);
@@ -676,5 +704,43 @@ export class RoomObject {
       socket.close(REFUSED_CLOSE_CODE, "room_closed");
     }
     await this.storage.deleteAll();
+  }
+
+  /**
+   * A socket can die without its close event — a deploy tears every connection down at once —
+   * so while the lobby believes anyone is connected, the object keeps a standing appointment
+   * and, when it fires, checks that belief against the sockets that actually exist. Ghosts are
+   * marked disconnected; a lobby that turns out to be empty starts its abandonment clock.
+   */
+  private async reconcileLiveness(room: RoomSnapshot): Promise<void> {
+    const live = new Map(
+      this.authenticatedSockets().map(({ attachment }) => [attachment.participantId, attachment.generation])
+    );
+    const participants = room.participants.map((entry) =>
+      entry.connected && live.get(entry.id) !== entry.generation ? { ...entry, connected: false } : entry);
+    const changed = participants.some((entry, index) => entry !== room.participants[index]);
+    const nobodyConnected = participants.every((entry) => !entry.connected);
+
+    if (!changed && !nobodyConnected) {
+      // The belief held; keep watching.
+      await this.storage.setAlarm(this.tools.now() + LOBBY_ABANDONMENT_MS);
+      return;
+    }
+
+    const abandonAt = nobodyConnected ? this.tools.now() + LOBBY_ABANDONMENT_MS : null;
+    const updated: RoomSnapshot = {
+      ...room,
+      stateVersion: room.stateVersion + 1,
+      participants,
+      abandonAt,
+      alarmGeneration: room.alarmGeneration + 1
+    };
+    await this.storage.put("room", updated);
+    await this.storage.setAlarm(abandonAt ?? this.tools.now() + LOBBY_ABANDONMENT_MS);
+    if (changed) {
+      this.broadcast(updated, "participants_changed", {
+        participants: updated.participants.map(publicParticipant)
+      });
+    }
   }
 }
