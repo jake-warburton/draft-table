@@ -545,8 +545,10 @@ export class RoomObject {
   ): Promise<void> {
     await this.storage.put("room", updated);
     this.send(socket, updated.stateVersion, "ack", { applied: true }, command.commandId);
+    // The sender hears the broadcast too: a command like a server-owned shuffle has an outcome
+    // the sender cannot know from its own request, and outgoing frames cost nothing.
     for (const { type, payload } of broadcasts) {
-      this.broadcast(updated, type, payload, socket);
+      this.broadcast(updated, type, payload);
     }
   }
 
@@ -814,7 +816,7 @@ export class RoomObject {
         open.close(REFUSED_CLOSE_CODE, reason);
       }
     }
-    this.broadcast(updated, "participants_changed", this.layout(updated), socket);
+    this.broadcast(updated, "participants_changed", this.layout(updated));
   }
 
   /**

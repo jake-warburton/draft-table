@@ -738,7 +738,8 @@ test("a drafter renames themselves and everyone else hears about it once", async
   assert.equal(lobby.storage.map.get("room").participants[1].name, "Karla");
   assert.equal(lastAck(lobby.guest).stateVersion, before + 1);
   assert.equal(frames(lobby.host, "participants_changed").length, 2, "the join and the rename");
-  assert.equal(frames(lobby.guest, "participants_changed").length, 0, "the ack already told them");
+  assert.equal(frames(lobby.guest, "participants_changed").length, 1,
+    "the sender hears the broadcast too, so every client renders from the same frames");
 });
 
 test("a rename that would render as nothing is refused without a mutation", async () => {
@@ -785,6 +786,7 @@ test("the host moves a guest to an empty seat and the pending shuffle is visibly
   assert.equal(snapshot.participants[1].seat, 5);
   assert.equal(snapshot.config.randomizeSeatsAtStart, false, "the first manual move spends the shuffle");
   assert.equal(frames(lobby.guest, "seat_layout_changed").length, 1);
+  assert.equal(frames(lobby.host, "seat_layout_changed").length, 1, "the mover sees the layout they made");
   assert.equal(frames(lobby.guest, "config_changed").length, 1, "the spent shuffle is announced");
   assert.equal(snapshot.feed.at(-1).type, "seats");
 });
@@ -828,16 +830,25 @@ test("seat moves belong to the host and only to real destinations", async () => 
   assert.equal(lastError(lobby.host).payload.code, "invalid_target");
 });
 
-test("randomize now shuffles the seated among their own positions and spends the pending shuffle", async () => {
+test("randomize now genuinely shuffles the seated among their own positions", async () => {
   const lobby = await openLobby();
+  // Fill every seat so an accidental identity shuffle cannot hide a broken loop.
+  for (let joiner = 0; joiner < LOBBY_SEAT_COUNT - 2; joiner += 1) {
+    const { socket } = await connect(lobby);
+    await lobby.room.webSocketMessage(socket, hello());
+  }
   const before = lobby.storage.map.get("room").participants.map((entry) => entry.seat);
   await lobby.room.webSocketMessage(lobby.host, command("set_seat_randomization", { mode: "randomize_now" }));
 
   const snapshot = lobby.storage.map.get("room");
   const after = snapshot.participants.map((entry) => entry.seat);
   assert.deepEqual([...after].sort(), [...before].sort(), "the same positions, redistributed");
+  assert.ok(after.some((seat, index) => seat !== before[index]), "a shuffle that moves nobody is no shuffle");
   assert.equal(snapshot.config.randomizeSeatsAtStart, false);
   assert.equal(frames(lobby.guest, "seat_layout_changed").length, 1);
+  assert.equal(frames(lobby.host, "seat_layout_changed").length, 1,
+    "the host cannot predict a server-owned shuffle, so the host must be told");
+  assert.equal(frames(lobby.host, "config_changed").length, 1);
 });
 
 test("the pending start shuffle can be explicitly re-enabled", async () => {
