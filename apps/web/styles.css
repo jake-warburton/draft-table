@@ -222,15 +222,13 @@ button:focus-visible {
     padding: 1rem;
   }
 
-  /* Five abreast is unreadable on a phone; three rows deep beats cards nobody can read. */
+  /* The accessibility notes call for a one-column pack on phones; the rows are for wide screens. */
   .cards {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
+    grid-template-columns: 1fr;
   }
 
   .card {
     min-height: 4rem;
-    padding: 0.25rem;
   }
 
   .pool-group {
