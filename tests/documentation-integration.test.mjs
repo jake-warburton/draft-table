@@ -64,6 +64,8 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /## The room object[\s\S]*Initialize happens exactly once[\s\S]*one-time \*\*host claim\*\*[\s\S]*leaving no room behind/);
   assert.match(readme, /stored only as salted digests[\s\S]*leaves the object exactly once/);
   assert.match(readme, /deleted whole[\s\S]*at-least-once[\s\S]*early wake rebooks the appointment/);
+  assert.match(readme, /A socket is nobody until its hello[\s\S]*wrong and missing passwords answer identically[\s\S]*newest connection for an identity wins/);
+  assert.match(readme, /eight numbered seats first and then the spectator row, up to sixteen participants/);
   assert.match(readme, /## Reviewed set snapshot[\s\S]*neither CI nor the browser needs the captain-held recipe/);
   assert.match(readme, /set snapshot acceptance passed[\s\S]*compares byte for byte with the committed snapshot/);
   assert.match(readme, /completed `apps\/web\/dist` bytes[\s\S]*no client byte ceiling[\s\S]*size gate[\s\S]*accessibility and responsive declarations/);
