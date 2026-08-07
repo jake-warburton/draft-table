@@ -43,9 +43,10 @@ h2 {
   font-weight: 600;
 }
 
+/* Five to a row, so a fresh fourteen-card pack reads as rows of five, five, and four. */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
 }
 
@@ -116,21 +117,27 @@ button:focus-visible {
   font-weight: 600;
 }
 
+/* Each grouping is its own pile; piles sit side by side and wrap. */
+#pool {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.pool-group {
+  flex: 0 0 11rem;
+}
+
 .pool-group h3 {
-  margin: 1.25rem 0 0.5rem;
+  margin: 0 0 0.5rem;
   font-size: 0.95rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
-.pool-group:first-child h3 {
-  margin-top: 0;
-}
-
 .pool-group ol {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-  gap: 0.75rem;
+  display: block;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -149,9 +156,39 @@ button:focus-visible {
   display: none;
 }
 
+/* The declared ratio keeps a card's place in the pile even when its art never arrives. */
 .pool-card {
+  aspect-ratio: 376 / 526;
   font-size: 0.8rem;
   line-height: 1.3;
+}
+
+/*
+ * Drafted cards overlap into a pile: each card covers all but the top tenth of the one before
+ * it, and the newest card sits on top in full. Margin percentages resolve against the pile's
+ * width, so nine tenths of the 526/376 card height is 90% x 526 / 376 = 125.9% of that width.
+ */
+.pool-card + .pool-card {
+  margin-top: -125.9%;
+}
+
+/* In the pile the art's printed name bar is the label; the text returns if the art fails. */
+.pool-card .card-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.pool-card img[hidden] + .card-name {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
 }
 
 #export-list {
@@ -185,15 +222,18 @@ button:focus-visible {
     padding: 1rem;
   }
 
+  /* Five abreast is unreadable on a phone; three rows deep beats cards nobody can read. */
   .cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
   }
 
   .card {
     min-height: 4rem;
+    padding: 0.25rem;
   }
 
-  .pool-group ol {
-    grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  .pool-group {
+    flex-basis: 8rem;
   }
 }

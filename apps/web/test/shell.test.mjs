@@ -82,6 +82,18 @@ test("the stylesheet keeps visible focus, reduced motion, and a phone layout", (
   assert.match(css, /@media \(max-width:\s*42rem\)[\s\S]*\.card\s*{\s*min-height:\s*4rem/);
 });
 
+test("the stylesheet deals the pack five to a row and stacks the pool into piles", () => {
+  const css = read("styles.css");
+  assert.match(css, /\.cards\s*{[^}]*grid-template-columns:\s*repeat\(5,\s*1fr\)/,
+    "a fresh fourteen-card pack reads as rows of five, five, and four");
+  assert.match(css, /\.pool-card\s*\+\s*\.pool-card\s*{[^}]*margin-top:\s*-125\.9%/,
+    "each drafted card overlaps all but the top tenth of the one before it");
+  assert.match(css, /\.pool-card\s*{[^}]*aspect-ratio:\s*376\s*\/\s*526/,
+    "a card whose art never arrives keeps its place in the pile");
+  assert.match(css, /\.pool-card img\[hidden\]\s*\+\s*\.card-name\s*{[^}]*position:\s*static/,
+    "the text name returns when the art fails");
+});
+
 test("the client makes no scripted request and hard-codes no card material", () => {
   const surfaces = [read("index.html"), read("styles.css"), ...clientSources].join("\n");
   assert.doesNotMatch(surfaces, /fetch\(|XMLHttpRequest|WebSocket/);

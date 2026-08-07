@@ -271,7 +271,9 @@ Not there yet: the room object itself, the per-room and per-network rate limits 
 
 The pool starts in collector order and can be regrouped without changing it. Buttons offer **Set number**, **Class**, **Colour**, and **Type**; cards stay in collector order inside every group, empty groups are left out, and each heading carries its own count.
 
-Grouping is presentation only — `apps/web/src/pool.ts` is pure, never drops or duplicates a card, and a test proves every grouping returns the same pool it was given. Class grouping names its class-less bucket **No class** rather than inventing one: 60 of the 209 identities carry the Lightning talent and no class of their own. Drafted cards show their art alongside their name, the same as cards in the pack.
+Grouping is presentation only — `apps/web/src/pool.ts` is pure, never drops or duplicates a card, and a test proves every grouping returns the same pool it was given. Class grouping names its class-less bucket **No class** rather than inventing one: 60 of the 209 identities carry the Lightning talent and no class of their own.
+
+The table lays the pack out five cards to a row, so a fresh fourteen-card pack reads as three rows of five, five, and four. Drafted cards stack into one pile per group: each card overlaps all but the top tenth of the one before it, so the pile reads as a run of name bars, and the newest card sits on top of the pile in full. A card whose art fails keeps its place in the pile and shows its name as text instead.
 
 ## Handing your pool to Fabrary
 
