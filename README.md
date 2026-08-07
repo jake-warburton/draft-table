@@ -265,7 +265,19 @@ What it does own is turning away traffic a room object should never have to see,
 
 Two habits run all the way through it. A refusal never repeats the request back — a create body may carry a room password and a code is an unlisted address, so neither reaches a response body, a header, or a status line. And a socket upgrade is forwarded exactly as it arrived rather than rebuilt, because an upgrade does not survive being rebuilt; the object learns its own code when it is initialized and never needs it handed back.
 
-Not there yet: the room object itself, the per-room and per-network rate limits [security and privacy](docs/security-and-privacy.md#room-codes-and-abuse) calls for, and the optional `GET /api/health`. The router refuses malformed traffic cheaply, but it does not yet refuse repeated traffic.
+Not there yet: the room's sockets and lobby, the per-room and per-network rate limits [security and privacy](docs/security-and-privacy.md#room-codes-and-abuse) calls for, and the optional `GET /api/health`. The router refuses malformed traffic cheaply, but it does not yet refuse repeated traffic.
+
+## The room object
+
+One code names one room, and the room is a Cloudflare Durable Object — the single serialized authority for everything inside it. What exists today is its front door: the initialize transaction and the cleanup that follows a room nobody ever joins.
+
+Initialize happens exactly once. The first request creates the room and answers with its code and a one-time **host claim**; any later attempt gets the one *taken* answer the router acts on. The creator's configuration is read strictly — room name, optional password, timers, pool visibility, spectators, and seat randomization, with the defaults the [product contract](docs/product.md#room-configuration) names — and an unknown field or unsound value refuses the whole request, leaving no room behind. The refusal reaches the caller in the router's own words; neither side's body is repeated.
+
+Secrets are stored only as salted digests. The room password and the host claim each become a verifier; the claim's plaintext leaves the object exactly once, inside the creation answer, and is how the creator's first socket will prove it is the host. The deployment-secret pepper the [security notes](docs/security-and-privacy.md#passwords-and-invitation-links) call for joins when a deployment exists to hold the secret.
+
+The canonical snapshot is persisted before the creation is announced, and the object's one alarm is booked for thirty minutes out: a room still in its never-joined lobby at that deadline is deleted whole. Alarms are at-least-once and carry no trusted data, so the handler re-reads canonical storage and stays harmless when it fires early, late, or twice — an early wake rebooks the appointment rather than losing it.
+
+Not there yet: the socket route answers that the room is not ready, because the lobby, identities, and the draft itself are the next pieces. The object's storage, time, and entropy arrive through narrow injected slices, so its tests drive it without a Cloudflare runtime.
 
 ## Reading your drafted pool
 

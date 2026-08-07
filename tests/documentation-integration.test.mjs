@@ -60,7 +60,10 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /## Room routes[\s\S]*`POST \/api\/rooms`[\s\S]*`GET \/api\/rooms\/<code>\/socket` with `Upgrade: websocket`/);
   assert.match(readme, /a bad request forwarded to an object spends two of the day's requests instead of one/);
   assert.match(readme, /an upgrade does not survive being rebuilt/);
-  assert.match(readme, /Not there yet: the room object itself, the per-room and per-network rate limits[\s\S]*does not yet refuse repeated traffic/);
+  assert.match(readme, /Not there yet: the room's sockets and lobby, the per-room and per-network rate limits[\s\S]*does not yet refuse repeated traffic/);
+  assert.match(readme, /## The room object[\s\S]*Initialize happens exactly once[\s\S]*one-time \*\*host claim\*\*[\s\S]*leaving no room behind/);
+  assert.match(readme, /stored only as salted digests[\s\S]*leaves the object exactly once/);
+  assert.match(readme, /deleted whole[\s\S]*at-least-once[\s\S]*early wake rebooks the appointment/);
   assert.match(readme, /## Reviewed set snapshot[\s\S]*neither CI nor the browser needs the captain-held recipe/);
   assert.match(readme, /set snapshot acceptance passed[\s\S]*compares byte for byte with the committed snapshot/);
   assert.match(readme, /completed `apps\/web\/dist` bytes[\s\S]*no client byte ceiling[\s\S]*size gate[\s\S]*accessibility and responsive declarations/);
