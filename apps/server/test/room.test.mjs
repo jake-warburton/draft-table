@@ -247,11 +247,13 @@ test("the due cleanup alarm deletes a never-joined lobby whole", async () => {
 test("an early alarm keeps the appointment instead of losing it", async () => {
   const { room, storage, clock } = makeRoom();
   await initialize(room, {});
+  const booked = storage.alarms.length;
   clock.now = CREATED_AT + LOBBY_ABANDONMENT_MS - 1;
 
   await room.alarm();
   assert.ok(storage.map.has("room"), "the lobby still has time");
-  assert.equal(storage.alarms.at(-1), CREATED_AT + LOBBY_ABANDONMENT_MS, "the appointment is rebooked");
+  assert.equal(storage.alarms.length, booked + 1, "the early wake books the appointment again");
+  assert.equal(storage.alarms.at(-1), CREATED_AT + LOBBY_ABANDONMENT_MS, "for the same moment, not a later one");
 });
 
 test("a late or duplicate alarm cannot resurrect or damage anything", async () => {
