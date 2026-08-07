@@ -664,7 +664,8 @@ export class RoomObject {
     const room = await this.room();
     if (room === undefined) return;
     if (room.phase !== "lobby") return;
-    if (room.participants.some((participant) => participant.connected)) return;
+    // The recorded deadline is the single abandonment authority: it is only ever set while
+    // nobody is connected, and any join clears it, so no connectedness re-check belongs here.
     if (room.abandonAt === null) return;
     if (this.tools.now() < room.abandonAt) {
       // Fired early: keep the appointment rather than losing it.

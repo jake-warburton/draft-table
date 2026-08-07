@@ -332,10 +332,14 @@ test("the first message must be a well-formed hello or the socket is done", asyn
   }
 });
 
-test("an oversized message is refused whole", async () => {
-  const { room, socket } = await openRoom();
-  await room.webSocketMessage(socket, "x".repeat(MAX_MESSAGE_BYTES + 1));
+test("an oversized message is refused for its size, not read for its content", async () => {
+  const { room, socket, storage } = await openRoom();
+  // A perfectly valid hello, padded past the limit: size alone must condemn it.
+  await room.webSocketMessage(socket, hello() + " ".repeat(MAX_MESSAGE_BYTES));
+  assert.equal(frames(socket, "hello_ack").length, 0, "the padded hello was never processed");
+  assert.equal(frames(socket, "error")[0].payload.code, "malformed_message");
   assert.equal(socket.closed?.code, REFUSED_CLOSE_CODE);
+  assert.equal(storage.map.get("room").participants.length, 0);
 });
 
 test("the password gate answers wrong and missing the same way and gives nothing away", async () => {
