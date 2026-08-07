@@ -68,6 +68,7 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /eight numbered seats first and then the spectator row, up to sixteen participants/);
   assert.match(readme, /every handler runs whole inside the object's concurrency gate[\s\S]*host claim cannot be double-spent/);
   assert.match(readme, /standing liveness sweep[\s\S]*cannot leak forever on a swallowed goodbye/);
+  assert.match(readme, /The lobby answers its commands[\s\S]*first manual move visibly spends the pending shuffle[\s\S]*deleted on the spot/);
   assert.match(readme, /## Reviewed set snapshot[\s\S]*neither CI nor the browser needs the captain-held recipe/);
   assert.match(readme, /set snapshot acceptance passed[\s\S]*compares byte for byte with the committed snapshot/);
   assert.match(readme, /completed `apps\/web\/dist` bytes[\s\S]*no client byte ceiling[\s\S]*size gate[\s\S]*accessibility and responsive declarations/);
