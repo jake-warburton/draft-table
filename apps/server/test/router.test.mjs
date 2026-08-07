@@ -111,6 +111,16 @@ test("codes that keep colliding give up instead of draining the day's request bu
   assert.equal(new Set(room.calls.map((call) => call.name)).size, ROOM_CREATE_ATTEMPTS, "every attempt used its own code");
 });
 
+test("an object that refuses the configuration is relayed as a malformed request, in our words", async () => {
+  const room = rooms(() => new Response('{"error":"the object\'s own words"}', { status: 400 }));
+  const response = await worker.fetch(post("/api/rooms", { body: '{"theme":"dark"}' }), env(room.namespace, null));
+
+  assert.equal(response.status, 400);
+  assert.equal(await errorCode(response), "malformed_request");
+  assert.doesNotMatch(await response.text(), /own words|theme/u, "neither side's body is repeated");
+  assert.equal(room.calls.length, 1, "a refused configuration is not retried on a fresh code");
+});
+
 test("an object that answers with anything else is reported as our failure, not described", async () => {
   const room = rooms(() => new Response("stack trace and room state", { status: 500 }));
   const response = await worker.fetch(post("/api/rooms"), env(room.namespace, null));

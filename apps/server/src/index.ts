@@ -14,6 +14,9 @@
 
 import { createRoomCode, normalizeRoomCode } from "@draft-table/contracts";
 
+// The runtime finds Durable Object classes on the Worker entry module.
+export { RoomObject } from "./room.ts";
+
 /** The slice of Cloudflare's Durable Object namespace binding this router uses. */
 export interface RoomNamespace {
   idFromName(name: string): unknown;
@@ -155,6 +158,9 @@ const createRoom = async (request: Request, url: URL, rooms: RoomNamespace): Pro
     // Only the object can say a code is taken, because only the object is serialized. It also
     // keeps the code it was initialized under, so no later request has to hand it back.
     if (response.status === 409) continue;
+    // The object read the configuration and refused it; that verdict is the caller's to hear,
+    // though in this router's own words rather than the object's body.
+    if (response.status === 400) return refuse(400, "malformed_request");
     if (response.status !== 201) return refuse(500, "server_error");
 
     const created = new Response(response.body, response);
