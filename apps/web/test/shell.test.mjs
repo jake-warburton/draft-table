@@ -49,9 +49,11 @@ test("the shell keeps labelled regions and one live status region", () => {
   assert.match(html, /aria-label="Cards you have drafted"/);
   assert.match(html, /aria-labelledby="pack-title"/);
   assert.match(html, /aria-labelledby="pool-title"/);
-  for (const id of ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart", "export", "export-link", "export-list", "export-copy", "export-status"]) {
+  for (const id of ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart", "drafting-heading", "review-heading", "review-pack", "continue", "export", "export-link", "export-list", "export-copy", "export-status"]) {
     assert.match(html, new RegExp(`id="${id}"`), id);
   }
+  assert.match(html, /<span id="review-heading" hidden>Pack <span id="review-pack">1<\/span> review<\/span>/,
+    "the review phase is a real heading, as the accessibility notes require");
 });
 
 test("the Fabrary hand-off is honest about what it cannot do", () => {

@@ -18,6 +18,10 @@ const element = (selector: string): HTMLElement => {
 
 const packRegion = element("#pack");
 const statusRegion = element("#status");
+const draftingHeading = element("#drafting-heading");
+const reviewHeading = element("#review-heading");
+const reviewPack = element("#review-pack");
+const continueControl = element("#continue");
 const poolRegion = element("#pool");
 const poolGroupingRegion = element("#pool-grouping");
 const poolCount = element("#pool-count");
@@ -37,6 +41,25 @@ const deal = () => createTable(DEFAULT_SEAT_COUNT, OMENS_SET_SNAPSHOT, nextUint3
 
 let state = deal();
 let grouping: PoolGrouping = "number";
+
+/**
+ * The pause between packs is presentation state; the draft itself has already advanced. While it
+ * is set, the next pack waits behind the continue control and the pool is face up for review.
+ */
+let reviewing = false;
+
+/**
+ * While picking, the pile is face down: the pool region holds only this notice, and the cards
+ * are genuinely absent rather than hidden with styling, as the accessibility notes require.
+ */
+const POOL_HIDDEN_NOTICE = "Pool hidden until the next review";
+
+const hiddenPoolNotice = (): HTMLElement => {
+  const notice = document.createElement("p");
+  notice.className = "pool-hidden";
+  notice.textContent = POOL_HIDDEN_NOTICE;
+  return notice;
+};
 
 /**
  * Card art is decorative: the visible name beside it is already the accessible name, so a failed
@@ -118,13 +141,27 @@ const render = (): void => {
   const view = viewTable(state);
   roundNumber.textContent = String(view.round);
   pickNumber.textContent = String(view.pick);
-  statusRegion.textContent = view.status;
+  draftingHeading.hidden = reviewing;
+  reviewHeading.hidden = !reviewing;
+  reviewPack.textContent = String(view.round - 1);
+  continueControl.hidden = !reviewing;
+  continueControl.textContent = `Continue to pack ${view.round}`;
+  statusRegion.textContent = reviewing
+    ? `Pack ${view.round - 1} drafted. Review your pool. Pack ${view.round} passes ${
+        view.passDirection === "left" ? "to the left" : "to the right"}.`
+    : view.status;
   poolCount.textContent = String(view.pool.length);
-  poolGroupingRegion.replaceChildren(...POOL_GROUPINGS.map(groupingControl));
+  const poolFaceUp = reviewing || view.complete;
+  poolGroupingRegion.hidden = !poolFaceUp;
+  poolGroupingRegion.replaceChildren(...(poolFaceUp ? POOL_GROUPINGS.map(groupingControl) : []));
   poolRegion.replaceChildren(
-    ...groupPool(view.pool, grouping, identities).map(({ label, cards }) => poolGroup(label, cards))
+    ...(poolFaceUp
+      ? groupPool(view.pool, grouping, identities).map(({ label, cards }) => poolGroup(label, cards))
+      : [hiddenPoolNotice()])
   );
-  packRegion.replaceChildren(...view.cards.map((card) => cardControl(card, view.round, view.pick)));
+  packRegion.replaceChildren(
+    ...(reviewing ? [] : view.cards.map((card) => cardControl(card, view.round, view.pick)))
+  );
   renderExport(view.complete, view.pool);
   if (view.complete) {
     statusRegion.tabIndex = -1;
@@ -161,11 +198,25 @@ const choose = (instanceId: string, round: number, pick: number): void => {
   const view = viewTable(state);
   if (view.complete || view.round !== round || view.pick !== pick) return;
   state = chooseCard(state, instanceId, nextUint32);
+  const after = viewTable(state);
+  // A finished pack pauses the table for review; the finished draft reviews itself below.
+  if (!after.complete && after.round !== round) reviewing = true;
+  render();
+  if (reviewing) {
+    continueControl.focus();
+    return;
+  }
+  (packRegion.firstChild as HTMLElement | null)?.focus();
+};
+
+continueControl.onclick = () => {
+  reviewing = false;
   render();
   (packRegion.firstChild as HTMLElement | null)?.focus();
 };
 
 restartControl.onclick = () => {
+  reviewing = false;
   state = deal();
   render();
 };

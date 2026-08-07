@@ -57,6 +57,7 @@ class Element {
  */
 const openBuiltClient = (t) => {
   const ids = ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart",
+    "drafting-heading", "review-heading", "review-pack", "continue",
     "export", "export-link", "export-list", "export-copy", "export-status"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Element("div")]));
   const previousDocument = globalThis.document;
@@ -186,14 +187,17 @@ test("the same card identity is requested from exactly one URL", (t) => {
   assert.ok(sources.size > 0);
 });
 
-test("clicking a card in the built client drafts it and passes a fresh pack", (t) => {
+test("clicking a card in the built client drafts it face down and passes a fresh pack", (t) => {
   const nodes = openBuiltClient(t);
   const chosen = nodes.pack.children[2];
   chosen.onclick();
 
-  assert.equal(pooledCards(nodes.pool).length, 1);
-  assert.equal(pooledCards(nodes.pool)[0].textContent, chosen.textContent);
-  assert.equal(nodes["pool-count"].textContent, "1");
+  assert.equal(pooledCards(nodes.pool).length, 0, "the pile stays face down while picking");
+  assert.equal(nodes.pool.textContent, "Pool hidden until the next review",
+    "the cards are genuinely absent, not hidden with styling");
+  assert.equal(nodes["pool-grouping"].hidden, true);
+  assert.equal(nodes["pool-grouping"].children.length, 0);
+  assert.equal(nodes["pool-count"].textContent, "1", "the count is no secret");
   assert.equal(nodes.pick.textContent, "2");
   assert.equal(nodes.pack.children.length, 13);
 });
@@ -204,14 +208,78 @@ test("a stale card activation from a superseded pack cannot draft twice", (t) =>
   stale.onclick();
   stale.onclick();
 
-  assert.equal(pooledCards(nodes.pool).length, 1);
+  assert.equal(nodes["pool-count"].textContent, "1");
+});
+
+test("a finished pack pauses the table for review before the next one is dealt", (t) => {
+  const nodes = openBuiltClient(t);
+  const chosen = nodes.pack.children[0];
+  draftCards(nodes, 13);
+
+  assert.equal(nodes.pack.children.length, 0, "the next pack waits behind the review");
+  assert.equal(nodes["drafting-heading"].hidden, true);
+  assert.equal(nodes["review-heading"].hidden, false);
+  assert.equal(nodes["review-pack"].textContent, "1");
+  assert.equal(nodes.continue.hidden, false);
+  assert.equal(nodes.continue.focused, true, "keyboard flow lands on the one primary action");
+  assert.equal(nodes.continue.textContent, "Continue to pack 2");
+  assert.equal(nodes.status.textContent, "Pack 1 drafted. Review your pool. Pack 2 passes to the right.");
+  assert.equal(nodes["pool-count"].textContent, "14", "thirteen choices plus the last card, which commits itself");
+  assert.equal(pooledCards(nodes.pool).length, 14, "the pile turns face up for the review");
+  assert.ok(pooledCards(nodes.pool).some((item) => item.textContent === chosen.textContent),
+    "the first card taken is in the face-up pile");
+  assert.equal(nodes["pool-grouping"].hidden, false);
+  assert.equal(nodes.export.hidden, true, "a part-drafted pool is not a finished one");
+});
+
+test("continuing deals the next pack and turns the pile face down again", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 13);
+  nodes.continue.onclick();
+
+  assert.equal(nodes["review-heading"].hidden, true);
+  assert.equal(nodes["drafting-heading"].hidden, false);
+  assert.equal(nodes.round.textContent, "2");
+  assert.equal(nodes.pick.textContent, "1");
+  assert.equal(nodes.pack.children.length, 14);
+  assert.equal(nodes.pack.firstChild.focused, true);
+  assert.equal(nodes.continue.hidden, true);
+  assert.equal(pooledCards(nodes.pool).length, 0);
+  assert.equal(nodes.pool.textContent, "Pool hidden until the next review");
+});
+
+test("the second review names pack two and the last pack ends without one", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 26);
+
+  assert.equal(nodes["review-pack"].textContent, "2");
+  assert.equal(nodes.continue.textContent, "Continue to pack 3");
+  assert.equal(nodes.status.textContent, "Pack 2 drafted. Review your pool. Pack 3 passes to the left.");
+
+  draftCards(nodes, 13);
+  assert.equal(nodes.continue.hidden, true, "the finished draft reviews itself; there is no pack 4");
+  assert.equal(nodes["review-heading"].hidden, true);
+});
+
+test("restarting during a review clears it and deals a fresh face-down draft", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 13);
+  nodes.restart.onclick();
+
+  assert.equal(nodes.continue.hidden, true);
+  assert.equal(nodes["review-heading"].hidden, true);
+  assert.equal(nodes.round.textContent, "1");
+  assert.equal(nodes.pick.textContent, "1");
+  assert.equal(nodes.pack.children.length, 14);
+  assert.equal(pooledCards(nodes.pool).length, 0);
+  assert.equal(nodes.pool.textContent, "Pool hidden until the next review");
 });
 
 test("the built client can play a whole three-round draft to forty-two cards", (t) => {
   const nodes = openBuiltClient(t);
 
-  for (let choice = 0; choice < 39; choice += 1) nodes.pack.firstChild.onclick();
-  assert.equal(pooledCards(nodes.pool).length, 42);
+  draftCards(nodes, 39);
+  assert.equal(pooledCards(nodes.pool).length, 42, "the finished pile is face up");
   assert.equal(nodes.pack.children.length, 0);
   assert.match(nodes.status.textContent, /Draft complete\. You drafted 42 cards\./);
   assert.equal(nodes.status.focused, true);
@@ -227,9 +295,12 @@ test("restarting deals a new draft from an empty pool", (t) => {
   assert.equal(nodes.pack.children.length, 14);
 });
 
-/** Drafts `count` cards by always taking the first card offered. */
+/** Drafts `count` cards by always taking the first card offered, continuing through reviews. */
 const draftCards = (nodes, count) => {
-  for (let taken = 0; taken < count; taken += 1) nodes.pack.firstChild.onclick();
+  for (let taken = 0; taken < count; taken += 1) {
+    if (nodes.continue.hidden === false) nodes.continue.onclick();
+    nodes.pack.firstChild.onclick();
+  }
 };
 
 const pressed = (nodes) => nodes["pool-grouping"].children
@@ -238,7 +309,7 @@ const pressed = (nodes) => nodes["pool-grouping"].children
 
 test("the pool offers every grouping and starts ungrouped in collector order", (t) => {
   const nodes = openBuiltClient(t);
-  draftCards(nodes, 6);
+  draftCards(nodes, 13);
 
   assert.deepEqual(
     nodes["pool-grouping"].children.map((control) => control.textContent),
@@ -254,7 +325,7 @@ test("the pool offers every grouping and starts ungrouped in collector order", (
 
 test("choosing a grouping regroups the same pool rather than changing it", (t) => {
   const nodes = openBuiltClient(t);
-  draftCards(nodes, 10);
+  draftCards(nodes, 13);
   const before = pooledCards(nodes.pool).map((item) => item.textContent).sort();
 
   for (const label of ["Class", "Colour", "Type"]) {
@@ -278,17 +349,17 @@ test("choosing a grouping regroups the same pool rather than changing it", (t) =
 
 test("a grouped pool survives drafting more cards into it", (t) => {
   const nodes = openBuiltClient(t);
-  draftCards(nodes, 4);
+  draftCards(nodes, 13);
   nodes["pool-grouping"].children.find((entry) => entry.textContent === "Type").onclick();
-  draftCards(nodes, 4);
+  draftCards(nodes, 13);
 
-  assert.deepEqual(pressed(nodes), ["Type"], "the chosen grouping is kept across picks");
-  assert.equal(pooledCards(nodes.pool).length, 8);
+  assert.deepEqual(pressed(nodes), ["Type"], "the chosen grouping is kept across packs");
+  assert.equal(pooledCards(nodes.pool).length, 28);
 });
 
 test("drafted cards show their own art in the pool as well as in the pack", (t) => {
   const nodes = openBuiltClient(t);
-  draftCards(nodes, 5);
+  draftCards(nodes, 13);
 
   for (const item of pooledCards(nodes.pool)) {
     const art = item.children.find((child) => child.tag === "img");

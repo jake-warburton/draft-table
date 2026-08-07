@@ -49,6 +49,8 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /## Reviewed set snapshot[\s\S]*209 draftable identities[\s\S]*228 weighted 14-position layouts totalling 460,800/);
   assert.match(readme, /## Reading your drafted pool[\s\S]*Set number\*\*, \*\*Class\*\*, \*\*Colour\*\*, and \*\*Type[\s\S]*collector order inside every group/);
   assert.match(readme, /three rows of five, five, and four[\s\S]*top tenth of the one before it[\s\S]*newest card sits on top of the pile in full/);
+  assert.match(readme, /Pool hidden until the next review\*\*, and the cards are genuinely absent[\s\S]*Pack 1 review\*? or \*?Pack 2 review\*? heading[\s\S]*next pack waits until you continue/);
+  assert.match(readme, /one-minute review timer[\s\S]*waits for multiplayer rooms/);
   assert.match(readme, /the validator derives each identity's `cardType` and `cardClass` from those tokens/);
   assert.match(readme, /## Handing your pool to Fabrary[\s\S]*pre-filled import link[\s\S]*copyable text list/);
   assert.match(readme, /The fallback is not optional[\s\S]*sign-in wall[\s\S]*DT-7/);
