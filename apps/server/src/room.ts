@@ -110,7 +110,7 @@ interface Participant {
 
 interface FeedEvent {
   readonly at: number;
-  readonly type: "join" | "reconnect" | "disconnect";
+  readonly type: "join" | "reconnect" | "disconnect" | "leave" | "removed" | "seats";
   readonly name: string;
 }
 
@@ -492,8 +492,329 @@ export class RoomObject {
       this.sendError(socket, room.stateVersion, "already_authenticated", command.commandId);
       return;
     }
-    // Lobby commands, the start transaction, and the draft arrive in later slices.
-    this.sendError(socket, room.stateVersion, "unknown_command", command.commandId);
+
+    const self = room.participants.find(({ id }) => id === attachment.participantId);
+    if (self === undefined) {
+      // Removed while this socket was still open: it is nobody again.
+      socket.close(REFUSED_CLOSE_CODE, "removed");
+      return;
+    }
+
+    if (command.type === "resync") {
+      this.send(socket, room.stateVersion, "snapshot", this.snapshotPayload(room, self.id), command.commandId);
+      return;
+    }
+
+    // Every remaining command belongs to a phase, and the only phase so far is the lobby.
+    if (room.phase !== "lobby") {
+      this.sendError(socket, room.stateVersion, "wrong_phase", command.commandId);
+      return;
+    }
+
+    switch (command.type) {
+      case "update_profile":
+        await this.updateProfile(socket, room, self, command);
+        return;
+      case "update_config":
+        await this.updateConfig(socket, room, self, command);
+        return;
+      case "move_participant":
+        await this.moveParticipant(socket, room, self, command);
+        return;
+      case "set_seat_randomization":
+        await this.setSeatRandomization(socket, room, self, command);
+        return;
+      case "remove_participant":
+        await this.removeParticipant(socket, room, self, command);
+        return;
+      case "leave":
+        await this.leave(socket, room, self, command);
+        return;
+      default:
+        // The start transaction and the draft arrive in later slices.
+        this.sendError(socket, room.stateVersion, "unknown_command", command.commandId);
+    }
+  }
+
+  /** Persists a command's outcome, acknowledges its sender, and tells everyone else. */
+  private async commit(
+    socket: RoomSocketSlice,
+    updated: RoomSnapshot,
+    command: ClientCommand,
+    broadcasts: readonly { type: string; payload: unknown }[]
+  ): Promise<void> {
+    await this.storage.put("room", updated);
+    this.send(socket, updated.stateVersion, "ack", { applied: true }, command.commandId);
+    for (const { type, payload } of broadcasts) {
+      this.broadcast(updated, type, payload, socket);
+    }
+  }
+
+  private layout(room: RoomSnapshot) {
+    return { participants: room.participants.map(publicParticipant) };
+  }
+
+  private async updateProfile(
+    socket: RoomSocketSlice, room: RoomSnapshot, self: Participant, command: ClientCommand
+  ): Promise<void> {
+    const { name } = command.payload;
+    if (Object.keys(command.payload).length !== 1 || typeof name !== "string") {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+    const trimmed = name.trim();
+    if (trimmed.length === 0 || trimmed.length > MAX_DISPLAY_NAME_LENGTH
+      || !isPlainText(trimmed) || !hasVisibleText(trimmed)) {
+      this.sendError(socket, room.stateVersion, "invalid_name", command.commandId);
+      return;
+    }
+    const updated: RoomSnapshot = {
+      ...room,
+      stateVersion: room.stateVersion + 1,
+      participants: room.participants.map((entry) =>
+        entry.id === self.id ? { ...entry, name: trimmed } : entry)
+    };
+    await this.commit(socket, updated, command, [
+      { type: "participants_changed", payload: this.layout(updated) }
+    ]);
+  }
+
+  /**
+   * The safe options travel as one complete object: partial patches invite two hosts' worth of
+   * confusion about what the room is. Seat randomization has its own verb below, and password
+   * changes wait for their own reviewed slice.
+   */
+  private async updateConfig(
+    socket: RoomSocketSlice, room: RoomSnapshot, self: Participant, command: ClientCommand
+  ): Promise<void> {
+    if (!self.host) {
+      this.sendError(socket, room.stateVersion, "forbidden", command.commandId);
+      return;
+    }
+    const known = new Set(["name", "timers", "poolHidden", "spectators"]);
+    const fields = Object.keys(command.payload);
+    if (fields.length !== known.size || fields.some((field) => !known.has(field))) {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+    const { name, timers, poolHidden, spectators } = command.payload;
+    if (typeof name !== "string" || typeof timers !== "boolean"
+      || typeof poolHidden !== "boolean" || typeof spectators !== "boolean") {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+    const trimmed = name.trim();
+    if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH
+      || !isPlainText(trimmed) || !hasVisibleText(trimmed)) {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+    const updated: RoomSnapshot = {
+      ...room,
+      stateVersion: room.stateVersion + 1,
+      config: { ...room.config, name: trimmed, timers, poolHidden, spectators }
+    };
+    await this.commit(socket, updated, command, [
+      { type: "config_changed", payload: { config: updated.config } }
+    ]);
+  }
+
+  private async moveParticipant(
+    socket: RoomSocketSlice, room: RoomSnapshot, self: Participant, command: ClientCommand
+  ): Promise<void> {
+    if (!self.host) {
+      this.sendError(socket, room.stateVersion, "forbidden", command.commandId);
+      return;
+    }
+    const { participantId, destination } = command.payload;
+    if (Object.keys(command.payload).length !== 2 || typeof participantId !== "string") {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+    const seatDestination = destination === "spectators"
+      ? null
+      : (typeof destination === "number" && Number.isInteger(destination)
+        && destination >= 0 && destination < LOBBY_SEAT_COUNT ? destination : undefined);
+    if (seatDestination === undefined) {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+    const moved = room.participants.find(({ id }) => id === participantId);
+    if (moved === undefined) {
+      this.sendError(socket, room.stateVersion, "invalid_target", command.commandId);
+      return;
+    }
+
+    // Dragging onto an occupied seat swaps; the displaced participant takes the mover's place.
+    const displaced = seatDestination === null
+      ? undefined
+      : room.participants.find((entry) => entry.seat === seatDestination && entry.id !== moved.id);
+    const participants = room.participants.map((entry) => {
+      if (entry.id === moved.id) return { ...entry, seat: seatDestination };
+      if (displaced !== undefined && entry.id === displaced.id) return { ...entry, seat: moved.seat };
+      return entry;
+    });
+
+    const updated: RoomSnapshot = {
+      ...room,
+      stateVersion: room.stateVersion + 1,
+      // The first manual move or swap visibly cancels the pending start-time shuffle.
+      config: { ...room.config, randomizeSeatsAtStart: false },
+      participants,
+      feed: [...room.feed, { at: this.tools.now(), type: "seats" as const, name: moved.name }]
+        .slice(-MAX_FEED_EVENTS)
+    };
+    await this.commit(socket, updated, command, [
+      { type: "seat_layout_changed", payload: this.layout(updated) },
+      ...(room.config.randomizeSeatsAtStart
+        ? [{ type: "config_changed", payload: { config: updated.config } }]
+        : [])
+    ]);
+  }
+
+  private async setSeatRandomization(
+    socket: RoomSocketSlice, room: RoomSnapshot, self: Participant, command: ClientCommand
+  ): Promise<void> {
+    if (!self.host) {
+      this.sendError(socket, room.stateVersion, "forbidden", command.commandId);
+      return;
+    }
+    const { mode, enabled } = command.payload;
+
+    if (mode === "randomize_at_start") {
+      if (Object.keys(command.payload).length !== 2 || typeof enabled !== "boolean") {
+        this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+        return;
+      }
+      const updated: RoomSnapshot = {
+        ...room,
+        stateVersion: room.stateVersion + 1,
+        config: { ...room.config, randomizeSeatsAtStart: enabled }
+      };
+      await this.commit(socket, updated, command, [
+        { type: "config_changed", payload: { config: updated.config } }
+      ]);
+      return;
+    }
+
+    if (mode !== "randomize_now" || Object.keys(command.payload).length !== 1) {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+
+    // A server-owned shuffle of the seated participants across their own occupied positions,
+    // which also spends the pending start-time shuffle.
+    const seated = room.participants.filter((entry) => entry.seat !== null);
+    const positions = seated.map((entry) => entry.seat as number);
+    for (let index = positions.length - 1; index > 0; index -= 1) {
+      const swap = this.uniformIndex(index + 1);
+      [positions[index], positions[swap]] = [positions[swap], positions[index]];
+    }
+    const assigned = new Map(seated.map((entry, index) => [entry.id, positions[index]]));
+    const updated: RoomSnapshot = {
+      ...room,
+      stateVersion: room.stateVersion + 1,
+      config: { ...room.config, randomizeSeatsAtStart: false },
+      participants: room.participants.map((entry) =>
+        assigned.has(entry.id) ? { ...entry, seat: assigned.get(entry.id) as number } : entry),
+      feed: [...room.feed, { at: this.tools.now(), type: "seats" as const, name: self.name }]
+        .slice(-MAX_FEED_EVENTS)
+    };
+    await this.commit(socket, updated, command, [
+      { type: "seat_layout_changed", payload: this.layout(updated) },
+      { type: "config_changed", payload: { config: updated.config } }
+    ]);
+  }
+
+  /** An unbiased index below the bound, by rejection rather than modulo. */
+  private uniformIndex(bound: number): number {
+    const span = 0x100000000;
+    const limit = Math.floor(span / bound) * bound;
+    for (;;) {
+      const bytes = this.tools.randomBytes(4);
+      const value = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+      if (value < limit) return value % bound;
+    }
+  }
+
+  private async removeParticipant(
+    socket: RoomSocketSlice, room: RoomSnapshot, self: Participant, command: ClientCommand
+  ): Promise<void> {
+    if (!self.host) {
+      this.sendError(socket, room.stateVersion, "forbidden", command.commandId);
+      return;
+    }
+    const { participantId } = command.payload;
+    if (Object.keys(command.payload).length !== 1 || typeof participantId !== "string") {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+    const target = room.participants.find(({ id }) => id === participantId);
+    if (target === undefined) {
+      this.sendError(socket, room.stateVersion, "invalid_target", command.commandId);
+      return;
+    }
+    if (target.host) {
+      // The permanent host cannot be removed, least of all by themselves.
+      this.sendError(socket, room.stateVersion, "invalid_target", command.commandId);
+      return;
+    }
+    await this.withdraw(socket, room, target, "removed", command);
+  }
+
+  private async leave(
+    socket: RoomSocketSlice, room: RoomSnapshot, self: Participant, command: ClientCommand
+  ): Promise<void> {
+    if (Object.keys(command.payload).length !== 0) {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+    await this.withdraw(socket, room, self, "leave", command);
+  }
+
+  /**
+   * Takes one participant out of the lobby entirely: the slot opens, the credential no longer
+   * reclaims anything, and their sockets close. When the last participant goes on purpose, the
+   * room goes with them — explicit desertion deletes immediately, per the lifecycle contract.
+   */
+  private async withdraw(
+    socket: RoomSocketSlice,
+    room: RoomSnapshot,
+    departing: Participant,
+    reason: "leave" | "removed",
+    command: ClientCommand
+  ): Promise<void> {
+    const participants = room.participants.filter(({ id }) => id !== departing.id);
+
+    if (reason === "leave" && participants.length === 0) {
+      this.send(socket, room.stateVersion + 1, "ack", { applied: true }, command.commandId);
+      for (const open of this.state.getWebSockets()) {
+        open.close(REFUSED_CLOSE_CODE, "room_closed");
+      }
+      await this.storage.deleteAll();
+      return;
+    }
+
+    const nobodyConnected = participants.every((entry) => !entry.connected);
+    const updated: RoomSnapshot = {
+      ...room,
+      stateVersion: room.stateVersion + 1,
+      participants,
+      feed: [...room.feed, { at: this.tools.now(), type: reason, name: departing.name }]
+        .slice(-MAX_FEED_EVENTS),
+      abandonAt: nobodyConnected ? this.tools.now() + LOBBY_ABANDONMENT_MS : room.abandonAt,
+      alarmGeneration: nobodyConnected ? room.alarmGeneration + 1 : room.alarmGeneration
+    };
+    await this.storage.put("room", updated);
+    if (nobodyConnected && updated.abandonAt !== null) await this.storage.setAlarm(updated.abandonAt);
+
+    this.send(socket, updated.stateVersion, "ack", { applied: true }, command.commandId);
+    for (const { socket: open, attachment } of this.authenticatedSockets()) {
+      if (attachment.participantId === departing.id) {
+        open.close(REFUSED_CLOSE_CODE, reason);
+      }
+    }
+    this.broadcast(updated, "participants_changed", this.layout(updated), socket);
   }
 
   /**

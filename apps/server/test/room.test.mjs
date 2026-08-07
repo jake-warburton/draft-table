@@ -704,3 +704,239 @@ test("duplicate due alarms cannot resurrect or damage anything", async () => {
   await room.alarm();
   assert.equal(storage.map.size, 0);
 });
+
+const command = (type, payload = {}) => JSON.stringify({
+  protocolVersion: 1,
+  commandId: `cmd-${(commandCounter += 1)}`,
+  type,
+  payload
+});
+
+/** A lobby with a bound host and one ordinary guest; the everyday command position. */
+const openLobby = async () => {
+  const context = await openRoom();
+  await context.room.webSocketMessage(context.socket, hello({ hostClaim: context.created.hostClaim }));
+  const guest = await connect(context);
+  await context.room.webSocketMessage(guest.socket, hello());
+  return {
+    ...context,
+    host: context.socket,
+    guest: guest.socket,
+    hostId: frames(context.socket, "hello_ack")[0].payload.self.id,
+    guestId: frames(guest.socket, "hello_ack")[0].payload.self.id
+  };
+};
+
+const lastAck = (socket) => frames(socket, "ack").at(-1);
+const lastError = (socket) => frames(socket, "error").at(-1);
+
+test("a drafter renames themselves and everyone else hears about it once", async () => {
+  const lobby = await openLobby();
+  const before = lobby.storage.map.get("room").stateVersion;
+  await lobby.room.webSocketMessage(lobby.guest, command("update_profile", { name: "  Karla  " }));
+
+  assert.equal(lobby.storage.map.get("room").participants[1].name, "Karla");
+  assert.equal(lastAck(lobby.guest).stateVersion, before + 1);
+  assert.equal(frames(lobby.host, "participants_changed").length, 2, "the join and the rename");
+  assert.equal(frames(lobby.guest, "participants_changed").length, 0, "the ack already told them");
+});
+
+test("a rename that would render as nothing is refused without a mutation", async () => {
+  const lobby = await openLobby();
+  const before = JSON.stringify(lobby.storage.map.get("room"));
+  await lobby.room.webSocketMessage(lobby.guest, command("update_profile", { name: "​​" }));
+  assert.equal(lastError(lobby.guest).payload.code, "invalid_name");
+  assert.equal(JSON.stringify(lobby.storage.map.get("room")), before);
+});
+
+test("the host reshapes the safe options as one whole object", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.host, command("update_config", {
+    name: "Friday Omens", timers: false, poolHidden: false, spectators: false
+  }));
+
+  const { config } = lobby.storage.map.get("room");
+  assert.equal(config.name, "Friday Omens");
+  assert.equal(config.timers, false);
+  assert.equal(config.randomizeSeatsAtStart, true, "seat randomization has its own verb");
+  const [broadcast] = frames(lobby.guest, "config_changed");
+  assert.deepEqual(broadcast.payload.config, config);
+});
+
+test("configuration belongs to the host and arrives whole or not at all", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.guest, command("update_config", {
+    name: "Mine now", timers: true, poolHidden: true, spectators: true
+  }));
+  assert.equal(lastError(lobby.guest).payload.code, "forbidden");
+
+  await lobby.room.webSocketMessage(lobby.host, command("update_config", { timers: false }));
+  assert.equal(lastError(lobby.host).payload.code, "malformed_message");
+  assert.equal(lobby.storage.map.get("room").config.timers, true);
+});
+
+test("the host moves a guest to an empty seat and the pending shuffle is visibly off", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.host, command("move_participant", {
+    participantId: lobby.guestId, destination: 5
+  }));
+
+  const snapshot = lobby.storage.map.get("room");
+  assert.equal(snapshot.participants[1].seat, 5);
+  assert.equal(snapshot.config.randomizeSeatsAtStart, false, "the first manual move spends the shuffle");
+  assert.equal(frames(lobby.guest, "seat_layout_changed").length, 1);
+  assert.equal(frames(lobby.guest, "config_changed").length, 1, "the spent shuffle is announced");
+  assert.equal(snapshot.feed.at(-1).type, "seats");
+});
+
+test("moving onto an occupied seat swaps the two", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.host, command("move_participant", {
+    participantId: lobby.guestId, destination: 0
+  }));
+
+  const seats = new Map(lobby.storage.map.get("room").participants.map((entry) => [entry.id, entry.seat]));
+  assert.equal(seats.get(lobby.guestId), 0);
+  assert.equal(seats.get(lobby.hostId), 1, "the displaced host takes the mover's place");
+});
+
+test("a guest can be sent to the spectator row and seats stay honest", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.host, command("move_participant", {
+    participantId: lobby.guestId, destination: "spectators"
+  }));
+  assert.equal(lobby.storage.map.get("room").participants[1].seat, null);
+});
+
+test("seat moves belong to the host and only to real destinations", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.guest, command("move_participant", {
+    participantId: lobby.hostId, destination: "spectators"
+  }));
+  assert.equal(lastError(lobby.guest).payload.code, "forbidden");
+
+  for (const destination of [8, -1, 2.5, "balcony"]) {
+    await lobby.room.webSocketMessage(lobby.host, command("move_participant", {
+      participantId: lobby.guestId, destination
+    }));
+    assert.equal(lastError(lobby.host).payload.code, "malformed_message", String(destination));
+  }
+
+  await lobby.room.webSocketMessage(lobby.host, command("move_participant", {
+    participantId: "nobody-here", destination: 3
+  }));
+  assert.equal(lastError(lobby.host).payload.code, "invalid_target");
+});
+
+test("randomize now shuffles the seated among their own positions and spends the pending shuffle", async () => {
+  const lobby = await openLobby();
+  const before = lobby.storage.map.get("room").participants.map((entry) => entry.seat);
+  await lobby.room.webSocketMessage(lobby.host, command("set_seat_randomization", { mode: "randomize_now" }));
+
+  const snapshot = lobby.storage.map.get("room");
+  const after = snapshot.participants.map((entry) => entry.seat);
+  assert.deepEqual([...after].sort(), [...before].sort(), "the same positions, redistributed");
+  assert.equal(snapshot.config.randomizeSeatsAtStart, false);
+  assert.equal(frames(lobby.guest, "seat_layout_changed").length, 1);
+});
+
+test("the pending start shuffle can be explicitly re-enabled", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.host, command("move_participant", {
+    participantId: lobby.guestId, destination: 4
+  }));
+  assert.equal(lobby.storage.map.get("room").config.randomizeSeatsAtStart, false);
+
+  await lobby.room.webSocketMessage(lobby.host, command("set_seat_randomization", {
+    mode: "randomize_at_start", enabled: true
+  }));
+  assert.equal(lobby.storage.map.get("room").config.randomizeSeatsAtStart, true);
+});
+
+test("the host removes a guest: gone, doors closed, slot open, credential dead", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.host, command("remove_participant", {
+    participantId: lobby.guestId
+  }));
+
+  const snapshot = lobby.storage.map.get("room");
+  assert.equal(snapshot.participants.length, 1);
+  assert.equal(lobby.guest.closed?.reason, "removed");
+  assert.equal(snapshot.feed.at(-1).type, "removed");
+
+  const credential = frames(lobby.guest, "hello_ack")[0].payload.credential;
+  const again = await connect(lobby);
+  await lobby.room.webSocketMessage(again.socket, hello({ credential }));
+  const ack = frames(again.socket, "hello_ack")[0];
+  assert.notEqual(ack.payload.self.id, lobby.guestId, "the removed identity does not come back");
+});
+
+test("nobody removes the host, and guests remove nobody", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.host, command("remove_participant", {
+    participantId: lobby.hostId
+  }));
+  assert.equal(lastError(lobby.host).payload.code, "invalid_target");
+
+  await lobby.room.webSocketMessage(lobby.guest, command("remove_participant", {
+    participantId: lobby.hostId
+  }));
+  assert.equal(lastError(lobby.guest).payload.code, "forbidden");
+});
+
+test("a guest who leaves opens their slot for the next arrival", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.guest, command("leave"));
+
+  assert.equal(lobby.storage.map.get("room").participants.length, 1);
+  assert.equal(lobby.guest.closed?.reason, "leave");
+
+  const next = await connect(lobby);
+  await lobby.room.webSocketMessage(next.socket, hello());
+  assert.equal(frames(next.socket, "hello_ack")[0].payload.self.seat, 1, "the vacated seat is free again");
+});
+
+test("when the last participant leaves on purpose, the room goes with them", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.guest, command("leave"));
+  await lobby.room.webSocketMessage(lobby.host, command("leave"));
+
+  assert.equal(lobby.storage.map.size, 0, "explicit desertion deletes immediately");
+  assert.ok(lobby.sockets.every((socket) => socket.closed !== null));
+});
+
+test("resync answers with a fresh snapshot for whoever asks", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.guest, command("resync"));
+  const snapshot = frames(lobby.guest, "snapshot").at(-1);
+  assert.equal(snapshot.payload.self, lobby.guestId);
+  assert.equal(snapshot.payload.participants.length, 2);
+});
+
+test("lobby commands wait for the lobby", async () => {
+  const lobby = await openLobby();
+  lobby.storage.map.set("room", { ...lobby.storage.map.get("room"), phase: "picking" });
+  await lobby.room.webSocketMessage(lobby.guest, command("update_profile", { name: "Late" }));
+  assert.equal(lastError(lobby.guest).payload.code, "wrong_phase");
+});
+
+test("a socket whose identity was removed mid-flight is nobody again", async () => {
+  const lobby = await openLobby();
+  lobby.storage.map.set("room", {
+    ...lobby.storage.map.get("room"),
+    participants: lobby.storage.map.get("room").participants.filter(({ id }) => id !== lobby.guestId)
+  });
+  await lobby.room.webSocketMessage(lobby.guest, command("update_profile", { name: "Ghost" }));
+  assert.equal(lobby.guest.closed?.reason, "removed");
+});
+
+test("no lobby broadcast ever carries a verifier", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.host, command("update_config", {
+    name: "Scan me", timers: true, poolHidden: true, spectators: true
+  }));
+  await lobby.room.webSocketMessage(lobby.host, command("set_seat_randomization", { mode: "randomize_now" }));
+  const everything = JSON.stringify([...lobby.host.sent, ...lobby.guest.sent]);
+  assert.ok(!everything.includes("digest"));
+  assert.ok(!everything.includes("salt"));
+});
