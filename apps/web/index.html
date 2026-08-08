@@ -15,6 +15,8 @@
         <p class="masthead-note">Unofficial fan project — <a href="#about">about</a></p>
       </header>
 
+      <div class="board">
+      <div class="board-main">
       <section id="rooms" aria-labelledby="rooms-title">
         <h2 id="rooms-title" class="visually-hidden">Draft with people</h2>
         <div id="room-forms">
@@ -49,17 +51,6 @@
       <p id="room-status" role="status" aria-live="polite"></p>
       <p id="room-controls" hidden><button id="room-leave" type="button" class="ghost">Leave the room</button></p>
 
-      <section id="room-story" aria-labelledby="story-title" hidden>
-        <h2 id="story-title">Around the table</h2>
-        <ol id="room-feed" role="log" aria-live="polite"></ol>
-      </section>
-
-      <p id="room-deadline" hidden>
-        <span id="deadline-label">Time remaining</span>
-        <progress id="deadline-bar" max="1000" value="1000"></progress>
-        <span id="deadline-seconds" role="timer"></span>
-      </p>
-
       <section id="pack-section" aria-labelledby="pack-title">
         <h2 id="pack-title">
           <span id="drafting-heading">Round <span id="round">1</span>, pick <span id="pick">1</span></span>
@@ -93,6 +84,21 @@
         <h2 id="table-title">Practice on your own</h2>
         <button id="restart" type="button">Deal a new draft</button>
       </section>
+      </div>
+
+      <aside class="board-side">
+        <section id="room-story" aria-labelledby="story-title" hidden>
+          <h2 id="story-title">Around the table</h2>
+          <ol id="room-feed" role="log" aria-live="polite"></ol>
+        </section>
+
+        <p id="room-deadline" hidden>
+          <span id="deadline-label">Time remaining</span>
+          <progress id="deadline-bar" max="1000" value="1000"></progress>
+          <span id="deadline-seconds" role="timer"></span>
+        </p>
+      </aside>
+      </div>
 
       <footer id="about">
         <h2>About Draft Table</h2>
