@@ -289,6 +289,10 @@ Disconnection never vacates a seat: the seat notes the absence, deadlines keep r
 
 Not there yet: pause and resume, the spectator's chosen point of view, host seat-filling after start, per-command dedupe records, the twenty-four-hour cleanup for abandoned started drafts, and password changes after creation. The object's storage, time, entropy, and socket plumbing arrive through narrow injected slices, so its tests drive whole drafts to completion without a Cloudflare runtime.
 
+## Talking to a room
+
+The client's side of the protocol lives in two reviewed modules, not yet wired to the page. `apps/web/src/protocol.ts` is the pure half: envelopes out, frames read strictly and refused quietly, the server's clock estimated by preferring the fastest round trip ever observed, and bounded reconnect backoff. `apps/web/src/room-client.ts` is the one stateful driver: it says hello with the room's stored credential, retires the one-time host claim and the delivered name after the first acknowledgement, asks to resync when frame versions gap rather than guessing, and reconnects with growing waits when a connection dies underneath it. It never reconnects over a refusal, a removal, or a newer connection for the same identity — those are answers, not accidents. Neither module names an origin, and a guard confines scripted networking to exactly these two files. The page itself still opens no connection; wiring the table to a room is the next piece.
+
 ## Reading your drafted pool
 
 The pool starts in collector order and can be regrouped without changing it. Buttons offer **Set number**, **Class**, **Colour**, and **Type**; cards stay in collector order inside every group, empty groups are left out, and each heading carries its own count.
