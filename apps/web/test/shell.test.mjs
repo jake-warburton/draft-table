@@ -90,8 +90,12 @@ test("the stylesheet deals the pack five to a row and stacks the pool into piles
   const css = read("styles.css");
   assert.match(css, /\.cards\s*{[^}]*grid-template-columns:\s*repeat\(5,\s*1fr\)/,
     "a fresh fourteen-card pack reads as rows of five, five, and four");
-  assert.match(css, /\.pool-card\s*\+\s*\.pool-card\s*{[^}]*margin-top:\s*-125\.9%/,
-    "each drafted card overlaps all but the top tenth of the one before it");
+  assert.match(css, /\.pool-card:not\(:last-child\)\s*{[^}]*aspect-ratio:\s*3760\s*\/\s*526/,
+    "every covered card is a clipped strip exactly a tenth of a card tall");
+  assert.match(css, /\.pool-card:not\(:last-child\)\s*{[^}]*overflow:\s*hidden/,
+    "the strip clips its own card rather than leaning on negative margins");
+  assert.doesNotMatch(css, /margin-top:\s*-/,
+    "no negative margin height tricks; Safari resolves their percentage basis differently");
   assert.match(css, /\.pool-card\s*{[^}]*aspect-ratio:\s*376\s*\/\s*526/,
     "a card whose art never arrives keeps its place in the pile");
   assert.match(css, /\.pool-card img\[hidden\]\s*\+\s*\.card-name\s*{[^}]*position:\s*static/,
