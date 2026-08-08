@@ -45,7 +45,11 @@ class Element {
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.text = ""; this.children = children; }
   setAttribute(name, value) { this.attributes[name] = String(value); }
-  focus() { this.focused = true; }
+  getAttribute(name) { return this.attributes[name] ?? null; }
+  focus() {
+    this.focused = true;
+    if (globalThis.document !== undefined) globalThis.document.activeElement = this;
+  }
   get firstChild() { return this.children[0]; }
 }
 
@@ -61,7 +65,7 @@ const openBuiltClient = (t, options = {}) => {
     "export", "export-link", "export-list", "export-copy", "export-status",
     "rooms", "room-status", "room-forms", "create-form", "create-name", "create-password", "create-timers",
     "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name",
-    "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-seats", "lobby-spectators",
+    "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-hint", "lobby-seats", "lobby-spectators",
     "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar",
     "deadline-seconds", "solo-table", "pack-section", "pool-section", "room-controls", "play-again"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Element("div")]));
@@ -556,7 +560,7 @@ test("creating a room walks the page into a live lobby and stands the solo table
   assert.equal(nodes.pack.children.length, 0, "no stale solo card lurks clickable under the lobby");
   assert.equal(nodes.export.hidden, true);
   assert.equal(nodes["room-code"].textContent, "A1B2C3D4");
-  assert.equal(nodes["lobby-seats"].children[0].textContent, "Drafter 1 (host)");
+  assert.equal(nodes["lobby-seats"].children[0].children[0].textContent, "Drafter 1 (host)");
   assert.equal(nodes["lobby-start"].hidden, false, "the host sees the start control");
   assert.equal(world.storage.size, 1, "the issued credential is kept");
 
@@ -741,4 +745,118 @@ test("a link that does not hold a real code changes nothing and is never echoed"
   assert.equal(nodes["room-status"].textContent, "");
   assert.ok(!JSON.stringify(Object.values(nodes).map((node) => node.textContent ?? "")).includes("UUUUUUUU"),
     "the rejected text appears nowhere on the page");
+});
+
+/** A lobby of three — the host seated first, a guest beside them, one spectator. */
+const lobbyOfThree = async (t, { selfId = "p1", selfHost = true } = {}) => {
+  const opened = openRoomWorld(t);
+  const { nodes, world, serve } = opened;
+  nodes["create-form"].onsubmit({ preventDefault: () => {} });
+  await flush();
+  const socket = world.sockets[0];
+  socket.onopen();
+  const [helloFrame] = socket.sent;
+  serve(socket, "hello_ack", { self: { id: selfId, name: "Self", host: selfHost, connected: true, seat: null } }, { commandId: helloFrame.commandId });
+  serve(socket, "snapshot", {
+    phase: "lobby", config: {}, passwordProtected: false,
+    participants: [
+      { id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 },
+      { id: "p2", name: "Second Mate", host: false, connected: true, seat: 1 },
+      { id: "p3", name: "Onlooker", host: false, connected: true, seat: null }
+    ],
+    feed: [], self: selfId
+  });
+  return { ...opened, socket };
+};
+
+const sentMoves = (socket) => socket.sent.filter((frame) => frame.type === "move_participant");
+
+test("the host drags a drafter onto another seat and the room hears the exact move", async (t) => {
+  const { nodes, socket } = await lobbyOfThree(t);
+  const seats = nodes["lobby-seats"].children;
+
+  assert.equal(seats[0].attributes.draggable, "true", "an occupied row lifts");
+  assert.equal(seats[3].attributes.draggable, undefined, "an empty seat does not");
+  assert.equal(nodes["lobby-hint"].hidden, false, "the host is told how");
+
+  seats[0].ondragstart({ dataTransfer: { setData: () => {} } });
+  seats[3].ondrop({ preventDefault: () => {} });
+  assert.deepEqual(sentMoves(socket).map((frame) => frame.payload),
+    [{ participantId: "p1", destination: 3 }]);
+});
+
+test("dropping a drafter on the spectator row unseats them", async (t) => {
+  const { nodes, socket } = await lobbyOfThree(t);
+
+  nodes["lobby-seats"].children[1].ondragstart({ dataTransfer: { setData: () => {} } });
+  nodes["lobby-spectators"].ondrop({ preventDefault: () => {} });
+  assert.deepEqual(sentMoves(socket).map((frame) => frame.payload),
+    [{ participantId: "p2", destination: "spectators" }]);
+});
+
+test("the picker beside each name makes the same moves without a mouse", async (t) => {
+  const { nodes, socket } = await lobbyOfThree(t);
+  const guestRow = nodes["lobby-seats"].children[1];
+  const picker = guestRow.children.find((child) => child.tag === "select");
+
+  assert.equal(picker.value, "1", "the picker starts on the current seat");
+  picker.value = "4";
+  picker.onchange();
+  const spectatorPicker = nodes["lobby-spectators"].children[0].children
+    .find((child) => child.tag === "select");
+  assert.equal(spectatorPicker.value, "spectators");
+  spectatorPicker.value = "0";
+  spectatorPicker.onchange();
+
+  assert.deepEqual(sentMoves(socket).map((frame) => frame.payload), [
+    { participantId: "p2", destination: 4 },
+    { participantId: "p3", destination: 0 }
+  ]);
+});
+
+test("a drag that ends nowhere moves nobody", async (t) => {
+  const { nodes, socket } = await lobbyOfThree(t);
+  const seats = nodes["lobby-seats"].children;
+
+  seats[0].ondragstart({ dataTransfer: { setData: () => {} } });
+  seats[0].ondragend();
+  seats[3].ondrop({ preventDefault: () => {} });
+  assert.deepEqual(sentMoves(socket), [], "the finished drag left nothing to drop");
+});
+
+test("a guest's lobby offers no drags, no pickers, and no hint", async (t) => {
+  const { nodes } = await lobbyOfThree(t, { selfId: "p2", selfHost: false });
+  const seats = nodes["lobby-seats"].children;
+
+  assert.equal(seats[0].attributes.draggable, undefined);
+  assert.equal(seats[0].ondrop, undefined, "seats catch nothing for a guest");
+  assert.ok(seats.every((seat) => seat.children.every((child) => child.tag !== "select")));
+  assert.equal(nodes["lobby-hint"].hidden, true);
+  assert.equal(nodes["lobby-seats"].children[1].children[0].textContent, "Second Mate");
+});
+
+test("frames that change nothing about the people leave the lobby rows alone", async (t) => {
+  const { nodes, serve, socket } = await lobbyOfThree(t);
+  const rowBefore = nodes["lobby-seats"].children[0];
+
+  serve(socket, "deadline_changed", { phase: "lobby", deadlineAt: null }, { stateVersion: 2 });
+  assert.equal(nodes["lobby-seats"].children[0], rowBefore,
+    "an untouched lobby keeps its very nodes, so an open picker stays open");
+});
+
+test("a genuine change mid-pick hands focus back to the same participant's fresh picker", async (t) => {
+  const { nodes, serve, socket } = await lobbyOfThree(t);
+  const oldPicker = nodes["lobby-seats"].children[1].children.find((child) => child.tag === "select");
+  oldPicker.focus();
+
+  serve(socket, "participants_changed", { participants: [
+    { id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 },
+    { id: "p2", name: "Second Mate", host: false, connected: true, seat: 1 },
+    { id: "p3", name: "Onlooker", host: false, connected: true, seat: null },
+    { id: "p4", name: "Latecomer", host: false, connected: true, seat: 2 }
+  ] }, { stateVersion: 2 });
+
+  const newPicker = nodes["lobby-seats"].children[1].children.find((child) => child.tag === "select");
+  assert.notEqual(newPicker, oldPicker, "the rows really were rebuilt");
+  assert.equal(newPicker.focused, true, "and the keyboard did not fall on the page body");
 });
