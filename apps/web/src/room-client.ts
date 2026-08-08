@@ -118,6 +118,11 @@ export class RoomClient {
     return this.clock;
   }
 
+  /** The last state version this driver has seen; commands that must name one use it. */
+  lastSeenVersion(): number | null {
+    return this.lastVersion;
+  }
+
   /** Leaves on purpose: the room hears it, and the driver stops arguing with the close. */
   leave(): void {
     if (this.socket !== null) this.sendRaw("leave", {});

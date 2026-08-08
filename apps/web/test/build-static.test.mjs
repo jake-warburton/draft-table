@@ -58,7 +58,12 @@ class Element {
 const openBuiltClient = (t) => {
   const ids = ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart",
     "drafting-heading", "review-heading", "review-pack", "continue",
-    "export", "export-link", "export-list", "export-copy", "export-status"];
+    "export", "export-link", "export-list", "export-copy", "export-status",
+    "rooms", "room-status", "room-forms", "create-form", "create-name", "create-password", "create-timers",
+    "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name",
+    "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-seats", "lobby-spectators",
+    "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar",
+    "deadline-seconds", "solo-table", "pack-section", "pool-section"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Element("div")]));
   const previousDocument = globalThis.document;
   const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
@@ -101,7 +106,9 @@ test("the build inlines one self-contained module script and copies the styleshe
   const bundle = bundleOf(html);
   assert.doesNotMatch(bundle, /^\s*(?:import|export)\s/m, "no unresolved module syntax may survive");
   assert.doesNotMatch(bundle, /<\/script>/i, "the inline script must not be closable from its own text");
-  assert.doesNotMatch(bundle, /fetch\(|XMLHttpRequest|WebSocket/, "the client opens no connection of its own");
+  // Networking exists now, but only the reviewed kind: no XHR, and no origin beyond the two
+  // known ones — the room's fetch and socket speak exclusively to the page's own host.
+  assert.doesNotMatch(bundle, /XMLHttpRequest/, "no legacy transport sneaks in");
   const origins = new Set([...bundle.matchAll(/https?:\/\/[^/"']+/gu)].map((match) => match[0]));
   assert.deepEqual([...origins].sort(), [FABRARY_ORIGIN, IMAGE_ORIGIN].sort(),
     "card art and the Fabrary hand-off are the only origins in the bundle");
@@ -437,4 +444,180 @@ test("the build refuses a module specifier it cannot resolve inside the workspac
     }),
     /node:fs\/promises/
   );
+});
+
+/** A scripted room server: a fake fetch for creation and a fake socket the test speaks through. */
+const openRoomWorld = (t) => {
+  const nodes = openBuiltClient(t);
+  const world = { fetches: [], sockets: [], storage: new Map() };
+  const previous = {
+    fetch: globalThis.fetch,
+    WebSocket: globalThis.WebSocket,
+    localStorage: Object.getOwnPropertyDescriptor(globalThis, "localStorage"),
+    location: Object.getOwnPropertyDescriptor(globalThis, "location"),
+    setTimeout: globalThis.setTimeout,
+    clearTimeout: globalThis.clearTimeout,
+    setInterval: globalThis.setInterval,
+    clearInterval: globalThis.clearInterval
+  };
+  globalThis.fetch = async (path, init) => {
+    world.fetches.push({ path, init });
+    return { status: 201, json: async () => ({ code: "A1B2C3D4", hostClaim: "claim-of-the-host" }) };
+  };
+  globalThis.WebSocket = class {
+    constructor(url) {
+      this.url = url;
+      this.sent = [];
+      this.onopen = null;
+      this.onmessage = null;
+      this.onclose = null;
+      world.sockets.push(this);
+    }
+    send(data) { this.sent.push(JSON.parse(data)); }
+    close() {}
+  };
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key) => world.storage.get(key) ?? null,
+      setItem: (key, value) => { world.storage.set(key, value); }
+    }
+  });
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: { protocol: "https:", host: "draft.test" }
+  });
+  globalThis.setTimeout = () => 0;
+  globalThis.clearTimeout = () => {};
+  globalThis.setInterval = () => 0;
+  globalThis.clearInterval = () => {};
+  t.after(() => {
+    globalThis.fetch = previous.fetch;
+    globalThis.WebSocket = previous.WebSocket;
+    if (previous.localStorage === undefined) delete globalThis.localStorage;
+    else Object.defineProperty(globalThis, "localStorage", previous.localStorage);
+    if (previous.location === undefined) delete globalThis.location;
+    else Object.defineProperty(globalThis, "location", previous.location);
+    globalThis.setTimeout = previous.setTimeout;
+    globalThis.clearTimeout = previous.clearTimeout;
+    globalThis.setInterval = previous.setInterval;
+    globalThis.clearInterval = previous.clearInterval;
+  });
+  const serve = (socket, type, payload, extra = {}) => {
+    socket.onmessage({ data: JSON.stringify({
+      protocolVersion: 1, stateVersion: extra.stateVersion ?? 1, type,
+      ...(extra.commandId === undefined ? {} : { commandId: extra.commandId }),
+      serverNow: 1_000, payload
+    }) });
+  };
+  return { nodes, world, serve };
+};
+
+const flush = () => new Promise((resolve) => { setImmediate(resolve); });
+
+test("creating a room walks the page into a live lobby and stands the solo table down", async (t) => {
+  const { nodes, world, serve } = openRoomWorld(t);
+  nodes["create-name"].value = "Friday Omens";
+  nodes["create-timers"].checked = true;
+  nodes["create-pool-hidden"].checked = true;
+  nodes["create-spectators"].checked = true;
+  nodes["create-form"].onsubmit({ preventDefault: () => {} });
+  await flush();
+
+  assert.equal(world.fetches[0].path, "/api/rooms");
+  const socket = world.sockets[0];
+  assert.equal(socket.url, "wss://draft.test/api/rooms/A1B2C3D4/socket");
+  socket.onopen();
+  const [hello] = socket.sent;
+  assert.equal(hello.type, "hello");
+  assert.equal(hello.payload.hostClaim, "claim-of-the-host");
+
+  serve(socket, "hello_ack", { credential: "issued", self: { id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 } }, { commandId: hello.commandId });
+  serve(socket, "snapshot", {
+    phase: "lobby",
+    config: { name: "Friday Omens" },
+    passwordProtected: false,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [],
+    self: "p1"
+  });
+
+  assert.equal(nodes["room-lobby"].hidden, false, "the lobby is on screen");
+  assert.equal(nodes["room-forms"].hidden, true);
+  assert.equal(nodes["solo-table"].hidden, true, "the solo table stood down");
+  assert.equal(nodes["pack-section"].hidden, true, "the table sections wait behind the lobby");
+  assert.equal(nodes["pool-section"].hidden, true);
+  assert.equal(nodes.pack.children.length, 0, "no stale solo card lurks clickable under the lobby");
+  assert.equal(nodes.export.hidden, true);
+  assert.equal(nodes["room-code"].textContent, "A1B2C3D4");
+  assert.equal(nodes["lobby-seats"].children[0].textContent, "Drafter 1 (host)");
+  assert.equal(nodes["lobby-start"].hidden, false, "the host sees the start control");
+  assert.equal(world.storage.size, 1, "the issued credential is kept");
+
+  serve(socket, "snapshot", {
+    phase: "lobby", config: {}, passwordProtected: false,
+    participants: [
+      { id: "p1", name: "Drafter 1", host: false, connected: true, seat: 0 },
+      { id: "p2", name: "The Host", host: true, connected: true, seat: 1 }
+    ],
+    feed: [], self: "p1"
+  }, { stateVersion: 2 });
+  assert.equal(nodes["lobby-start"].hidden, true, "a guest sees no start control");
+  assert.equal(nodes["lobby-randomize"].hidden, true, "nor the shuffle");
+});
+
+test("a started room deals the pack onto the same table and clicking a card queues it", async (t) => {
+  const { nodes, world, serve } = openRoomWorld(t);
+  nodes["create-form"].onsubmit({ preventDefault: () => {} });
+  await flush();
+  const socket = world.sockets[0];
+  socket.onopen();
+  const [hello] = socket.sent;
+  serve(socket, "hello_ack", { self: { id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 } }, { commandId: hello.commandId });
+  serve(socket, "snapshot", {
+    phase: "lobby", config: {}, passwordProtected: false,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [], self: "p1"
+  });
+
+  serve(socket, "phase_changed", {
+    phase: "picking", status: "picking", round: 1, pick: 1, passDirection: "left", packSize: 3,
+    seats: [{ seatId: "seat-1", participantId: "p1", connected: true, hasQueued: false }]
+  }, { stateVersion: 2 });
+  serve(socket, "private_pack_pool", {
+    seatId: "seat-1",
+    pack: { id: "r1s1", cards: [
+      { instanceId: "r1s1-0", cardId: "UNKNOWN1" },
+      { instanceId: "r1s1-1", cardId: "UNKNOWN2" },
+      { instanceId: "r1s1-2", cardId: "UNKNOWN3" }
+    ] },
+    pool: null,
+    queued: null
+  }, { stateVersion: 2 });
+
+  assert.equal(nodes["pack-section"].hidden, false, "the table sections return for the draft");
+  assert.equal(nodes["pool-section"].hidden, false);
+  assert.equal(nodes.pack.children.length, 3, "the room's pack landed on the shared table");
+  assert.match(nodes.status.textContent, /Round 1, pick 1/);
+  assert.match(nodes.pool.textContent, /Pool hidden until the next review/);
+
+  // A deadline learned from a snapshot alone must still fill the bar from what remains now.
+  serve(socket, "snapshot", {
+    phase: "picking", config: {}, passwordProtected: false,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [], self: "p1",
+    draft: {
+      status: "picking", round: 1, pick: 1, passDirection: "left", packSize: 3,
+      seats: [{ seatId: "seat-1", participantId: "p1", connected: true, hasQueued: false }]
+    },
+    deadlineAt: 51_000
+  }, { stateVersion: 3 });
+  assert.equal(nodes["room-deadline"].hidden, false);
+  assert.ok(Number(nodes["deadline-bar"].value) > 900,
+    "the bar measures from what remained at arrival, not from an empty total");
+
+  nodes.pack.children[1].onclick();
+  const queued = socket.sent.at(-1);
+  assert.equal(queued.type, "queue_pick");
+  assert.deepEqual(queued.payload, { round: 1, pick: 1, cardInstanceId: "r1s1-1" });
 });

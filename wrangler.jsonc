@@ -1,0 +1,29 @@
+// The one deployment: a single Worker serving the static client and the room routes, with one
+// SQLite-backed Durable Object class per room. Deploying is a deliberate captain step:
+//   npx wrangler deploy
+// after `npx wrangler login` and a fresh `npm run build`. Nothing in CI or the tests reads this
+// file; it exists so the deployment shape is reviewed alongside the code it deploys.
+{
+  "name": "draft-table",
+  "main": "apps/server/src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "apps/web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ROOMS",
+        "class_name": "RoomObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RoomObject"]
+    }
+  ]
+}

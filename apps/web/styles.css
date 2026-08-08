@@ -248,3 +248,51 @@ button:focus-visible {
     flex-basis: 8rem;
   }
 }
+
+/* Rooms: two forms side by side, then a lobby of eight seat cards and a spectator row. */
+#room-forms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+#room-forms form {
+  flex: 1 1 18rem;
+}
+
+#rooms input:not([type="checkbox"]) {
+  padding: 0.5rem;
+  border: 2px solid var(--edge);
+  border-radius: 0.5rem;
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+}
+
+#lobby-seats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+#lobby-seats li {
+  padding: 0.75rem;
+  border: 2px dashed var(--edge);
+  border-radius: 0.5rem;
+}
+
+#lobby-spectators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+#room-deadline progress {
+  width: 12rem;
+}
