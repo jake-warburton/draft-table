@@ -968,3 +968,25 @@ test("no lobby broadcast ever carries a verifier", async () => {
   assert.ok(!everything.includes("digest"));
   assert.ok(!everything.includes("salt"));
 });
+
+test("the room's story is broadcast as it is written, and a joiner is not told twice", async () => {
+  const lobby = await openLobby();
+
+  const heardByHost = frames(lobby.host, "feed_appended");
+  assert.equal(heardByHost.length, 1, "the host heard the guest arrive");
+  assert.equal(heardByHost[0].payload.event.type, "join");
+  assert.equal(heardByHost[0].payload.event.name, "Drafter 2");
+  assert.equal(frames(lobby.guest, "feed_appended").length, 0,
+    "the joiner's own snapshot already carries the history");
+
+  await lobby.room.webSocketMessage(lobby.host, command("move_participant", {
+    participantId: lobby.guestId, destination: 5
+  }));
+  assert.equal(frames(lobby.host, "feed_appended").at(-1).payload.event.type, "seats");
+  assert.equal(frames(lobby.guest, "feed_appended").at(-1).payload.event.type, "seats");
+
+  await lobby.room.webSocketMessage(lobby.guest, command("leave"));
+  assert.equal(frames(lobby.host, "feed_appended").at(-1).payload.event.type, "leave");
+  assert.equal(frames(lobby.host, "feed_appended").length, 3,
+    "exactly one story line per material event, nothing else");
+});

@@ -67,7 +67,8 @@ const openBuiltClient = (t, options = {}) => {
     "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name",
     "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-hint", "lobby-seats", "lobby-spectators",
     "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar",
-    "deadline-seconds", "solo-table", "pack-section", "pool-section", "room-controls", "play-again"];
+    "deadline-seconds", "solo-table", "pack-section", "pool-section", "room-controls", "play-again",
+    "room-story", "room-feed"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Element("div")]));
   const previousDocument = globalThis.document;
   const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
@@ -859,4 +860,57 @@ test("a genuine change mid-pick hands focus back to the same participant's fresh
   const newPicker = nodes["lobby-seats"].children[1].children.find((child) => child.tag === "select");
   assert.notEqual(newPicker, oldPicker, "the rows really were rebuilt");
   assert.equal(newPicker.focused, true, "and the keyboard did not fall on the page body");
+});
+
+test("the room tells its story: history on arrival, new lines as they happen", async (t) => {
+  const { nodes, serve, socket } = await lobbyOfThree(t);
+
+  assert.equal(nodes["room-story"].hidden, false, "the story box lives wherever the room does");
+  serve(socket, "snapshot", {
+    phase: "lobby", config: {}, passwordProtected: false,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [
+      { at: 1, type: "join", name: "Drafter 1" },
+      { at: 2, type: "join", name: "Second Mate" }
+    ],
+    self: "p1"
+  }, { stateVersion: 2 });
+  assert.deepEqual(nodes["room-feed"].children.map((line) => line.textContent),
+    ["Drafter 1 joined.", "Second Mate joined."], "the snapshot's history is the box's opening state");
+
+  serve(socket, "feed_appended", { event: { at: 3, type: "seats", name: "Drafter 1" } }, { stateVersion: 3 });
+  serve(socket, "feed_appended", { event: { at: 4, type: "leave", name: "Second Mate" } }, { stateVersion: 4 });
+  assert.deepEqual(nodes["room-feed"].children.slice(-2).map((line) => line.textContent),
+    ["Drafter 1 rearranged the seats.", "Second Mate left."]);
+
+  serve(socket, "feed_appended", { event: { at: 5, type: "unheard-of", name: "X" } }, { stateVersion: 5 });
+  assert.ok(nodes["room-feed"].children.every((line) => line.textContent !== ""),
+    "a story type this page does not know is left out rather than half-said");
+});
+
+test("each fresh pack announces itself in the story exactly once", async (t) => {
+  const { nodes, serve, socket } = await lobbyOfThree(t);
+
+  const phase = (round, pick) => serve(socket, "phase_changed", {
+    phase: "picking", status: "picking", round, pick, packSize: 14, passDirection: "left",
+    seats: [{ seatId: "seat-1", participantId: "p1", connected: true, hasQueued: false }]
+  }, { stateVersion: 2 });
+  phase(1, 1);
+  phase(1, 2);
+  phase(1, 1);
+  const packLines = () => nodes["room-feed"].children
+    .map((line) => line.textContent).filter((line) => line.startsWith("Pack"));
+  assert.deepEqual(packLines(), ["Pack 1 is in hand."], "repeats and later picks add nothing");
+
+  phase(2, 1);
+  assert.deepEqual(packLines(), ["Pack 1 is in hand.", "Pack 2 is in hand."]);
+});
+
+test("leaving the room takes the story with it", async (t) => {
+  const { nodes } = await lobbyOfThree(t);
+  assert.equal(nodes["room-story"].hidden, false);
+
+  nodes["room-leave"].onclick();
+  assert.equal(nodes["room-story"].hidden, true);
+  assert.equal(nodes["room-feed"].children.length, 0, "the next room starts its own story");
 });
