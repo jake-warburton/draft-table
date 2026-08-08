@@ -45,7 +45,11 @@ class Element {
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.text = ""; this.children = children; }
   setAttribute(name, value) { this.attributes[name] = String(value); }
-  focus() { this.focused = true; }
+  getAttribute(name) { return this.attributes[name] ?? null; }
+  focus() {
+    this.focused = true;
+    if (globalThis.document !== undefined) globalThis.document.activeElement = this;
+  }
   get firstChild() { return this.children[0]; }
 }
 
@@ -829,4 +833,30 @@ test("a guest's lobby offers no drags, no pickers, and no hint", async (t) => {
   assert.ok(seats.every((seat) => seat.children.every((child) => child.tag !== "select")));
   assert.equal(nodes["lobby-hint"].hidden, true);
   assert.equal(nodes["lobby-seats"].children[1].children[0].textContent, "Second Mate");
+});
+
+test("frames that change nothing about the people leave the lobby rows alone", async (t) => {
+  const { nodes, serve, socket } = await lobbyOfThree(t);
+  const rowBefore = nodes["lobby-seats"].children[0];
+
+  serve(socket, "deadline_changed", { phase: "lobby", deadlineAt: null }, { stateVersion: 2 });
+  assert.equal(nodes["lobby-seats"].children[0], rowBefore,
+    "an untouched lobby keeps its very nodes, so an open picker stays open");
+});
+
+test("a genuine change mid-pick hands focus back to the same participant's fresh picker", async (t) => {
+  const { nodes, serve, socket } = await lobbyOfThree(t);
+  const oldPicker = nodes["lobby-seats"].children[1].children.find((child) => child.tag === "select");
+  oldPicker.focus();
+
+  serve(socket, "participants_changed", { participants: [
+    { id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 },
+    { id: "p2", name: "Second Mate", host: false, connected: true, seat: 1 },
+    { id: "p3", name: "Onlooker", host: false, connected: true, seat: null },
+    { id: "p4", name: "Latecomer", host: false, connected: true, seat: 2 }
+  ] }, { stateVersion: 2 });
+
+  const newPicker = nodes["lobby-seats"].children[1].children.find((child) => child.tag === "select");
+  assert.notEqual(newPicker, oldPicker, "the rows really were rebuilt");
+  assert.equal(newPicker.focused, true, "and the keyboard did not fall on the page body");
 });

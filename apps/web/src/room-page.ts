@@ -152,6 +152,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   const seatPicker = (occupant: PublicParticipant): HTMLElement => {
     const picker = document.createElement("select") as HTMLSelectElement;
     picker.className = "seat-move";
+    picker.setAttribute("data-picker-for", occupant.id);
     picker.setAttribute("aria-label", `Move ${occupant.name}`);
     for (let position = 0; position < LOBBY_SEAT_COUNT; position += 1) {
       const option = document.createElement("option");
@@ -190,47 +191,61 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     };
   };
 
+  /** What the lobby rows are built from; while it holds still, the rows are left alone. */
+  let lobbySeating = "";
+
   const renderLobby = (): void => {
     if (state === null) return;
     codeLabel.textContent = state.code;
     const hosting = self()?.host === true;
+    hintRegion.hidden = !hosting;
+    randomizeControl.hidden = !hosting;
+    startControl.hidden = !hosting;
+
+    // Frames that change nothing about the people — acks, notices, deadlines — must not tear
+    // the rows down: the host may have a picker open, and a rebuild would close it under them.
+    const seating = JSON.stringify([state.code, hosting, state.participants.map((entry) =>
+      [entry.id, entry.name, entry.host, entry.connected, entry.seat])]);
+    if (seating === lobbySeating) return;
+    lobbySeating = seating;
+
+    // A genuine change rebuilds, so if the host was mid-pick, the same participant's fresh
+    // picker takes the focus back rather than dropping the keyboard on the page body.
+    const focusedOn = document.activeElement?.getAttribute("data-picker-for") ?? null;
+    const refocus: { picker: HTMLElement | null } = { picker: null };
+    const row = (occupant: PublicParticipant): HTMLElement => {
+      const item = document.createElement("li");
+      const name = document.createElement("span");
+      name.className = "seat-name";
+      name.textContent = participantLabel(occupant);
+      item.append(name);
+      if (hosting) {
+        draggableRow(item, occupant);
+        const picker = seatPicker(occupant);
+        if (occupant.id === focusedOn) refocus.picker = picker;
+        item.append(picker);
+      }
+      return item;
+    };
+
     const seated = new Map(state.participants.filter((entry) => entry.seat !== null)
       .map((entry) => [entry.seat as number, entry]));
     seatList.replaceChildren(...Array.from({ length: LOBBY_SEAT_COUNT }, (unused, position) => {
-      const item = document.createElement("li");
       const occupant = seated.get(position);
+      let item: HTMLElement;
       if (occupant === undefined) {
+        item = document.createElement("li");
         item.textContent = "Empty seat";
       } else {
-        const name = document.createElement("span");
-        name.className = "seat-name";
-        name.textContent = participantLabel(occupant);
-        item.append(name);
-        if (hosting) {
-          draggableRow(item, occupant);
-          item.append(seatPicker(occupant));
-        }
+        item = row(occupant);
       }
       if (hosting) dropTarget(item, position);
       return item;
     }));
     spectatorList.replaceChildren(...state.participants.filter((entry) => entry.seat === null)
-      .map((entry) => {
-        const item = document.createElement("li");
-        const name = document.createElement("span");
-        name.className = "seat-name";
-        name.textContent = participantLabel(entry);
-        item.append(name);
-        if (hosting) {
-          draggableRow(item, entry);
-          item.append(seatPicker(entry));
-        }
-        return item;
-      }));
+      .map((entry) => row(entry)));
     if (hosting) dropTarget(spectatorList, "spectators");
-    hintRegion.hidden = !hosting;
-    randomizeControl.hidden = !hosting;
-    startControl.hidden = !hosting;
+    refocus.picker?.focus();
   };
 
   const renderDraft = (): void => {
@@ -423,6 +438,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       deadlineTicker = null;
     }
     deadlineTotalMs = 0;
+    lobbySeating = "";
     packSection.hidden = false;
     poolSection.hidden = false;
     client?.stop("done");
@@ -466,6 +482,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
 
   const enterRoom = (code: string, hello: { name?: string; password?: string; hostClaim?: string }): void => {
     deadlineTotalMs = 0;
+    lobbySeating = "";
     state = {
       code,
       selfId: null,
