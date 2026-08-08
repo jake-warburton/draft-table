@@ -51,7 +51,7 @@ test("the shell keeps labelled regions and one live status region", () => {
   assert.match(html, /aria-labelledby="pool-title"/);
   for (const id of ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart", "drafting-heading", "review-heading", "review-pack", "continue", "export", "export-link", "export-list", "export-copy", "export-status",
     "rooms", "room-status", "room-forms", "create-form", "create-name", "create-password", "create-timers", "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name", "join-password", "join-room",
-    "room-lobby", "room-code", "room-share", "lobby-seats", "lobby-spectators", "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar", "deadline-seconds", "solo-table"]) {
+    "room-lobby", "room-code", "room-share", "lobby-seats", "lobby-spectators", "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar", "deadline-seconds", "solo-table", "pack-section", "pool-section"]) {
     assert.match(html, new RegExp(`id="${id}"`), id);
   }
   assert.match(html, /<span id="review-heading" hidden>Pack <span id="review-pack">1<\/span> review<\/span>/,

@@ -77,6 +77,8 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   const deadlineRegion = el("#room-deadline");
   const deadlineBar = el("#deadline-bar") as HTMLProgressElement;
   const deadlineSeconds = el("#deadline-seconds");
+  const packSection = el("#pack-section");
+  const poolSection = el("#pool-section");
   const packRegion = el("#pack");
   const statusRegion = el("#status");
   const draftingHeading = el("#drafting-heading");
@@ -215,7 +217,13 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     forms.hidden = true;
     lobby.hidden = !inLobby;
     regions.setSoloActive(false);
+    // The lobby owns the whole screen: the shared table sections hide, and the paused solo
+    // table's cards are genuinely gone, not lurking clickable underneath.
+    packSection.hidden = inLobby;
+    poolSection.hidden = inLobby;
     if (inLobby) {
+      packRegion.replaceChildren();
+      exportRegion.hidden = true;
       renderLobby();
       statusRegion.textContent = state.notice;
     } else {
@@ -246,6 +254,11 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
         }
         if (typeof payload.deadlineAt === "number" || payload.deadlineAt === null) {
           state.deadlineAt = payload.deadlineAt as number | null;
+          // A joiner or reconnector learns the deadline from the snapshot alone, so the bar
+          // measures from whatever remains at arrival rather than staying empty.
+          if (state.deadlineAt !== null && client !== null) {
+            deadlineTotalMs = Math.max(0, remainingMs(client.clockEstimate(), state.deadlineAt, Date.now()));
+          }
         }
         break;
       }
@@ -301,6 +314,9 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       clearInterval(deadlineTicker);
       deadlineTicker = null;
     }
+    deadlineTotalMs = 0;
+    packSection.hidden = false;
+    poolSection.hidden = false;
     client?.stop("done");
     client = null;
     state = null;
@@ -339,6 +355,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   };
 
   const enterRoom = (code: string, hello: { name?: string; password?: string; hostClaim?: string }): void => {
+    deadlineTotalMs = 0;
     state = {
       code,
       selfId: null,

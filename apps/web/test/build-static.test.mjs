@@ -63,7 +63,7 @@ const openBuiltClient = (t) => {
     "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name",
     "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-seats", "lobby-spectators",
     "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar",
-    "deadline-seconds", "solo-table"];
+    "deadline-seconds", "solo-table", "pack-section", "pool-section"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Element("div")]));
   const previousDocument = globalThis.document;
   const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
@@ -545,6 +545,10 @@ test("creating a room walks the page into a live lobby and stands the solo table
   assert.equal(nodes["room-lobby"].hidden, false, "the lobby is on screen");
   assert.equal(nodes["room-forms"].hidden, true);
   assert.equal(nodes["solo-table"].hidden, true, "the solo table stood down");
+  assert.equal(nodes["pack-section"].hidden, true, "the table sections wait behind the lobby");
+  assert.equal(nodes["pool-section"].hidden, true);
+  assert.equal(nodes.pack.children.length, 0, "no stale solo card lurks clickable under the lobby");
+  assert.equal(nodes.export.hidden, true);
   assert.equal(nodes["room-code"].textContent, "A1B2C3D4");
   assert.equal(nodes["lobby-seats"].children[0].textContent, "Drafter 1 (host)");
   assert.equal(nodes["lobby-start"].hidden, false, "the host sees the start control");
@@ -591,9 +595,26 @@ test("a started room deals the pack onto the same table and clicking a card queu
     queued: null
   }, { stateVersion: 2 });
 
+  assert.equal(nodes["pack-section"].hidden, false, "the table sections return for the draft");
+  assert.equal(nodes["pool-section"].hidden, false);
   assert.equal(nodes.pack.children.length, 3, "the room's pack landed on the shared table");
   assert.match(nodes.status.textContent, /Round 1, pick 1/);
   assert.match(nodes.pool.textContent, /Pool hidden until the next review/);
+
+  // A deadline learned from a snapshot alone must still fill the bar from what remains now.
+  serve(socket, "snapshot", {
+    phase: "picking", config: {}, passwordProtected: false,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [], self: "p1",
+    draft: {
+      status: "picking", round: 1, pick: 1, passDirection: "left", packSize: 3,
+      seats: [{ seatId: "seat-1", participantId: "p1", connected: true, hasQueued: false }]
+    },
+    deadlineAt: 51_000
+  }, { stateVersion: 3 });
+  assert.equal(nodes["room-deadline"].hidden, false);
+  assert.ok(Number(nodes["deadline-bar"].value) > 900,
+    "the bar measures from what remained at arrival, not from an empty total");
 
   nodes.pack.children[1].onclick();
   const queued = socket.sent.at(-1);
