@@ -13,9 +13,7 @@
   --panel-solid: #131624;
   --edge: rgba(255, 255, 255, 0.13);
   --edge-strong: rgba(255, 255, 255, 0.22);
-  --accent: #35d0ff;
-  --accent-deep: #7c5cff;
-  --glow: rgba(124, 92, 255, 0.35);
+  --accent: #4ea1ff;
   --radius: 0.9rem;
 }
 
@@ -34,18 +32,6 @@ body {
   color: var(--ink);
   background: var(--page);
   -webkit-font-smoothing: antialiased;
-}
-
-/* The storm behind the glass: two soft aurora glows, fixed so the page scrolls over them. */
-.sky {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(42rem 30rem at 18% -8%, rgba(124, 92, 255, 0.22), transparent 68%),
-    radial-gradient(50rem 34rem at 88% 4%, rgba(53, 208, 255, 0.14), transparent 70%),
-    radial-gradient(60rem 44rem at 50% 118%, rgba(124, 92, 255, 0.1), transparent 72%),
-    var(--page);
 }
 
 main {
@@ -84,13 +70,6 @@ section {
   letter-spacing: 0.01em;
 }
 
-.wordmark span {
-  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
 .masthead-note {
   margin: 0;
   font-size: 0.8rem;
@@ -114,11 +93,9 @@ section {
   flex: 1 1 19rem;
   max-width: 26rem;
   padding: 1.5rem 1.5rem 1.1rem;
-  background: var(--panel);
+  background: var(--panel-solid);
   border: 1px solid var(--edge);
   border-radius: var(--radius);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.35);
 }
 
 .door-card h3,
@@ -216,7 +193,7 @@ input[type="checkbox"]::after {
 }
 
 input[type="checkbox"]:checked {
-  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  background: var(--accent);
   border-color: transparent;
 }
 
@@ -260,18 +237,16 @@ a.link-button {
   padding: 0.75rem 1.35rem;
   border: none;
   border-radius: 0.6rem;
-  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  background: var(--accent);
   color: #0b0e18;
   font-weight: 700;
   text-align: center;
   text-decoration: none;
-  box-shadow: 0 0.5rem 1.6rem var(--glow);
 }
 
 .primary:hover,
 a.link-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 0.7rem 2rem var(--glow);
+  filter: brightness(1.08);
 }
 
 .ghost {
@@ -283,10 +258,9 @@ a.link-button:hover {
 .solo-card {
   margin-top: 1.25rem;
   padding: 1.5rem;
-  background: var(--panel);
+  background: var(--panel-solid);
   border: 1px solid var(--edge);
   border-radius: var(--radius);
-  backdrop-filter: blur(14px);
 }
 
 .solo-card p {
@@ -354,13 +328,11 @@ h2 {
 
 .card:hover {
   border-color: var(--accent);
-  transform: translateY(-3px);
-  box-shadow: 0 0.9rem 2rem rgba(0, 0, 0, 0.45), 0 0 1.4rem rgba(53, 208, 255, 0.12);
 }
 
 .card[aria-pressed="true"] {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent), 0 0.6rem 1.6rem var(--glow);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 /* The declared 376x526 keeps each card's space reserved whether or not its art ever arrives. */
@@ -399,7 +371,7 @@ h2 {
 
 .grouping[aria-pressed="true"] {
   border-color: transparent;
-  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  background: var(--accent);
   color: #0b0e18;
   font-weight: 700;
 }
@@ -526,10 +498,7 @@ h2 {
 }
 
 #room-code {
-  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent);
   letter-spacing: 0.12em;
 }
 
@@ -542,17 +511,6 @@ h2 {
 
 #room-share input {
   flex: 1 1 16rem;
-  font-size: 0.85rem;
-}
-
-#room-share span:last-child {
-  flex-basis: 100%;
-  color: var(--soft);
-  font-size: 0.8rem;
-}
-
-#lobby-hint {
-  color: var(--soft);
   font-size: 0.85rem;
 }
 
@@ -590,7 +548,7 @@ h2 {
 .table-board li:has(.board-name:not(:only-child)) {
   border-style: solid;
   border-color: var(--edge-strong);
-  background: rgba(124, 92, 255, 0.08);
+  background: var(--panel-solid);
 }
 
 .seat-name {
@@ -724,12 +682,12 @@ h2 {
 }
 
 #room-deadline progress::-webkit-progress-value {
-  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  background: var(--accent);
   border-radius: 1rem;
 }
 
 #room-deadline progress::-moz-progress-bar {
-  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  background: var(--accent);
   border-radius: 1rem;
 }
 

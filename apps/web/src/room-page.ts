@@ -104,7 +104,6 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   const share = el("#room-share");
   const seatList = el("#lobby-seats");
   const spectatorList = el("#lobby-spectators");
-  const hintRegion = el("#lobby-hint");
   const randomizeControl = el("#lobby-randomize");
   const startControl = el("#lobby-start");
   const leaveControl = el("#room-leave");
@@ -165,9 +164,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
         () => { copyStatus.textContent = "Your browser would not copy it. The link is selected, so copy it yourself."; }
       );
     };
-    const caveat = document.createElement("span");
-    caveat.textContent = "Anyone with the link can knock. The password, if any, travels separately.";
-    share.replaceChildren(address, copy, copyStatus, caveat);
+    share.replaceChildren(address, copy, copyStatus);
   };
 
   /** Which participant is mid-drag; the closure, not the drag payload, is the real carrier. */
@@ -231,7 +228,6 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     if (state === null) return;
     codeLabel.textContent = state.code;
     const hosting = self()?.host === true;
-    hintRegion.hidden = !hosting;
     randomizeControl.hidden = !hosting;
     startControl.hidden = !hosting;
 
@@ -699,7 +695,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   const invited = readTypedCode(new URLSearchParams(globalThis.location?.search ?? "").get("join") ?? "");
   if (invited !== null) {
     (el("#join-code") as HTMLInputElement).value = invited;
-    roomStatus.textContent = `You are invited to room ${invited}. Add your name if you like, then join.`;
+    roomStatus.textContent = `You are invited to room ${invited}.`;
     (el("#join-name") as HTMLInputElement).focus();
   }
 };
