@@ -10,6 +10,9 @@
     "test": "node --experimental-strip-types --test test/*.test.mjs"
   },
   "dependencies": {
-    "@draft-table/contracts": "0.0.0"
+    "@draft-table/contracts": "0.0.0",
+    "@draft-table/draft": "0.0.0",
+    "@draft-table/engine": "0.0.0",
+    "@draft-table/set-omens": "0.0.0"
   }
 }

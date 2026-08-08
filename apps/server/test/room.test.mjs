@@ -500,14 +500,18 @@ test("hello twice on one socket is an error without a door slam", async () => {
   assert.equal(socket.closed, null, "an authenticated socket survives its mistakes");
 });
 
-test("a command the lobby does not know yet is a structured error, not a mutation", async () => {
+test("a command the room does not know is a structured error, not a mutation", async () => {
   const { room, socket, storage } = await openRoom();
   await room.webSocketMessage(socket, hello());
   const before = JSON.stringify(storage.map.get("room"));
   await room.webSocketMessage(socket, JSON.stringify({
-    protocolVersion: 1, commandId: "c2", type: "queue_pick", payload: {}
+    protocolVersion: 1, commandId: "c2", type: "sing_a_shanty", payload: {}
   }));
   assert.equal(frames(socket, "error")[0].payload.code, "unknown_command");
+  await room.webSocketMessage(socket, JSON.stringify({
+    protocolVersion: 1, commandId: "c3", type: "queue_pick", payload: {}
+  }));
+  assert.equal(frames(socket, "error")[1].payload.code, "wrong_phase", "a pick has no place in the lobby");
   assert.equal(JSON.stringify(storage.map.get("room")), before);
 });
 
