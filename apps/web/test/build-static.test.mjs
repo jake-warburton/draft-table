@@ -216,8 +216,11 @@ test("clicking a card in the built client drafts it face down and passes a fresh
   chosen.onclick();
 
   assert.equal(pooledCards(nodes.pool).length, 0, "the pile stays face down while picking");
-  assert.equal(nodes.pool.textContent, "Pool hidden until the next review",
-    "the cards are genuinely absent, not hidden with styling");
+  const [deck] = nodes.pool.children;
+  assert.equal(deck.className, "deck", "the face-down pool is a deck of backs");
+  assert.equal(deck.children.filter((child) => child.className === "deck-card").length, 1,
+    "one back per drafted card, and no card data anywhere in it");
+  assert.equal(deck.attributes["aria-label"], "1 card drafted, face down");
   assert.equal(nodes["pool-grouping"].hidden, true);
   assert.equal(nodes["pool-grouping"].children.length, 0);
   assert.equal(nodes["pool-count"].textContent, "1", "the count is no secret");
@@ -268,7 +271,10 @@ test("continuing deals the next pack and turns the pile face down again", (t) =>
   assert.equal(nodes.pack.firstChild.focused, true);
   assert.equal(nodes.continue.hidden, true);
   assert.equal(pooledCards(nodes.pool).length, 0);
-  assert.equal(nodes.pool.textContent, "Pool hidden until the next review");
+  assert.equal(nodes.pool.children[0].className, "deck");
+  assert.equal(nodes.pool.children[0].children
+    .filter((child) => child.className === "deck-card").length, 14,
+    "a full pack of backs after the first round");
 });
 
 test("the second review names pack two and the last pack ends without one", (t) => {
@@ -295,7 +301,10 @@ test("restarting during a review clears it and deals a fresh face-down draft", (
   assert.equal(nodes.pick.textContent, "1");
   assert.equal(nodes.pack.children.length, 14);
   assert.equal(pooledCards(nodes.pool).length, 0);
-  assert.equal(nodes.pool.textContent, "Pool hidden until the next review");
+  assert.equal(nodes.pool.children[0].className, "deck",
+    "a fresh deal starts the deck over, face down");
+  assert.equal(nodes.pool.children[0].children
+    .filter((child) => child.className === "deck-card").length, 0, "and empty");
 });
 
 test("the built client can play a whole three-round draft to forty-two cards", (t) => {
@@ -609,7 +618,9 @@ test("a started room deals the pack onto the same table and clicking a card queu
   assert.equal(nodes["pool-section"].hidden, false);
   assert.equal(nodes.pack.children.length, 3, "the room's pack landed on the shared table");
   assert.match(nodes.status.textContent, /Round 1, pick 1/);
-  assert.match(nodes.pool.textContent, /Pool hidden until the next review/);
+  assert.equal(nodes.pool.children[0].className, "deck",
+    "a room's hidden pool is the same deck of backs");
+  assert.equal(nodes["pool-count"].textContent, "0", "no picks banked at round 1, pick 1");
 
   // A deadline learned from a snapshot alone must still fill the bar from what remains now.
   serve(socket, "snapshot", {
