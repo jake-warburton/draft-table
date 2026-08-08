@@ -177,12 +177,15 @@ button:focus-visible {
 }
 
 /*
- * Drafted cards overlap into a pile: each card covers all but the top tenth of the one before
- * it, and the newest card sits on top in full. Margin percentages resolve against the pile's
- * width, so nine tenths of the 526/376 card height is 90% x 526 / 376 = 125.9% of that width.
+ * The pile: every card but the newest is a clipped strip showing only its own top tenth — the
+ * name bar — and the newest card sits on top of the pile in full. Each strip is an ordinary
+ * in-flow box whose height comes from its own aspect ratio (a tenth of 526 against the same
+ * 376 width), so the pile's height is the plain sum of its strips: no negative margins, no
+ * paint-order tricks, and nothing for a browser to resolve against the wrong width.
  */
-.pool-card + .pool-card {
-  margin-top: -125.9%;
+.pool-card:not(:last-child) {
+  aspect-ratio: 3760 / 526;
+  overflow: hidden;
 }
 
 /* In the pile the art's printed name bar is the label; the text returns if the art fails. */
