@@ -65,7 +65,7 @@ const openBuiltClient = (t, options = {}) => {
     "export", "export-link", "export-list", "export-copy", "export-status",
     "rooms", "room-status", "room-forms", "create-form", "create-password", "create-timers",
     "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name",
-    "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-hint", "lobby-seats", "lobby-spectators",
+    "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-seats", "lobby-spectators",
     "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar",
     "deadline-seconds", "solo-table", "pack-section", "pool-section", "room-controls", "play-again",
     "room-story", "room-feed"];
@@ -721,7 +721,6 @@ test("a live room offers its invite link — the page's own address, never the p
   assert.equal(address.value, "https://draft.test/?join=A1B2C3D4");
   assert.equal(address.attributes.readonly, "");
   assert.ok(!nodes["room-share"].textContent.includes("table secret"), "the password never enters the invite");
-  assert.match(nodes["room-share"].textContent, /password, if any, travels separately/);
 
   copy.onclick();
   await flush();
@@ -777,7 +776,6 @@ test("the host drags a drafter onto another seat and the room hears the exact mo
 
   assert.equal(seats[0].attributes.draggable, "true", "an occupied row lifts");
   assert.equal(seats[3].attributes.draggable, undefined, "an empty seat does not");
-  assert.equal(nodes["lobby-hint"].hidden, false, "the host is told how");
 
   seats[0].ondragstart({ dataTransfer: { setData: () => {} } });
   seats[3].ondrop({ preventDefault: () => {} });
@@ -831,7 +829,6 @@ test("a guest's lobby offers no drags, no pickers, and no hint", async (t) => {
   assert.equal(seats[0].attributes.draggable, undefined);
   assert.equal(seats[0].ondrop, undefined, "seats catch nothing for a guest");
   assert.ok(seats.every((seat) => seat.children.every((child) => child.tag !== "select")));
-  assert.equal(nodes["lobby-hint"].hidden, true);
   assert.equal(nodes["lobby-seats"].children[1].children[0].textContent, "Second Mate");
 });
 

@@ -9,10 +9,9 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <div class="sky" aria-hidden="true"></div>
     <main>
       <header class="masthead">
-        <h1 class="wordmark">Draft<span>Table</span></h1>
+        <h1 class="wordmark">Draft Table</h1>
         <p class="masthead-note">Unofficial fan project — <a href="#about">about</a></p>
       </header>
 
@@ -38,7 +37,6 @@
         <div id="room-lobby" hidden>
           <h3 class="lobby-title">Room <span id="room-code"></span></h3>
           <p id="room-share"></p>
-          <p id="lobby-hint" hidden>Drag a name onto a seat to move them — onto a taken seat to swap — or onto the spectator row to unseat them. The picker beside each name does the same.</p>
           <ol id="lobby-seats" aria-label="Seats"></ol>
           <ul id="lobby-spectators" aria-label="Spectators"></ul>
           <p class="lobby-actions">
@@ -93,7 +91,6 @@
 
       <section id="solo-table" aria-labelledby="table-title" class="solo-card">
         <h2 id="table-title">Practice on your own</h2>
-        <p class="soft">You hold seat one. Seven bots fill the remaining seats and pass with you.</p>
         <button id="restart" type="button">Deal a new draft</button>
       </section>
 

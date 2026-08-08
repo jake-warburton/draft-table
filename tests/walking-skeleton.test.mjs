@@ -23,7 +23,7 @@ test("the browser shell identifies a real bot draft dealt from the reviewed snap
   const html = readFileSync(fromRoot("apps/web/index.html"), "utf8");
 
   assert.match(html, /<title>Draft Table<\/title>/);
-  assert.match(html, /<h1 class="wordmark">Draft<span>Table<\/span><\/h1>/);
+  assert.match(html, /<h1 class="wordmark">Draft Table<\/h1>/);
   assert.match(html, /three-round booster draft[\s\S]*against bots/i);
   assert.match(html, /reviewed Omens set snapshot/i);
   assert.match(html, /card images are served by Legend Story Studios/i);
