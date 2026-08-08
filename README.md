@@ -311,7 +311,7 @@ The page is three screens, not one long scroll. The door offers the create and j
 
 ## Reading your drafted pool
 
-The pool starts in collector order and can be regrouped without changing it. Buttons offer **Set number**, **Class**, **Colour**, and **Type**; cards stay in collector order inside every group, empty groups are left out, and each heading carries its own count.
+The pool starts in collector order and can be regrouped without changing it. Once it is face up, any card can be pressed to mark it out — it drops to half strength, a second press brings it back, and the heading counts what is still usable; the marks are yours alone, keyed to the physical copy, and clear with the next draft. Buttons offer **Set number**, **Class**, **Colour**, and **Type**; cards stay in collector order inside every group, empty groups are left out, and each heading carries its own count.
 
 Grouping is presentation only — `apps/web/src/pool.ts` is pure, never drops or duplicates a card, and a test proves every grouping returns the same pool it was given. Class grouping names its class-less bucket **No class** rather than inventing one: 60 of the 209 identities carry the Lightning talent and no class of their own.
 

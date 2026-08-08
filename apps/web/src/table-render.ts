@@ -70,17 +70,51 @@ export const cardControl = (card: DraftCard, onChoose: () => void): HTMLElement 
   return withArt(control, card);
 };
 
-export const poolCard = (card: DraftCard): HTMLElement => {
+/**
+ * Which drafted copies their owner has marked as not-for-use. Presentation only, never sent
+ * anywhere: the marks live for one draft and clear with the next deal or room.
+ */
+const unusable = new Set<string>();
+
+export const clearUnusableMarks = (): void => { unusable.clear(); };
+
+/** How many of these cards remain unmarked. */
+export const usableIn = (cards: readonly DraftCard[]): number =>
+  cards.filter((card) => !unusable.has(card.instanceId)).length;
+
+export const poolCard = (card: DraftCard, onMarksChanged?: () => void): HTMLElement => {
   const item = document.createElement("li");
-  item.className = "pool-card";
+  const marked = (): boolean => unusable.has(card.instanceId);
+  const paint = (): void => {
+    item.className = marked() ? "pool-card unusable" : "pool-card";
+    item.setAttribute("aria-pressed", String(marked()));
+  };
+  paint();
+  // A face-up pool card is a quiet toggle: press to dim it to half strength — not using this
+  // one — and press again to bring it back. The mark is local presentation, nothing more.
+  item.setAttribute("role", "button");
+  item.setAttribute("tabindex", "0");
+  const toggle = (): void => {
+    if (marked()) unusable.delete(card.instanceId); else unusable.add(card.instanceId);
+    paint();
+    onMarksChanged?.();
+  };
+  item.onclick = toggle;
+  item.onkeydown = (event: KeyboardEvent) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggle();
+  };
   return withArt(item, card);
 };
 
-export const poolGroup = (label: string, cards: readonly DraftCard[]): HTMLElement => {
+export const poolGroup = (
+  label: string, cards: readonly DraftCard[], onMarksChanged?: () => void
+): HTMLElement => {
   const group = document.createElement("div");
   group.className = "pool-group";
   const list = document.createElement("ol");
-  list.replaceChildren(...cards.map(poolCard));
+  list.replaceChildren(...cards.map((card) => poolCard(card, onMarksChanged)));
   if (label === "") {
     group.replaceChildren(list);
     return group;

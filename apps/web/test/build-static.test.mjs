@@ -1042,3 +1042,39 @@ test("the board names a bot seat as a bot and marks its picks", async (t) => {
     ["Drafter 1picking…", "Botpicked"],
     "a bot is named a bot, never an empty seat, and never away");
 });
+
+test("a face-up pool card marks out at a press and the heading counts what is usable", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 39);
+  assert.equal(nodes["pool-count"].textContent, "42");
+
+  const [first, second] = pooledCards(nodes.pool);
+  first.onclick();
+  assert.equal(first.className, "pool-card unusable", "half strength marks it out");
+  assert.equal(first.attributes["aria-pressed"], "true");
+  assert.equal(nodes["pool-count"].textContent, "41 of 42 usable");
+
+  second.onkeydown({ key: "Enter", preventDefault: () => {} });
+  assert.equal(nodes["pool-count"].textContent, "40 of 42 usable", "the keyboard makes the same mark");
+
+  first.onclick();
+  assert.equal(first.className, "pool-card", "a second press brings the card back");
+  assert.equal(nodes["pool-count"].textContent, "41 of 42 usable");
+});
+
+test("marks survive regrouping but never a fresh deal", (t) => {
+  const nodes = openBuiltClient(t);
+  draftCards(nodes, 39);
+  pooledCards(nodes.pool)[0].onclick();
+  assert.equal(nodes["pool-count"].textContent, "41 of 42 usable");
+
+  const regroup = nodes["pool-grouping"].children.find((control) => control.textContent === "Class");
+  regroup.onclick();
+  assert.equal(nodes["pool-count"].textContent, "41 of 42 usable",
+    "regrouping re-renders but the mark is keyed to the copy, not the row");
+  assert.equal(pooledCards(nodes.pool).filter((card) => card.className === "pool-card unusable").length, 1);
+
+  nodes.restart.onclick();
+  draftCards(nodes, 39);
+  assert.equal(nodes["pool-count"].textContent, "42", "a fresh draft starts with every card usable");
+});

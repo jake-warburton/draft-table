@@ -2,7 +2,7 @@ import { OMENS_SET_SNAPSHOT } from "./cards.ts";
 import { FABRARY_IMPORT_URL, fabraryEntries, fabraryImportLink, fabraryTextList } from "./fabrary.ts";
 import { POOL_GROUPINGS, groupPool, type PoolGrouping } from "./pool.ts";
 import { DEFAULT_SEAT_COUNT, chooseCard, createTable, viewTable } from "./table.ts";
-import { cardControl, faceDownDeck, identities, poolGroup } from "./table-render.ts";
+import { cardControl, clearUnusableMarks, faceDownDeck, identities, poolGroup, usableIn } from "./table-render.ts";
 import { initRoomsPage } from "./room-page.ts";
 import type { DraftCard } from "@draft-table/draft";
 
@@ -82,6 +82,14 @@ const groupingControl = (choice: { id: PoolGrouping; label: string }): HTMLEleme
   return control;
 };
 
+/** The heading counts what is still usable once any card has been marked out. */
+const paintPoolCount = (pool: readonly DraftCard[]): void => {
+  const usable = usableIn(pool);
+  poolCount.textContent = usable === pool.length
+    ? String(pool.length)
+    : `${usable} of ${pool.length} usable`;
+};
+
 const render = (): void => {
   if (!soloActive) return;
   const view = viewTable(state);
@@ -98,7 +106,7 @@ const render = (): void => {
     ? `Pack ${view.round - 1} drafted. Review your pool. Pack ${view.round} passes ${
         view.passDirection === "left" ? "to the left" : "to the right"}.`
     : view.status;
-  poolCount.textContent = String(view.pool.length);
+  paintPoolCount(view.pool);
   const poolFaceUp = reviewing || view.complete;
   poolGroupingRegion.hidden = !poolFaceUp;
   poolGroupingRegion.replaceChildren(...(poolFaceUp ? POOL_GROUPINGS.map(groupingControl) : []));
@@ -106,7 +114,8 @@ const render = (): void => {
   // are genuinely absent rather than hidden with styling, as the accessibility notes require.
   poolRegion.replaceChildren(
     ...(poolFaceUp
-      ? groupPool(view.pool, grouping, identities).map(({ label, cards }) => poolGroup(label, cards))
+      ? groupPool(view.pool, grouping, identities)
+          .map(({ label, cards }) => poolGroup(label, cards, () => paintPoolCount(view.pool)))
       : [faceDownDeck(view.pool.length)])
   );
   packRegion.replaceChildren(
@@ -168,6 +177,7 @@ continueControl.onclick = () => {
 };
 
 const dealFresh = (): void => {
+  clearUnusableMarks();
   reviewing = false;
   soloScreen = "draft";
   state = deal();

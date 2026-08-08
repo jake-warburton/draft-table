@@ -48,6 +48,7 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /browser owns entropy through `crypto\.getRandomValues`/);
   assert.match(readme, /## Reviewed set snapshot[\s\S]*209 draftable identities[\s\S]*228 weighted 14-position layouts totalling 460,800/);
   assert.match(readme, /## Reading your drafted pool[\s\S]*Set number\*\*, \*\*Class\*\*, \*\*Colour\*\*, and \*\*Type[\s\S]*collector order inside every group/);
+  assert.match(readme, /pressed to mark it out[\s\S]*half strength[\s\S]*counts what is still usable/);
   assert.match(readme, /three rows of five, five, and four[\s\S]*shows only its top tenth[\s\S]*newest card sits on top of the pile in full/);
   assert.match(readme, /deck of drawn card backs, one per drafted card\*\*[\s\S]*genuinely absent[\s\S]*Pack 1 review\*? or \*?Pack 2 review\*? heading[\s\S]*next pack waits until you continue/);
   assert.match(readme, /one-minute review timer[\s\S]*waits for multiplayer rooms/);
