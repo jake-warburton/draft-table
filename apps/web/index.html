@@ -9,47 +9,47 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
+    <div class="sky" aria-hidden="true"></div>
     <main>
-      <header>
-        <h1>Draft Table</h1>
-        <p>Unofficial; not affiliated with Legend Story Studios.</p>
-        <p>A full three-round draft against bots, dealt from the reviewed Omens set snapshot with its real collation weights. Card images are served by Legend Story Studios from their own public host; a card that cannot load its art still shows its name.</p>
+      <header class="masthead">
+        <h1 class="wordmark">Draft<span>Table</span></h1>
+        <p class="masthead-note">Unofficial fan project — <a href="#about">about</a></p>
       </header>
 
       <section id="rooms" aria-labelledby="rooms-title">
-        <h2 id="rooms-title">Draft with people</h2>
+        <h2 id="rooms-title" class="visually-hidden">Draft with people</h2>
         <div id="room-forms">
-          <form id="create-form">
+          <form id="create-form" class="door-card">
             <h3>Start a room</h3>
-            <p><label>Password (optional) <input id="create-password" type="password" maxlength="128" autocomplete="new-password"></label></p>
-            <p><label><input id="create-timers" type="checkbox" checked> Pick timers</label></p>
-            <p><label><input id="create-pool-hidden" type="checkbox" checked> Hide pools until the reviews</label></p>
-            <p><label><input id="create-spectators" type="checkbox" checked> Allow spectators</label></p>
-            <p><button id="create-room" type="submit">Create the room</button></p>
+            <p class="field"><label><span class="field-name">Password <span class="soft">optional</span></span> <input id="create-password" type="password" maxlength="128" autocomplete="new-password"></label></p>
+            <p class="switch"><label><input id="create-timers" type="checkbox" checked> Pick timers</label></p>
+            <p class="switch"><label><input id="create-pool-hidden" type="checkbox" checked> Hide pools until the reviews</label></p>
+            <p class="switch"><label><input id="create-spectators" type="checkbox" checked> Allow spectators</label></p>
+            <p><button id="create-room" type="submit" class="primary">Create the room</button></p>
           </form>
-          <form id="join-form">
+          <form id="join-form" class="door-card">
             <h3>Join a room</h3>
-            <p><label>Room code <input id="join-code" maxlength="12" autocomplete="off"></label></p>
-            <p><label>Your name (optional) <input id="join-name" maxlength="30" autocomplete="off"></label></p>
-            <p><label>Password (if the room has one) <input id="join-password" type="password" maxlength="128" autocomplete="current-password"></label></p>
-            <p><button id="join-room" type="submit">Join</button></p>
+            <p class="field"><label><span class="field-name">Room code</span> <input id="join-code" maxlength="12" autocomplete="off"></label></p>
+            <p class="field"><label><span class="field-name">Your name <span class="soft">optional</span></span> <input id="join-name" maxlength="30" autocomplete="off"></label></p>
+            <p class="field"><label><span class="field-name">Password <span class="soft">if the room has one</span></span> <input id="join-password" type="password" maxlength="128" autocomplete="current-password"></label></p>
+            <p><button id="join-room" type="submit" class="primary">Join</button></p>
           </form>
         </div>
         <div id="room-lobby" hidden>
-          <h3>Room <span id="room-code"></span></h3>
+          <h3 class="lobby-title">Room <span id="room-code"></span></h3>
           <p id="room-share"></p>
           <p id="lobby-hint" hidden>Drag a name onto a seat to move them — onto a taken seat to swap — or onto the spectator row to unseat them. The picker beside each name does the same.</p>
           <ol id="lobby-seats" aria-label="Seats"></ol>
           <ul id="lobby-spectators" aria-label="Spectators"></ul>
-          <p>
+          <p class="lobby-actions">
             <button id="lobby-randomize" type="button" hidden>Randomize seats now</button>
-            <button id="lobby-start" type="button" hidden>Start the draft</button>
+            <button id="lobby-start" type="button" hidden class="primary">Start the draft</button>
           </p>
         </div>
       </section>
 
       <p id="room-status" role="status" aria-live="polite"></p>
-      <p id="room-controls" hidden><button id="room-leave" type="button">Leave the room</button></p>
+      <p id="room-controls" hidden><button id="room-leave" type="button" class="ghost">Leave the room</button></p>
 
       <section id="room-story" aria-labelledby="story-title" hidden>
         <h2 id="story-title">Around the table</h2>
@@ -69,33 +69,39 @@
         </h2>
         <p id="status" role="status" aria-live="polite">Dealing the first pack.</p>
         <div id="pack" class="cards" aria-label="Cards in the current pack"></div>
-        <button id="continue" type="button" hidden>Continue to pack 2</button>
+        <button id="continue" type="button" hidden class="primary">Continue to pack 2</button>
       </section>
 
       <section id="pool-section" aria-labelledby="pool-title">
-        <h2 id="pool-title">Your pool (<span id="pool-count">0</span>)</h2>
+        <h2 id="pool-title">Your pool <span class="count">(<span id="pool-count">0</span>)</span></h2>
         <div id="pool-grouping" class="grouping-controls" role="group" aria-label="Group your pool by"></div>
         <div id="pool" role="group" aria-label="Cards you have drafted"></div>
       </section>
 
       <section id="export" aria-labelledby="export-title" hidden>
         <h2 id="export-title">Take your pool to Fabrary</h2>
-        <p>Fabrary asks you to sign in and choose a hero yourself. Draft Table cannot do either for you, and never sees your Fabrary account.</p>
-        <p><a id="export-link" href="https://fabrary.net/decks?tab=import" target="_blank" rel="noopener noreferrer">Open a pre-filled import in Fabrary</a></p>
-        <p>If that opens empty, copy this list and paste it into <a href="https://fabrary.net/decks?tab=import" target="_blank" rel="noopener noreferrer">Fabrary's import tab</a> instead:</p>
+        <p class="soft">Fabrary asks you to sign in and choose a hero yourself. Draft Table cannot do either for you, and never sees your Fabrary account.</p>
+        <p><a id="export-link" class="primary link-button" href="https://fabrary.net/decks?tab=import" target="_blank" rel="noopener noreferrer">Open a pre-filled import in Fabrary</a></p>
+        <p class="soft">If that opens empty, copy this list and paste it into <a href="https://fabrary.net/decks?tab=import" target="_blank" rel="noopener noreferrer">Fabrary's import tab</a> instead:</p>
         <textarea id="export-list" rows="12" readonly aria-label="Your drafted pool as a Fabrary list"></textarea>
         <p>
           <button id="export-copy" type="button">Copy list</button>
           <span id="export-status" role="status" aria-live="polite"></span>
         </p>
-        <p><button id="play-again" type="button" hidden>Deal a new draft</button></p>
+        <p><button id="play-again" type="button" hidden class="primary">Deal a new draft</button></p>
       </section>
 
-      <section id="solo-table" aria-labelledby="table-title">
-        <h2 id="table-title">Table</h2>
-        <p>You hold seat one. Seven bots fill the remaining seats and pass with you.</p>
+      <section id="solo-table" aria-labelledby="table-title" class="solo-card">
+        <h2 id="table-title">Practice on your own</h2>
+        <p class="soft">You hold seat one. Seven bots fill the remaining seats and pass with you.</p>
         <button id="restart" type="button">Deal a new draft</button>
       </section>
+
+      <footer id="about">
+        <h2>About Draft Table</h2>
+        <p>A full three-round booster draft, dealt from the reviewed Omens set snapshot with its real collation weights — solo against bots, or live with up to eight drafters and a spectator rail. Card images are served by Legend Story Studios from their own public host; a card that cannot load its art still shows its name.</p>
+        <p>Draft Table is an unofficial fan project, not affiliated with Legend Story Studios. Legend Story Studios®, Flesh and Blood™, and set names are trademarks of Legend Story Studios. Flesh and Blood characters, cards, logos, and art are property of Legend Story Studios. Card images are © Legend Story Studios.</p>
+      </footer>
     </main>
     <!--app-->
   </body>

@@ -1,72 +1,366 @@
+/*
+ * Stormglass: Draft Table's one deliberate look. Deep-space navy under violet-to-cyan
+ * lightning, glass panels, and a system type stack — the content security policy allows no
+ * outside host, so every ounce of polish here is self-contained CSS.
+ */
+
 :root {
-  color-scheme: light dark;
-  --ink: #12211b;
-  --page: #f6f8f6;
-  --panel: #ffffff;
-  --edge: #285943;
-  --accent: #e07724;
+  color-scheme: dark;
+  --ink: #e9ecf5;
+  --soft: #9aa3b8;
+  --page: #0a0c14;
+  --panel: rgba(255, 255, 255, 0.045);
+  --panel-solid: #131624;
+  --edge: rgba(255, 255, 255, 0.13);
+  --edge-strong: rgba(255, 255, 255, 0.22);
+  --accent: #35d0ff;
+  --accent-deep: #7c5cff;
+  --glow: rgba(124, 92, 255, 0.35);
+  --radius: 0.9rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #e8efe9;
-    --page: #121915;
-    --panel: #1b2620;
-    --edge: #7fb79b;
-  }
+* {
+  box-sizing: border-box;
+}
+
+/* The screens toggle by the hidden attribute; no display rule may ever outrank it. */
+[hidden] {
+  display: none !important;
 }
 
 body {
   margin: 0;
-  font: 1rem/1.5 system-ui, sans-serif;
+  font: 1rem/1.55 -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   color: var(--ink);
   background: var(--page);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The storm behind the glass: two soft aurora glows, fixed so the page scrolls over them. */
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(42rem 30rem at 18% -8%, rgba(124, 92, 255, 0.22), transparent 68%),
+    radial-gradient(50rem 34rem at 88% 4%, rgba(53, 208, 255, 0.14), transparent 70%),
+    radial-gradient(60rem 44rem at 50% 118%, rgba(124, 92, 255, 0.1), transparent 72%),
+    var(--page);
 }
 
 main {
-  max-width: 70rem;
+  max-width: 74rem;
   margin: auto;
-  padding: 2rem;
+  padding: 1.5rem 2rem 4rem;
 }
 
 section {
   padding: 1rem;
 }
 
-h2 {
-  font-size: 1.1rem;
-  letter-spacing: 0.02em;
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Masthead: a slim wordmark bar, not a billboard. ---------- */
+
+.masthead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0 1.25rem;
+}
+
+.wordmark {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.wordmark span {
+  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.masthead-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--soft);
+}
+
+.masthead-note a {
+  color: inherit;
+}
+
+/* ---------- The door: straight to the action cards. ---------- */
+
+#room-forms {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.25rem;
+}
+
+.door-card {
+  flex: 1 1 19rem;
+  max-width: 26rem;
+  padding: 1.5rem 1.5rem 1.1rem;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.35);
+}
+
+.door-card h3,
+.solo-card h2,
+#export h2,
+#room-story h2 {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--soft);
+}
+
+.field label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.field-name {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.soft {
+  color: var(--soft);
+  font-weight: 400;
+}
+
+.count {
+  color: var(--soft);
+  font-weight: 500;
+}
+
+#rooms input:not([type="checkbox"]),
+#room-share input {
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--edge);
+  border-radius: 0.6rem;
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+  font: inherit;
+}
+
+#rooms input:not([type="checkbox"]):focus-visible,
+#room-share input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+::placeholder {
+  color: rgba(154, 163, 184, 0.55);
+}
+
+/* ---------- Switches: the stock checkbox, dressed for the occasion. ---------- */
+
+.switch label {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  appearance: none;
+  flex: none;
+  width: 2.35rem;
+  height: 1.3rem;
+  margin: 0;
+  position: relative;
+  border: 1px solid var(--edge-strong);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0.17rem;
+  width: 0.92rem;
+  height: 0.92rem;
+  border-radius: 50%;
+  background: var(--soft);
+  transform: translateY(-50%);
+  transition: left 0.18s ease, background 0.18s ease;
+}
+
+input[type="checkbox"]:checked {
+  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  border-color: transparent;
+}
+
+input[type="checkbox"]:checked::after {
+  left: calc(100% - 1.09rem);
+  background: #ffffff;
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Buttons. ---------- */
+
+button {
+  padding: 0.7rem 1.1rem;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--edge-strong);
+  border-radius: 0.6rem;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.primary,
+a.link-button {
+  display: inline-block;
+  padding: 0.75rem 1.35rem;
+  border: none;
+  border-radius: 0.6rem;
+  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  color: #0b0e18;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: 0 0.5rem 1.6rem var(--glow);
+}
+
+.primary:hover,
+a.link-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0.7rem 2rem var(--glow);
+}
+
+.ghost {
+  background: transparent;
+}
+
+/* ---------- The solo card and footer live below the door. ---------- */
+
+.solo-card {
+  margin-top: 1.25rem;
+  padding: 1.5rem;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  backdrop-filter: blur(14px);
+}
+
+.solo-card p {
+  margin-top: 0;
+}
+
+#about {
+  margin-top: 4rem;
+  padding: 2rem 1rem 1rem;
+  border-top: 1px solid var(--edge);
+  color: var(--soft);
+  font-size: 0.85rem;
+  line-height: 1.65;
+}
+
+#about h2 {
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
+/* ---------- The table: pack, statuses, and the pool. ---------- */
+
+h2 {
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#pack-title {
+  font-size: 1.3rem;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  font-weight: 800;
+}
+
 #status {
-  font-weight: 600;
+  color: var(--soft);
+  font-weight: 500;
+}
+
+#room-status {
+  padding: 0 1rem;
+  color: var(--soft);
+  font-size: 0.9rem;
 }
 
 /* Five to a row, so a fresh fourteen-card pack reads as rows of five, five, and four. */
 .cards {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 0.75rem;
-}
-
-button {
-  padding: 1rem;
-  color: inherit;
-  background: var(--panel);
-  border: 2px solid var(--edge);
-  border-radius: 0.5rem;
-  font: inherit;
-  text-align: left;
+  gap: 0.9rem;
 }
 
 .card {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 0.5rem;
+  padding: 0.45rem;
   min-height: 6rem;
+  background: var(--panel);
+  border: 1px solid var(--edge);
   cursor: pointer;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: 0 0.9rem 2rem rgba(0, 0, 0, 0.45), 0 0 1.4rem rgba(53, 208, 255, 0.12);
+}
+
+.card[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 0.6rem 1.6rem var(--glow);
 }
 
 /* The declared 376x526 keeps each card's space reserved whether or not its art ever arrives. */
@@ -75,8 +369,8 @@ button {
   width: 100%;
   height: auto;
   aspect-ratio: 376 / 526;
-  border-radius: 0.35rem;
-  background: color-mix(in srgb, var(--edge) 12%, transparent);
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .card img[hidden] {
@@ -84,17 +378,8 @@ button {
 }
 
 .card-name {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   line-height: 1.35;
-}
-
-.card:hover {
-  border-color: var(--accent);
-}
-
-button:focus-visible {
-  outline: 4px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .grouping-controls {
@@ -105,29 +390,28 @@ button:focus-visible {
 }
 
 .grouping {
-  padding: 0.5rem 0.9rem;
-  min-height: 2.75rem;
-  cursor: pointer;
+  padding: 0.45rem 0.95rem;
+  min-height: 2.6rem;
+  border-radius: 2rem;
+  font-size: 0.9rem;
   text-align: center;
 }
 
 .grouping[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
-  font-weight: 600;
+  border-color: transparent;
+  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  color: #0b0e18;
+  font-weight: 700;
 }
 
 /* Between packs the table pauses for review; continuing is the one primary action on screen. */
 #continue {
-  margin-top: 0.75rem;
-  border-color: var(--accent);
-  font-weight: 600;
+  margin-top: 1rem;
 }
 
 .pool-hidden {
   margin: 0;
-  font-style: italic;
-  opacity: 0.75;
+  color: var(--soft);
 }
 
 /* Each grouping is its own pile; piles sit side by side and wrap. */
@@ -144,9 +428,10 @@ button:focus-visible {
 
 .pool-group h3 {
   margin: 0 0 0.5rem;
-  font-size: 0.95rem;
-  letter-spacing: 0.02em;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+  color: var(--soft);
 }
 
 .pool-group ol {
@@ -162,7 +447,7 @@ button:focus-visible {
   height: auto;
   aspect-ratio: 376 / 526;
   border-radius: 0.35rem;
-  background: color-mix(in srgb, var(--edge) 12%, transparent);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .pool-card img[hidden] {
@@ -207,23 +492,254 @@ button:focus-visible {
   white-space: normal;
 }
 
+/* ---------- The Fabrary hand-off. ---------- */
+
 #export-list {
   display: block;
   width: 100%;
-  max-width: 32rem;
+  max-width: 34rem;
   margin-bottom: 0.75rem;
-  padding: 0.75rem;
+  padding: 0.85rem;
   color: inherit;
-  background: var(--panel);
-  border: 2px solid var(--edge);
-  border-radius: 0.5rem;
-  font: 0.9rem/1.5 ui-monospace, monospace;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--edge);
+  border-radius: 0.6rem;
+  font: 0.85rem/1.5 ui-monospace, "SF Mono", monospace;
   resize: vertical;
 }
 
 #export-status {
   margin-left: 0.75rem;
+  color: var(--soft);
 }
+
+#export a:not(.link-button) {
+  color: var(--accent);
+}
+
+/* ---------- Rooms: share, lobby, story, deadline. ---------- */
+
+.lobby-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+#room-code {
+  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 0.12em;
+}
+
+#room-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+#room-share input {
+  flex: 1 1 16rem;
+  font-size: 0.85rem;
+}
+
+#room-share span:last-child {
+  flex-basis: 100%;
+  color: var(--soft);
+  font-size: 0.8rem;
+}
+
+#lobby-hint {
+  color: var(--soft);
+  font-size: 0.85rem;
+}
+
+#lobby-seats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: seat;
+}
+
+#lobby-seats li {
+  min-height: 4.4rem;
+  padding: 0.7rem 0.8rem;
+  background: var(--panel);
+  border: 1px dashed var(--edge);
+  border-radius: 0.7rem;
+  font-size: 0.9rem;
+  counter-increment: seat;
+}
+
+#lobby-seats li::before {
+  content: "Seat " counter(seat);
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--soft);
+}
+
+#lobby-seats li:has(.seat-name),
+.table-board li:has(.board-name:not(:only-child)) {
+  border-style: solid;
+  border-color: var(--edge-strong);
+  background: rgba(124, 92, 255, 0.08);
+}
+
+.seat-name {
+  font-weight: 600;
+}
+
+/* The host's seat management: rows lift, seats and the spectator row catch. */
+#lobby-seats li[draggable="true"],
+#lobby-spectators li[draggable="true"] {
+  cursor: grab;
+}
+
+.seat-move {
+  display: block;
+  margin-top: 0.4rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--edge);
+  border-radius: 0.4rem;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--soft);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+#lobby-spectators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+#lobby-spectators li {
+  padding: 0.5rem 0.8rem;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 2rem;
+  font-size: 0.85rem;
+}
+
+.lobby-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* The spectator's board: the seats around the table, public facts only. */
+.table-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.table-board li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 4.4rem;
+  padding: 0.7rem 0.8rem;
+  background: var(--panel);
+  border: 1px dashed var(--edge);
+  border-radius: 0.7rem;
+  font-size: 0.9rem;
+}
+
+.board-name {
+  font-weight: 600;
+}
+
+.board-picked {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.board-picking,
+.board-away {
+  color: var(--soft);
+  font-size: 0.8rem;
+}
+
+/* The room's story: a log, not a chat — nobody types into it. */
+#room-feed {
+  max-height: 10rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 0.7rem;
+  list-style: none;
+  font-size: 0.85rem;
+  color: var(--soft);
+}
+
+#room-feed li + li {
+  margin-top: 0.25rem;
+}
+
+#room-feed li:last-child {
+  color: var(--ink);
+}
+
+#room-deadline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1rem;
+  font-size: 0.85rem;
+  color: var(--soft);
+}
+
+#room-deadline progress {
+  width: 14rem;
+  height: 0.45rem;
+  appearance: none;
+  border: none;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+
+#room-deadline progress::-webkit-progress-bar {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+#room-deadline progress::-webkit-progress-value {
+  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  border-radius: 1rem;
+}
+
+#room-deadline progress::-moz-progress-bar {
+  background: linear-gradient(92deg, var(--accent-deep), var(--accent));
+  border-radius: 1rem;
+}
+
+#deadline-seconds {
+  min-width: 2.6rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* ---------- Care. ---------- */
 
 @media (prefers-reduced-motion: reduce) {
   * {
@@ -238,6 +754,10 @@ button:focus-visible {
     padding: 1rem;
   }
 
+  .hero {
+    padding: 1.5rem 0 1.25rem;
+  }
+
   /* The accessibility notes call for a one-column pack on phones; the rows are for wide screens. */
   .cards {
     grid-template-columns: 1fr;
@@ -250,117 +770,9 @@ button:focus-visible {
   .pool-group {
     flex-basis: 8rem;
   }
-}
 
-/* Rooms: two forms side by side, then a lobby of eight seat cards and a spectator row. */
-#room-forms {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
-}
-
-#room-forms form {
-  flex: 1 1 18rem;
-}
-
-#rooms input:not([type="checkbox"]) {
-  padding: 0.5rem;
-  border: 2px solid var(--edge);
-  border-radius: 0.5rem;
-  background: var(--panel);
-  color: inherit;
-  font: inherit;
-}
-
-#room-share {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-#room-share input {
-  flex: 1 1 16rem;
-}
-
-#lobby-seats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-  margin: 0 0 0.75rem;
-  padding: 0;
-  list-style: none;
-}
-
-#lobby-seats li {
-  padding: 0.75rem;
-  border: 2px dashed var(--edge);
-  border-radius: 0.5rem;
-}
-
-/* The host's seat management: rows lift, seats and the spectator row catch. */
-#lobby-seats li[draggable="true"],
-#lobby-spectators li[draggable="true"] {
-  cursor: grab;
-}
-
-.seat-move {
-  margin-left: 0.5rem;
-  font: inherit;
-}
-
-/* The spectator's board: the seats around the table, public facts only. */
-.table-board {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.table-board li {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.75rem;
-  border: 2px dashed var(--edge);
-  border-radius: 0.5rem;
-}
-
-.board-picked {
-  color: var(--accent, inherit);
-  font-weight: 600;
-}
-
-.board-picking,
-.board-away {
-  opacity: 0.7;
-  font-size: 0.9rem;
-}
-
-/* The room's story: a log, not a chat — nobody types into it. */
-#room-feed {
-  max-height: 10rem;
-  overflow-y: auto;
-  margin: 0;
-  padding: 0.75rem;
-  border: 2px solid var(--edge);
-  border-radius: 0.5rem;
-  background: var(--panel);
-  list-style: none;
-  font-size: 0.9rem;
-}
-
-#lobby-spectators {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0 0 0.75rem;
-  padding: 0;
-  list-style: none;
-}
-
-#room-deadline progress {
-  width: 12rem;
+  #lobby-seats,
+  .table-board {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
