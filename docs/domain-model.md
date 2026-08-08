@@ -113,7 +113,6 @@ The set snapshot still classifies every known excluded product entry and treatme
 
 ### `RoomConfig`
 
-- room name;
 - set snapshot ID;
 - timers enabled;
 - pool hiding enabled;

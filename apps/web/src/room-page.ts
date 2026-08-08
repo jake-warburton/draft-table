@@ -641,10 +641,9 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
 
   (el("#create-form") as HTMLFormElement).onsubmit = (event) => {
     event.preventDefault();
-    const name = (el("#create-name") as HTMLInputElement).value.trim();
+    // Rooms carry no chosen name; the minted eight-character code is the room's whole identity.
     const password = (el("#create-password") as HTMLInputElement).value;
     const options = {
-      ...(name === "" ? {} : { name }),
       ...(password === "" ? {} : { password }),
       timers: (el("#create-timers") as HTMLInputElement).checked,
       poolHidden: (el("#create-pool-hidden") as HTMLInputElement).checked,
