@@ -87,7 +87,12 @@ export class RoomClient {
   connect(): void {
     if (this.stopped || this.socket !== null) return;
     this.hooks.onStatus({ state: "connecting" });
-    const socket = this.hooks.openSocket(this.code);
+    this.attach(this.hooks.openSocket(this.code));
+  }
+
+  /** One hello builder for first connections and reconnections alike; what it says is whatever
+   * remains in `hello`, and the ack below is what retires the one-shot fields. */
+  private attach(socket: DriverSocket): void {
     this.socket = socket;
     socket.onopen = () => {
       const credential = this.hooks.loadStored(credentialStorageKey(this.code));
@@ -148,8 +153,8 @@ export class RoomClient {
     if (frame.type === "hello_ack") {
       this.everConnected = true;
       this.attempts = 0;
-      // The one-time claims are spent with the first successful hello; never replay them.
-      this.hello = { ...this.hello, hostClaim: undefined };
+      // The claim is spent and the name is delivered; a reconnect carries only the password.
+      this.hello = { password: this.hello.password };
       const credential = frame.payload.credential;
       if (typeof credential === "string") {
         this.hooks.store(credentialStorageKey(this.code), credential);
@@ -196,17 +201,7 @@ export class RoomClient {
       this.cancelReconnect = null;
       if (this.stopped) return;
       this.hooks.onStatus({ state: "connecting" });
-      const socket = this.hooks.openSocket(this.code);
-      this.socket = socket;
-      socket.onopen = () => {
-        const credential = this.hooks.loadStored(credentialStorageKey(this.code));
-        this.sendRaw("hello", {
-          ...(credential === null ? {} : { credential }),
-          ...(this.hello.password === undefined ? {} : { password: this.hello.password })
-        });
-      };
-      socket.onmessage = (event) => this.receive(event.data);
-      socket.onclose = (event) => this.closed(event.code, event.reason);
+      this.attach(this.hooks.openSocket(this.code));
     }, waitMs);
   }
 }
