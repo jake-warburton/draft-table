@@ -917,3 +917,25 @@ test("leaving the room takes the story with it", async (t) => {
   assert.equal(nodes["room-story"].hidden, true);
   assert.equal(nodes["room-feed"].children.length, 0, "the next room starts its own story");
 });
+
+test("a reconnector's snapshot still knows which pack is in hand", async (t) => {
+  const { nodes, serve, socket } = await lobbyOfThree(t);
+  serve(socket, "snapshot", {
+    phase: "picking", config: {}, passwordProtected: false,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [{ at: 1, type: "start", name: "Drafter 1" }],
+    self: "p1",
+    draft: { round: 2, pick: 5, packSize: 10, passDirection: "right", seats: [] },
+    deadlineAt: null
+  }, { stateVersion: 9 });
+
+  assert.deepEqual(nodes["room-feed"].children.map((line) => line.textContent),
+    ["Drafter 1 started the draft.", "Pack 2 is in hand."],
+    "the page re-derives the one line the server's story never carries");
+
+  serve(socket, "phase_changed", {
+    phase: "picking", status: "picking", round: 2, pick: 6, packSize: 9, passDirection: "right", seats: []
+  }, { stateVersion: 10 });
+  assert.equal(nodes["room-feed"].children.filter((line) => line.textContent.startsWith("Pack")).length, 1,
+    "and the once-per-round guard is armed by the snapshot");
+});

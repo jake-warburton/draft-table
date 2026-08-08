@@ -917,8 +917,10 @@ export class RoomObject {
     if (deadlineAt !== null) await this.storage.setAlarm(deadlineAt);
 
     this.send(socket, updated.stateVersion, "ack", { applied: true }, command.commandId);
-    this.announcePhase(updated);
+    // The story precedes its consequence: "started the draft" must land before the phase
+    // change that makes the page announce the first pack in hand.
     this.announceFeed(room, updated);
+    this.announcePhase(updated);
     this.sendAllPrivateViews(updated);
   }
 

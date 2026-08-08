@@ -990,3 +990,17 @@ test("the room's story is broadcast as it is written, and a joiner is not told t
   assert.equal(frames(lobby.host, "feed_appended").length, 3,
     "exactly one story line per material event, nothing else");
 });
+
+test("the start of the draft is told before the first pack is announced", async () => {
+  const lobby = await openLobby();
+  await lobby.room.webSocketMessage(lobby.host, command("start_draft", {
+    expectedStateVersion: lobby.storage.map.get("room").stateVersion
+  }));
+
+  const sequence = lobby.guest.sent.map((frame) => frame.type);
+  const feedIndex = sequence.lastIndexOf("feed_appended");
+  const phaseIndex = sequence.lastIndexOf("phase_changed");
+  assert.ok(feedIndex >= 0 && phaseIndex >= 0, "both frames arrived");
+  assert.equal(lobby.guest.sent[feedIndex].payload.event.type, "start");
+  assert.ok(feedIndex < phaseIndex, "the story precedes its consequence");
+});

@@ -432,6 +432,13 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
           state.passDirection = draft.passDirection as string;
           state.seats = (draft.seats ?? []) as PublicSeat[];
         }
+        // The server's story never carries the page's own pack line, so a snapshot — a fresh
+        // join or a reconnect mid-draft — re-derives it for the round actually in hand, and
+        // arms the once-per-round guard so later frames cannot repeat it.
+        if (draft !== undefined) {
+          announcedPack = state.round;
+          if (state.phase === "picking") appendFeed({ at: 0, type: "pack", name: String(state.round) });
+        }
         if (typeof payload.deadlineAt === "number" || payload.deadlineAt === null) {
           state.deadlineAt = payload.deadlineAt as number | null;
           // A joiner or reconnector learns the deadline from the snapshot alone, so the bar
