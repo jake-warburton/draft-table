@@ -4,7 +4,7 @@ External citation IDs in this document resolve in the [research source register]
 
 ## Product statement
 
-Draft Table is an unlisted-room browser tool for running a rules-faithful, server-authoritative Flesh and Blood booster draft without accounts, bots, chat, or a built-in deckbuilder. It is a public repository and must remain practical to self-host permanently for $0 on the current Cloudflare free tier. Omens visible-pack probabilities use the captain-approved community recipe documented in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe); they are not represented as an official Legend Story Studios publication.
+Draft Table is an unlisted-room browser tool for running a rules-faithful, server-authoritative Flesh and Blood booster draft without accounts, chat, or a built-in deckbuilder. It is a public repository and must remain practical to self-host permanently for $0 on the current Cloudflare free tier. Omens visible-pack probabilities use the captain-approved community recipe documented in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe); they are not represented as an official Legend Story Studios publication.
 
 This document is the product contract, not an inventory of implemented behavior. See the [README](../README.md) for current implementation status; the MVP outcomes below remain planned. The current static browser shell is fixture-only: it has an accessible deterministic walkthrough with synthetic cards, but no engine or set-omens integration.
 
@@ -33,6 +33,7 @@ The permanent creator/host controls:
 | Option | Contract |
 |---|---|
 | Room identity | The auto-assigned eight-character room code of letters and digits; rooms have no chosen names. |
+| Fill empty seats with bots | On by default. Empty lobby positions become bot drafters when the draft starts, so packs circulate like a full pod; off is a humans-only table. |
 | Set | Selector may be visible, but Omens of the Third Age is the only enabled MVP value. |
 | Password | Optional. Never placed in the URL query/path; `Copy link + password` uses the fragment. |
 | Timers | On by default, using the official judge schedule [FAB-2]. |
@@ -59,7 +60,7 @@ Room limit is 16 simultaneous participant identities, of which at most eight are
 - A separate row contains spectator cards.
 - Dragging to an empty seat moves a participant; dragging onto an occupied seat swaps them; dragging between seats and spectators is allowed.
 - Every drag operation has a keyboard equivalent: a `Move` action opens a destination list and announces move/swap results.
-- Starting requires 1–8 occupied seat positions — a table of one exists so a host can try the room out alone. Only occupied positions become the initial circular draft ring; unused lobby positions are skipped and receive no packs.
+- Starting requires 1–8 occupied seat positions — a table of one exists so a host can try the room out alone. With the bots option on, the remaining positions up to eight become bot drafters at start: they draft uniformly at random with the room's own entropy, queue instantly each pick, and hold no account, name, or connection. Only occupied positions become the initial circular draft ring; unused lobby positions are skipped and receive no packs.
 - Seat order randomizes just before pack generation only while `Randomize at start` remains enabled. The first manual move/swap disables it. `Randomize now` immediately shuffles and disables the pending start shuffle; `Randomize at start` explicitly re-enables it.
 
 ### After start
@@ -110,4 +111,4 @@ Visible to everyone and limited to material events: join, explicit leave, discon
 
 ## Non-goals
 
-No accounts, bots, general chat, matchmaking, rankings, tournaments, replay system, anti-collusion guarantees, internal deckbuilder, game simulator, paid service, app-store/native mobile app, or multiple-set implementation. Strong secrecy against a determined user modifying their browser is deferred, but server authority and role-projected data are not.
+No accounts, no skill-playing bots (empty seats may be filled by uniform-random filler drafters), no general chat, matchmaking, rankings, tournaments, replay system, anti-collusion guarantees, internal deckbuilder, game simulator, paid service, app-store/native mobile app, or multiple-set implementation. Strong secrecy against a determined user modifying their browser is deferred, but server authority and role-projected data are not.

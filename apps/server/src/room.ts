@@ -23,6 +23,8 @@ import {
   pickCard,
   reconnectSeat,
   resolveTimeout,
+  runPendingBots,
+  type BotPolicy,
   type DraftState
 } from "@draft-table/draft";
 
@@ -118,6 +120,7 @@ interface RoomConfig {
   readonly timers: boolean;
   readonly poolHidden: boolean;
   readonly spectators: boolean;
+  readonly bots: boolean;
   readonly randomizeSeatsAtStart: boolean;
 }
 
@@ -232,7 +235,7 @@ type ConfigRead = { readonly ok: true; readonly config: RoomConfig; readonly pas
 const readConfig = (parsed: Record<string, unknown>): ConfigRead => {
   // Rooms have no names: the eight-character code is the room's whole identity, minted by the
   // router and never chosen by anyone.
-  const known = new Set(["password", "timers", "poolHidden", "spectators", "randomizeSeatsAtStart"]);
+  const known = new Set(["password", "timers", "poolHidden", "spectators", "bots", "randomizeSeatsAtStart"]);
   for (const field of Object.keys(parsed)) {
     if (!known.has(field)) return { ok: false };
   }
@@ -254,12 +257,14 @@ const readConfig = (parsed: Record<string, unknown>): ConfigRead => {
   const timers = flag("timers", true);
   const poolHidden = flag("poolHidden", true);
   const spectators = flag("spectators", true);
+  const bots = flag("bots", true);
   const randomizeSeatsAtStart = flag("randomizeSeatsAtStart", true);
-  if (timers === null || poolHidden === null || spectators === null || randomizeSeatsAtStart === null) {
+  if (timers === null || poolHidden === null || spectators === null || bots === null
+    || randomizeSeatsAtStart === null) {
     return { ok: false };
   }
 
-  return { ok: true, config: { timers, poolHidden, spectators, randomizeSeatsAtStart }, password };
+  return { ok: true, config: { timers, poolHidden, spectators, bots, randomizeSeatsAtStart }, password };
 };
 
 /** The client envelope, read strictly; anything else is a structured error, never a mutation. */
@@ -681,21 +686,22 @@ export class RoomObject {
       this.sendError(socket, room.stateVersion, "forbidden", command.commandId);
       return;
     }
-    const known = new Set(["timers", "poolHidden", "spectators"]);
+    const known = new Set(["timers", "poolHidden", "spectators", "bots"]);
     const fields = Object.keys(command.payload);
     if (fields.length !== known.size || fields.some((field) => !known.has(field))) {
       this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
       return;
     }
-    const { timers, poolHidden, spectators } = command.payload;
-    if (typeof timers !== "boolean" || typeof poolHidden !== "boolean" || typeof spectators !== "boolean") {
+    const { timers, poolHidden, spectators, bots } = command.payload;
+    if (typeof timers !== "boolean" || typeof poolHidden !== "boolean"
+      || typeof spectators !== "boolean" || typeof bots !== "boolean") {
       this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
       return;
     }
     const updated: RoomSnapshot = {
       ...room,
       stateVersion: room.stateVersion + 1,
-      config: { ...room.config, timers, poolHidden, spectators }
+      config: { ...room.config, timers, poolHidden, spectators, bots }
     };
     await this.commit(socket, updated, command, [
       { type: "config_changed", payload: { config: updated.config } }
@@ -804,6 +810,16 @@ export class RoomObject {
     ]);
   }
 
+  /** Bots draft uniformly at random with the room's own entropy: variety, not cunning. */
+  private botPolicy(): BotPolicy {
+    return (context) => {
+      const chosen = context.cards[this.uniformIndex(context.cards.length)];
+      // An empty choice cannot happen — the engine refuses empty packs — but an empty answer
+      // makes it fail loudly there rather than quietly here.
+      return chosen === undefined ? "" : chosen.instanceId;
+    };
+  }
+
   /** One caller-owned uint32 sample for the engine's unbiased bounded mapping. */
   private uint32(): number {
     const bytes = this.tools.randomBytes(4);
@@ -871,15 +887,26 @@ export class RoomObject {
 
     let draft: DraftState;
     try {
+      const humanSeats = seated.map((entry, index) => ({
+        id: `seat-${index + 1}`,
+        controller: "human" as const,
+        occupantId: entry.id,
+        connected: entry.connected
+      }));
+      // With bots on, the empty positions become bot drafters so the packs circulate like a
+      // full pod; with bots off, the humans are the whole table.
+      const botSeats = room.config.bots
+        ? Array.from({ length: LOBBY_SEAT_COUNT - humanSeats.length }, (unused, index) => ({
+            id: `seat-${humanSeats.length + index + 1}`,
+            controller: "bot" as const
+          }))
+        : [];
+      const seats = [...humanSeats, ...botSeats];
       draft = createDraft({
-        seats: seated.map((entry, index) => ({
-          id: `seat-${index + 1}`,
-          controller: "human" as const,
-          occupantId: entry.id,
-          connected: entry.connected
-        })),
-        packsByRound: buildPacksByRound(seated.length, OMENS_SET_SNAPSHOT, () => this.uint32())
+        seats,
+        packsByRound: buildPacksByRound(seats.length, OMENS_SET_SNAPSHOT, () => this.uint32())
       });
+      draft = runPendingBots(draft, this.botPolicy());
     } catch {
       this.sendError(socket, room.stateVersion, "server_error", command.commandId);
       return;
@@ -977,7 +1004,12 @@ export class RoomObject {
   ): { deadlineAt: number | null; deadlineAccelerated: boolean } {
     const current = { deadlineAt: room.deadlineAt, deadlineAccelerated: room.deadlineAccelerated };
     if (draft.status !== "picking" || room.phase !== "picking") return current;
-    const readiness = draft.seats.filter((entry) => entry.occupantId !== null && entry.connected);
+    // Readiness is a human affair: bots are always queued, so counting them would let a table
+    // whose every human has dropped keep confirming — and burn the draft down at five seconds a
+    // pick. With no human connected, no confirmation starts; the ordinary judge-schedule
+    // deadline still governs a timed draft, exactly as the product contract requires.
+    const readiness = draft.seats.filter((entry) =>
+      entry.controller === "human" && entry.occupantId !== null && entry.connected);
     if (readiness.length === 0) return current;
     const queued = new Set(draft.provisionalPicks.map((entry) => entry.seatId));
     if (!readiness.every((entry) => queued.has(entry.id))) return current;
@@ -1004,7 +1036,8 @@ export class RoomObject {
       packSize: Math.max(0, PACK_SIZE - (draft.pick - 1)),
       seats: draft.seats.map((seat) => ({
         seatId: seat.id,
-        participantId: seat.occupantId,
+        participantId: seat.controller === "bot" ? null : seat.occupantId,
+        bot: seat.controller === "bot",
         connected: seat.connected,
         hasQueued: draft.provisionalPicks.some((entry) => entry.seatId === seat.id)
       }))
@@ -1464,6 +1497,8 @@ export class RoomObject {
         fallbacks,
         { nextUint32: () => this.uint32() }
       );
+      // A fresh pick means the bots queue again before anyone hears about it.
+      if (next.status === "picking") next = runPendingBots(next, this.botPolicy());
     } catch {
       // A commit that cannot happen leaves the room exactly as it was.
       return;

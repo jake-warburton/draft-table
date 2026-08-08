@@ -186,6 +186,7 @@ test("defaults follow the product contract when the creator says nothing", async
     timers: true,
     poolHidden: true,
     spectators: true,
+    bots: true,
     randomizeSeatsAtStart: true
   });
 });
@@ -196,6 +197,7 @@ test("explicit configuration is honoured", async () => {
     timers: false,
     poolHidden: false,
     spectators: false,
+    bots: false,
     randomizeSeatsAtStart: false
   });
 
@@ -203,6 +205,7 @@ test("explicit configuration is honoured", async () => {
     timers: false,
     poolHidden: false,
     spectators: false,
+    bots: false,
     randomizeSeatsAtStart: false
   });
 });
@@ -237,7 +240,8 @@ const REFUSED_CONFIGS = [
   ["a non-boolean timers flag", { timers: "yes" }],
   ["a non-boolean pool flag", { poolHidden: 1 }],
   ["a non-boolean spectators flag", { spectators: null }],
-  ["a non-boolean randomization flag", { randomizeSeatsAtStart: "soon" }]
+  ["a non-boolean randomization flag", { randomizeSeatsAtStart: "soon" }],
+  ["a non-boolean bots flag", { bots: "definitely" }]
 ];
 
 for (const [label, config] of REFUSED_CONFIGS) {
@@ -761,11 +765,12 @@ test("a rename that would render as nothing is refused without a mutation", asyn
 test("the host reshapes the safe options as one whole object", async () => {
   const lobby = await openLobby();
   await lobby.room.webSocketMessage(lobby.host, command("update_config", {
-    timers: false, poolHidden: false, spectators: false
+    timers: false, poolHidden: false, spectators: false, bots: false
   }));
 
   const { config } = lobby.storage.map.get("room");
   assert.equal(config.timers, false);
+  assert.equal(config.bots, false);
   assert.equal(config.randomizeSeatsAtStart, true, "seat randomization has its own verb");
   const [broadcast] = frames(lobby.guest, "config_changed");
   assert.deepEqual(broadcast.payload.config, config);
@@ -774,7 +779,7 @@ test("the host reshapes the safe options as one whole object", async () => {
 test("configuration belongs to the host and arrives whole or not at all", async () => {
   const lobby = await openLobby();
   await lobby.room.webSocketMessage(lobby.guest, command("update_config", {
-    timers: true, poolHidden: true, spectators: true
+    timers: true, poolHidden: true, spectators: true, bots: true
   }));
   assert.equal(lastError(lobby.guest).payload.code, "forbidden");
 
@@ -996,7 +1001,7 @@ test("the start of the draft is told before the first pack is announced", async 
 });
 
 test("a host alone at the table may start the draft and drafts against their own pack", async () => {
-  const { room, socket, storage, created } = await openRoom();
+  const { room, socket, storage, created } = await openRoom({ bots: false });
   await room.webSocketMessage(socket, hello({ hostClaim: created.hostClaim }));
 
   await room.webSocketMessage(socket, command("start_draft", {

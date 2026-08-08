@@ -13,6 +13,7 @@ export interface RoomOptions {
   readonly timers?: boolean;
   readonly poolHidden?: boolean;
   readonly spectators?: boolean;
+  readonly bots?: boolean;
 }
 
 export type CreateOutcome =

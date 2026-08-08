@@ -719,6 +719,11 @@ h2 {
   gap: 0.75rem;
 }
 
+#lobby-bots[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* The spectator's board: the seats around the table, public facts only. */
 .table-board {
   display: grid;

@@ -27,6 +27,7 @@ interface PublicParticipant {
 interface PublicSeat {
   readonly seatId: string;
   readonly participantId: string | null;
+  readonly bot?: boolean;
   readonly connected: boolean;
   readonly hasQueued: boolean;
 }
@@ -45,6 +46,14 @@ interface FeedEntry {
   readonly name: string;
 }
 
+/** The four safe options, tracked so the lobby's toggles can send the whole object back. */
+interface RoomConfigState {
+  readonly timers: boolean;
+  readonly poolHidden: boolean;
+  readonly spectators: boolean;
+  readonly bots: boolean;
+}
+
 interface RoomPageState {
   code: string;
   selfId: string | null;
@@ -60,6 +69,7 @@ interface RoomPageState {
   grouping: PoolGrouping;
   notice: string;
   feed: readonly FeedEntry[];
+  config: RoomConfigState | null;
 }
 
 /** The story box holds this many lines at most, the same bound the server keeps. */
@@ -104,6 +114,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   const share = el("#room-share");
   const seatList = el("#lobby-seats");
   const spectatorList = el("#lobby-spectators");
+  const botsControl = el("#lobby-bots");
   const randomizeControl = el("#lobby-randomize");
   const startControl = el("#lobby-start");
   const leaveControl = el("#room-leave");
@@ -228,6 +239,8 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     if (state === null) return;
     codeLabel.textContent = state.code;
     const hosting = self()?.host === true;
+    botsControl.hidden = !hosting;
+    botsControl.setAttribute("aria-pressed", String(state.config?.bots ?? true));
     randomizeControl.hidden = !hosting;
     startControl.hidden = !hosting;
 
@@ -296,15 +309,15 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       const item = document.createElement("li");
       const name = document.createElement("span");
       name.className = "board-name";
-      name.textContent = seatName(seat.participantId);
+      name.textContent = seat.bot === true ? "Bot" : seatName(seat.participantId);
       item.append(name);
-      if (seat.participantId !== null && picking) {
+      if ((seat.participantId !== null || seat.bot === true) && picking) {
         const mark = document.createElement("span");
         mark.className = seat.hasQueued ? "board-picked" : "board-picking";
         mark.textContent = seat.hasQueued ? "picked" : "picking…";
         item.append(mark);
       }
-      if (seat.participantId !== null && !seat.connected) {
+      if (seat.participantId !== null && seat.bot !== true && !seat.connected) {
         const away = document.createElement("span");
         away.className = "board-away";
         away.textContent = "away";
@@ -466,6 +479,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       case "snapshot": {
         state.phase = payload.phase as RoomPageState["phase"];
         state.participants = (payload.participants ?? []) as PublicParticipant[];
+        state.config = (payload.config ?? null) as RoomConfigState | null;
         state.feed = ((payload.feed ?? []) as FeedEntry[]).slice(-MAX_FEED_LINES);
         const draft = payload.draft as Record<string, unknown> | undefined;
         if (draft !== undefined) {
@@ -492,6 +506,9 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
         }
         break;
       }
+      case "config_changed":
+        state.config = ((payload.config ?? null)) as RoomConfigState | null;
+        break;
       case "participants_changed":
       case "seat_layout_changed":
         state.participants = (payload.participants ?? state.participants) as PublicParticipant[];
@@ -615,7 +632,8 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       view: null,
       grouping: "number",
       notice: "Waiting for the room…",
-      feed: []
+      feed: [],
+      config: null
     };
     announcedPack = 0;
     roomControls.hidden = false;
@@ -679,6 +697,12 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     });
   };
 
+  // One toggle on the seat screen itself: whether the empty seats become bots at the start.
+  botsControl.onclick = () => {
+    if (state?.config == null) return;
+    const { timers, poolHidden, spectators, bots } = state.config;
+    client?.send("update_config", { timers, poolHidden, spectators, bots: !bots });
+  };
   randomizeControl.onclick = () => {
     client?.send("set_seat_randomization", { mode: "randomize_now" });
   };
