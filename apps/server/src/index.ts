@@ -14,6 +14,8 @@
 
 import { createRoomCode, normalizeRoomCode } from "@draft-table/contracts";
 
+import { MAX_CREATE_BODY_BYTES, ROOM_CREATE_ATTEMPTS } from "./limits.ts";
+
 // The runtime finds Durable Object classes on the Worker entry module.
 export { RoomObject } from "./room.ts";
 
@@ -34,18 +36,8 @@ export interface RouterEnv {
   ASSETS?: AssetBinding;
 }
 
-/**
- * A room's configuration is a name, an optional password, and a handful of flags. The 16 KiB cap
- * in the architecture notes is for WebSocket protocol commands; a create request has no reason to
- * come near it.
- */
-export const MAX_CREATE_BODY_BYTES = 4096;
-
-/**
- * Forty random bits make a collision a curiosity rather than an expectation, so a few attempts is
- * generous. Giving up beats spinning while the day's request allowance drains.
- */
-export const ROOM_CREATE_ATTEMPTS = 5;
+// The Workers runtime refuses an entry module whose runtime exports are anything but handlers
+// and Durable Object classes, so the router's bounds live in ./limits.ts rather than here.
 
 /** Durable Object requests need an absolute URL; this host is reserved and never resolves. */
 const INTERNAL_ORIGIN = "https://rooms.invalid";

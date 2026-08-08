@@ -3,9 +3,16 @@ import test from "node:test";
 
 import { isRoomCode } from "@draft-table/contracts";
 
-import worker, { MAX_CREATE_BODY_BYTES, ROOM_CREATE_ATTEMPTS } from "../src/index.ts";
+import worker from "../src/index.ts";
+import { MAX_CREATE_BODY_BYTES, ROOM_CREATE_ATTEMPTS } from "../src/limits.ts";
 
 const ORIGIN = "https://draft.example";
+
+test("the entry module's runtime exports are only what the Workers runtime will boot", async () => {
+  const entry = await import("../src/index.ts");
+  assert.deepEqual(Object.keys(entry).sort(), ["RoomObject", "default"],
+    "workerd refuses an entry module whose runtime exports are not handlers or Durable Object classes");
+});
 
 /** A stand-in for the room object namespace, recording exactly what the router asked it to do. */
 const rooms = (respond) => {
