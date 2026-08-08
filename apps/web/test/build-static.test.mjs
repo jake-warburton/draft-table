@@ -55,7 +55,7 @@ class Element {
  * external text. The stub stays installed for the whole test because the client keeps handling
  * activations after its first render.
  */
-const openBuiltClient = (t) => {
+const openBuiltClient = (t, options = {}) => {
   const ids = ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart",
     "drafting-heading", "review-heading", "review-pack", "continue",
     "export", "export-link", "export-list", "export-copy", "export-status",
@@ -90,6 +90,17 @@ const openBuiltClient = (t) => {
     cleanDist();
   });
   nodes.clipboard = clipboard;
+  // The page reads its own address once, at load, so a faked location must exist before the
+  // bundle runs — not after, the way the room world installs its other fakes.
+  const previousLocation = Object.getOwnPropertyDescriptor(globalThis, "location");
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: { protocol: "https:", host: "draft.test", search: "", ...options.location }
+  });
+  t.after(() => {
+    if (previousLocation === undefined) delete globalThis.location;
+    else Object.defineProperty(globalThis, "location", previousLocation);
+  });
   build();
   new Function(bundleOf(builtHtml()))();
   return nodes;
@@ -449,14 +460,13 @@ test("the build refuses a module specifier it cannot resolve inside the workspac
 });
 
 /** A scripted room server: a fake fetch for creation and a fake socket the test speaks through. */
-const openRoomWorld = (t) => {
-  const nodes = openBuiltClient(t);
+const openRoomWorld = (t, options = {}) => {
+  const nodes = openBuiltClient(t, options);
   const world = { fetches: [], sockets: [], storage: new Map() };
   const previous = {
     fetch: globalThis.fetch,
     WebSocket: globalThis.WebSocket,
     localStorage: Object.getOwnPropertyDescriptor(globalThis, "localStorage"),
-    location: Object.getOwnPropertyDescriptor(globalThis, "location"),
     setTimeout: globalThis.setTimeout,
     clearTimeout: globalThis.clearTimeout,
     setInterval: globalThis.setInterval,
@@ -485,10 +495,6 @@ const openRoomWorld = (t) => {
       setItem: (key, value) => { world.storage.set(key, value); }
     }
   });
-  Object.defineProperty(globalThis, "location", {
-    configurable: true,
-    value: { protocol: "https:", host: "draft.test" }
-  });
   globalThis.setTimeout = () => 0;
   globalThis.clearTimeout = () => {};
   globalThis.setInterval = () => 0;
@@ -498,8 +504,6 @@ const openRoomWorld = (t) => {
     globalThis.WebSocket = previous.WebSocket;
     if (previous.localStorage === undefined) delete globalThis.localStorage;
     else Object.defineProperty(globalThis, "localStorage", previous.localStorage);
-    if (previous.location === undefined) delete globalThis.location;
-    else Object.defineProperty(globalThis, "location", previous.location);
     globalThis.setTimeout = previous.setTimeout;
     globalThis.clearTimeout = previous.clearTimeout;
     globalThis.setInterval = previous.setInterval;
@@ -691,4 +695,50 @@ test("a completed room turns the page to the results with the way out", async (t
   assert.equal(nodes.export.hidden, false, "the Fabrary hand-off lives here");
   assert.equal(nodes.rooms.hidden, true);
   assert.equal(nodes["play-again"].hidden, true, "leaving, not redealing, is the room's way out");
+});
+
+test("a live room offers its invite link — the page's own address, never the password", async (t) => {
+  const { nodes, world, serve } = openRoomWorld(t);
+  nodes["create-password"].value = "table secret";
+  nodes["create-form"].onsubmit({ preventDefault: () => {} });
+  await flush();
+  const socket = world.sockets[0];
+  socket.onopen();
+  const [hello] = socket.sent;
+  serve(socket, "hello_ack", { self: { id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 } }, { commandId: hello.commandId });
+  serve(socket, "snapshot", {
+    phase: "lobby", config: {}, passwordProtected: true,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [], self: "p1"
+  });
+
+  const [address, copy] = nodes["room-share"].children;
+  assert.equal(address.tag, "input");
+  assert.equal(address.value, "https://draft.test/?join=A1B2C3D4");
+  assert.equal(address.attributes.readonly, "");
+  assert.ok(!nodes["room-share"].textContent.includes("table secret"), "the password never enters the invite");
+  assert.match(nodes["room-share"].textContent, /password, if any, travels separately/);
+
+  copy.onclick();
+  await flush();
+  assert.deepEqual(nodes.clipboard.written, ["https://draft.test/?join=A1B2C3D4"]);
+  assert.equal(address.selected, true, "the link stays selectable when copying is refused");
+});
+
+test("opening an invite link fills the join form, however the code was spelled", (t) => {
+  const { nodes } = openRoomWorld(t, { location: { search: "?join=a1b2-c3d4" } });
+
+  assert.equal(nodes["join-code"].value, "A1B2C3D4", "the code arrives canonical");
+  assert.equal(nodes["join-name"].focused, true, "the name field is the one thing left to offer");
+  assert.match(nodes["room-status"].textContent, /invited to room A1B2C3D4/);
+  assert.equal(nodes.rooms.hidden, false, "the door is the page an invite opens on");
+});
+
+test("a link that does not hold a real code changes nothing and is never echoed", (t) => {
+  const { nodes } = openRoomWorld(t, { location: { search: "?join=UUUUUUUU" } });
+
+  assert.equal(nodes["join-code"].value, "", "the form stays untouched");
+  assert.equal(nodes["room-status"].textContent, "");
+  assert.ok(!JSON.stringify(Object.values(nodes).map((node) => node.textContent ?? "")).includes("UUUUUUUU"),
+    "the rejected text appears nowhere on the page");
 });

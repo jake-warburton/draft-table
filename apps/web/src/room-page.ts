@@ -104,10 +104,41 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   const self = (): PublicParticipant | undefined =>
     state?.participants.find(({ id }) => id === state?.selfId);
 
+  /**
+   * The invite is the page's own address with the code attached; the password, when there is
+   * one, never enters it. Built once per room, not per render, so copying is never interrupted.
+   */
+  const renderShare = (code: string): void => {
+    const link = `${location.protocol}//${location.host}/?join=${code}`;
+    const address = document.createElement("input") as HTMLInputElement;
+    address.setAttribute("readonly", "");
+    address.setAttribute("aria-label", "Invite link");
+    address.value = link;
+    const copy = document.createElement("button");
+    copy.setAttribute("type", "button");
+    copy.textContent = "Copy invite link";
+    const copyStatus = document.createElement("span");
+    copyStatus.setAttribute("role", "status");
+    copy.onclick = () => {
+      address.select();
+      const copied = navigator.clipboard?.writeText(link);
+      if (copied === undefined) {
+        copyStatus.textContent = "Your browser would not copy it. The link is selected, so copy it yourself.";
+        return;
+      }
+      copied.then(
+        () => { copyStatus.textContent = "Copied."; },
+        () => { copyStatus.textContent = "Your browser would not copy it. The link is selected, so copy it yourself."; }
+      );
+    };
+    const caveat = document.createElement("span");
+    caveat.textContent = "Anyone with the link can knock. The password, if any, travels separately.";
+    share.replaceChildren(address, copy, copyStatus, caveat);
+  };
+
   const renderLobby = (): void => {
     if (state === null) return;
     codeLabel.textContent = state.code;
-    share.textContent = "Send the code to your table. Codes are unlisted addresses; the password, if any, travels separately.";
     const seated = new Map(state.participants.filter((entry) => entry.seat !== null)
       .map((entry) => [entry.seat as number, entry]));
     seatList.replaceChildren(...Array.from({ length: LOBBY_SEAT_COUNT }, (unused, position) => {
@@ -378,6 +409,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       notice: "Waiting for the room…"
     };
     roomControls.hidden = false;
+    renderShare(code);
     client = new RoomClient(code, hello, {
       openSocket: (roomCode) =>
         new WebSocket(socketUrl(location.protocol, location.host, roomCode)) as unknown as DriverSocket,
@@ -449,4 +481,14 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     client?.leave();
     endRoom("Left the room.");
   };
+
+  // An invite link opens on the door with the join form already filled in. Whatever the link
+  // carried is read the same forgiving way as typed codes, and a link that does not hold a
+  // real code changes nothing — its text is never echoed anywhere.
+  const invited = readTypedCode(new URLSearchParams(globalThis.location?.search ?? "").get("join") ?? "");
+  if (invited !== null) {
+    (el("#join-code") as HTMLInputElement).value = invited;
+    roomStatus.textContent = `You are invited to room ${invited}. Add your name if you like, then join.`;
+    (el("#join-name") as HTMLInputElement).focus();
+  }
 };

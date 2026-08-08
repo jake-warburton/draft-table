@@ -272,6 +272,17 @@ button:focus-visible {
   font: inherit;
 }
 
+#room-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#room-share input {
+  flex: 1 1 16rem;
+}
+
 #lobby-seats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
