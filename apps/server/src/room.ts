@@ -432,16 +432,36 @@ export class RoomObject {
     });
   }
 
-  /** One server message in the protocol envelope. */
+  /**
+   * One server message in the protocol envelope, delivered if the socket can still hear it. The
+   * runtime throws on send() once a socket has closed — including one this object closed moments
+   * ago in the same handler, because a closing socket stays listed until its goodbye completes.
+   * A recipient that has gone away is bookkeeping for the close event and the liveness sweep,
+   * never a reason to throw: an uncaught throw inside the concurrency gate resets the whole
+   * object and drops every connection in the room.
+   */
   private send(socket: RoomSocketSlice, stateVersion: number, type: string, payload: unknown, commandId?: string): void {
-    socket.send(JSON.stringify({
-      protocolVersion: PROTOCOL_VERSION,
-      stateVersion,
-      type,
-      ...(commandId === undefined ? {} : { commandId }),
-      serverNow: this.tools.now(),
-      payload
-    }));
+    try {
+      socket.send(JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        stateVersion,
+        type,
+        ...(commandId === undefined ? {} : { commandId }),
+        serverNow: this.tools.now(),
+        payload
+      }));
+    } catch {
+      // The recipient is gone; the close event or the liveness sweep owns the ledger.
+    }
+  }
+
+  /** Closing a socket that is already closing throws for the same reason sending does. */
+  private close(socket: RoomSocketSlice, code: number, reason: string): void {
+    try {
+      socket.close(code, reason);
+    } catch {
+      // Already closing or already gone — which is what was wanted.
+    }
   }
 
   /**
@@ -455,7 +475,7 @@ export class RoomObject {
   /** Refuses an unauthenticated socket: one generic error, then the door closes. */
   private turnAway(socket: RoomSocketSlice, code: string, commandId?: string): void {
     this.sendError(socket, 0, code, commandId);
-    socket.close(REFUSED_CLOSE_CODE, code);
+    this.close(socket, REFUSED_CLOSE_CODE, code);
   }
 
   private attachmentOf(socket: RoomSocketSlice): SocketAttachment | null {
@@ -505,7 +525,7 @@ export class RoomObject {
 
     const room = await this.room();
     if (room === undefined) {
-      socket.close(REFUSED_CLOSE_CODE, "room_closed");
+      this.close(socket, REFUSED_CLOSE_CODE, "room_closed");
       return;
     }
 
@@ -534,7 +554,7 @@ export class RoomObject {
     const self = room.participants.find(({ id }) => id === attachment.participantId);
     if (self === undefined) {
       // Removed while this socket was still open: it is nobody again.
-      socket.close(REFUSED_CLOSE_CODE, "removed");
+      this.close(socket, REFUSED_CLOSE_CODE, "removed");
       return;
     }
 
@@ -1071,7 +1091,7 @@ export class RoomObject {
     if (reason === "leave" && participants.length === 0) {
       this.send(socket, room.stateVersion + 1, "ack", { applied: true }, command.commandId);
       for (const open of this.state.getWebSockets()) {
-        open.close(REFUSED_CLOSE_CODE, "room_closed");
+        this.close(open, REFUSED_CLOSE_CODE, "room_closed");
       }
       await this.storage.deleteAll();
       return;
@@ -1093,7 +1113,7 @@ export class RoomObject {
     this.send(socket, updated.stateVersion, "ack", { applied: true }, command.commandId);
     for (const { socket: open, attachment } of this.authenticatedSockets()) {
       if (attachment.participantId === departing.id) {
-        open.close(REFUSED_CLOSE_CODE, reason);
+        this.close(open, REFUSED_CLOSE_CODE, reason);
       }
     }
     this.broadcast(updated, "participants_changed", this.layout(updated));
@@ -1243,7 +1263,7 @@ export class RoomObject {
     // An older socket for the same identity loses to this one, after the state is safe.
     for (const { socket: other, attachment } of this.authenticatedSockets()) {
       if (other !== socket && attachment.participantId === self.id && attachment.generation < self.generation) {
-        other.close(SUPERSEDED_CLOSE_CODE, "superseded");
+        this.close(other, SUPERSEDED_CLOSE_CODE, "superseded");
       }
     }
 
@@ -1364,7 +1384,7 @@ export class RoomObject {
       return;
     }
     for (const socket of this.state.getWebSockets()) {
-      socket.close(REFUSED_CLOSE_CODE, "room_closed");
+      this.close(socket, REFUSED_CLOSE_CODE, "room_closed");
     }
     await this.storage.deleteAll();
   }
@@ -1385,7 +1405,7 @@ export class RoomObject {
 
     if (room.phase === "complete") {
       for (const socket of this.state.getWebSockets()) {
-        socket.close(REFUSED_CLOSE_CODE, "room_closed");
+        this.close(socket, REFUSED_CLOSE_CODE, "room_closed");
       }
       await this.storage.deleteAll();
       return;

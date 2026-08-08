@@ -29,13 +29,25 @@ const makeStorage = () => {
   };
 };
 
-/** A hibernatable server socket that records everything the room does to it. */
+/**
+ * A hibernatable server socket faithful to the runtime's sharp edges: send() and close() throw
+ * once the socket is closing or gone, exactly as workerd's do, and a socket the object closed
+ * stays listed until it detaches — `detached` models the runtime forgetting it, whether through
+ * a completed goodbye or a connection that simply vanished.
+ */
 const makeSocket = () => ({
   sent: [],
   closed: null,
+  detached: false,
   attachment: null,
-  send(data) { this.sent.push(JSON.parse(data)); },
-  close(code, reason) { this.closed = { code, reason }; },
+  send(data) {
+    if (this.closed !== null || this.detached) throw new TypeError("Can't call WebSocket send() after close().");
+    this.sent.push(JSON.parse(data));
+  },
+  close(code, reason) {
+    if (this.closed !== null || this.detached) throw new TypeError("Can't call close() after close().");
+    this.closed = { code, reason };
+  },
   serializeAttachment(value) { this.attachment = value; },
   deserializeAttachment() { return this.attachment; }
 });
@@ -72,7 +84,7 @@ const makeRoom = (start = CREATED_AT) => {
   const state = {
     storage,
     acceptWebSocket: (socket) => { sockets.push(socket); },
-    getWebSockets: () => sockets.filter((socket) => socket.closed === null),
+    getWebSockets: () => sockets.filter((socket) => !socket.detached),
     blockConcurrencyWhile: (callback) => {
       const run = gate.then(() => callback());
       gate = run.then(() => undefined, () => undefined);
@@ -521,7 +533,7 @@ test("a closing socket marks its identity disconnected and tells the room", asyn
   const second = await connect({ room, ...context });
   await room.webSocketMessage(second.socket, hello());
 
-  socket.closed = { code: 1001, reason: "gone" };
+  socket.detached = true;
   await room.webSocketClose(socket);
 
   const snapshot = storage.map.get("room");
@@ -536,7 +548,7 @@ test("the lobby's last disconnect books the abandonment appointment", async () =
   await room.webSocketMessage(socket, hello());
   clock.now = CREATED_AT + 60_000;
 
-  socket.closed = { code: 1001, reason: "gone" };
+  socket.detached = true;
   await room.webSocketClose(socket);
 
   const snapshot = storage.map.get("room");
@@ -567,13 +579,14 @@ test("the due cleanup deletes an abandoned lobby whole and closes its doors", as
   const { room, socket, storage, clock, sockets } = await openRoom();
   await room.webSocketMessage(socket, hello());
   clock.now = CREATED_AT + 60_000;
-  socket.closed = { code: 1001, reason: "gone" };
+  socket.detached = true;
   await room.webSocketClose(socket);
 
   clock.now = storage.map.get("room").abandonAt;
   await room.alarm();
   assert.equal(storage.map.size, 0, "nothing of the room survives");
-  assert.ok(sockets.every((entry) => entry.closed !== null));
+  assert.ok(sockets.every((entry) => entry.detached || entry.closed !== null),
+    "every door is closed, unless its connection was already gone");
 });
 
 test("a reconnect cancels abandonment and a late alarm stays harmless", async () => {
@@ -581,7 +594,7 @@ test("a reconnect cancels abandonment and a late alarm stays harmless", async ()
   await room.webSocketMessage(socket, hello());
   const credential = frames(socket, "hello_ack")[0].payload.credential;
   clock.now = CREATED_AT + 60_000;
-  socket.closed = { code: 1001, reason: "gone" };
+  socket.detached = true;
   await room.webSocketClose(socket);
   const appointment = storage.map.get("room").abandonAt;
 
@@ -675,7 +688,7 @@ test("a lobby whose sockets died without goodbyes is still reaped", async () => 
   const { room, socket, storage, clock } = await openRoom();
   await room.webSocketMessage(socket, hello());
   // The deploy scenario: the socket is simply gone, and no close event ever arrives.
-  socket.closed = { code: 1006, reason: "" };
+  socket.detached = true;
 
   clock.now = CREATED_AT + LOBBY_ABANDONMENT_MS;
   await room.alarm();
