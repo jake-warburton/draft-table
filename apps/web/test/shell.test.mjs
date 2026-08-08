@@ -116,7 +116,7 @@ test("the client hard-codes no card material and no origin beyond the two known 
 });
 
 test("images degrade to text rather than leaving a card unreadable", () => {
-  const source = read("src/main.ts");
+  const source = read("src/table-render.ts");
   assert.match(source, /onerror/, "a card whose image fails must not stay blank");
   assert.match(source, /loading", "lazy"|loading="lazy"/);
   assert.match(source, /referrerpolicy/i);
