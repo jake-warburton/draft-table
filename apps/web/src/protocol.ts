@@ -96,6 +96,20 @@ export const observeClock = (
   return Object.freeze({ offsetMs: serverNow + latency - receivedAt, bestLatencyMs: latency });
 };
 
+/**
+ * Folds in a frame we did not provoke. Its arrival bounds nothing, so it may only seed a
+ * provisional offset while no genuine round trip has ever been measured; it never competes
+ * with one, because an absence of information is not a fast measurement.
+ */
+export const observeCoarse = (
+  clock: ClockEstimate,
+  serverNowMs: number,
+  receivedAt: number
+): ClockEstimate =>
+  clock.bestLatencyMs === Number.POSITIVE_INFINITY
+    ? Object.freeze({ offsetMs: serverNowMs - receivedAt, bestLatencyMs: Number.POSITIVE_INFINITY })
+    : clock;
+
 /** What the server's clock reads now, by our best estimate. */
 export const serverNow = (clock: ClockEstimate, localNow: number): number =>
   localNow + clock.offsetMs;

@@ -173,19 +173,42 @@ test("garbage frames are dropped without ceremony and commands refuse a dead roo
   assert.throws(() => client.send("queue_pick", {}), /not connected/u);
 });
 
-test("the clock learns from provoked frames and the fastest round trip wins", () => {
+test("an unprovoked broadcast can never beat a measured round trip", () => {
+  const { world, hooks } = makeWorld();
+  const client = new RoomClient(CODE, {}, hooks);
+  client.connect();
+  const socket = open(world); // hello (c1) sent at 100_000
+  world.nowMs = 100_400;
+  socket.onmessage({ data: helloAck(1, { credential: "x" }) }); // provoked: latency 200
+  const measured = client.clockEstimate();
+  assert.equal(measured.bestLatencyMs, 200);
+  assert.equal(measured.offsetMs, 100_000 + 200 - 100_400);
+
+  // A broadcast with a wild server stamp arrives; it carries no round trip and must teach nothing.
+  world.nowMs = 100_500;
+  socket.onmessage({ data: frame({ type: "participants_changed", stateVersion: 2, serverNow: 999_999 }) });
+  assert.deepEqual(client.clockEstimate(), measured, "an absence of information is not a fast measurement");
+});
+
+test("a pipelined ack is scored against its own send, not the latest one", () => {
   const { world, hooks } = makeWorld();
   const client = new RoomClient(CODE, {}, hooks);
   client.connect();
   const socket = open(world);
   world.nowMs = 100_400;
-  socket.onmessage({ data: helloAck(1, {}) });
-  // Provoked: sent at 100_000, received at 100_400, server stamped 200_000.
-  // Latency 200; server is ahead by 200_000 + 200 - 100_400.
-  const ack = frame({ type: "ack", commandId: "c1", serverNow: 200_000, stateVersion: 1 });
-  world.nowMs = 100_400;
-  socket.onmessage({ data: ack });
-  assert.equal(world.frames.length, 2);
+  socket.onmessage({ data: helloAck(1, {}) }); // best latency 200
+
+  world.nowMs = 110_000;
+  const first = client.send("queue_pick", { round: 1, pick: 1, cardInstanceId: "a" }); // sent at 110_000
+  world.nowMs = 110_900;
+  client.send("queue_pick", { round: 1, pick: 1, cardInstanceId: "b" }); // sent at 110_900
+
+  // The first command's ack arrives now: its own round trip is 1000ms, latency 500 — slower
+  // than the measured 200, so it must lose. Scored against the LATEST send it would look like
+  // a 50ms latency and would wrongly win.
+  world.nowMs = 111_000;
+  socket.onmessage({ data: frame({ type: "ack", commandId: first, stateVersion: 2, serverNow: 500_000 }) });
+  assert.equal(client.clockEstimate().bestLatencyMs, 200, "a slower round trip taught nothing");
 });
 
 test("leaving tells the room and stops the driver for good", () => {

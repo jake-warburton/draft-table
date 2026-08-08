@@ -11,6 +11,7 @@ import {
   fellBehind,
   initialClock,
   observeClock,
+  observeCoarse,
   readFrame,
   remainingMs,
   serverNow
@@ -65,6 +66,16 @@ test("the clock estimate prefers the fastest observation it has ever made", () =
   const faster = observeClock(clock, 30_000, 2000, 2010);
   assert.equal(faster.bestLatencyMs, 5);
   assert.equal(faster.offsetMs, 30_005 - 2010);
+});
+
+test("a coarse observation seeds the clock once and never competes after", () => {
+  let clock = initialClock();
+  clock = observeCoarse(clock, 40_000, 1000);
+  assert.equal(clock.offsetMs, 39_000, "a provisional offset is better than none");
+  assert.equal(clock.bestLatencyMs, Number.POSITIVE_INFINITY);
+  const measured = observeClock(clock, 50_000, 2000, 2400);
+  assert.equal(measured.bestLatencyMs, 200, "any genuine measurement replaces the provisional seed");
+  assert.equal(observeCoarse(measured, 999_999, 3000), measured, "no coarse frame ever competes again");
 });
 
 test("server time and remaining time follow the estimated offset and never go negative", () => {

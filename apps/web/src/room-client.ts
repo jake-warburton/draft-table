@@ -18,6 +18,7 @@ import {
   fellBehind,
   initialClock,
   observeClock,
+  observeCoarse,
   readFrame,
   type ClockEstimate,
   type ServerFrame
@@ -70,7 +71,7 @@ export class RoomClient {
   private socket: DriverSocket | null = null;
   private clock: ClockEstimate = initialClock();
   private lastVersion: number | null = null;
-  private lastSentAt = 0;
+  private readonly pendingSends = new Map<string, number>();
   private commandCounter = 0;
   private attempts = 0;
   private everConnected = false;
@@ -112,6 +113,11 @@ export class RoomClient {
     return this.sendRaw(type, payload);
   }
 
+  /** The current clock estimate; the page renders deadlines through it. */
+  clockEstimate(): ClockEstimate {
+    return this.clock;
+  }
+
   /** Leaves on purpose: the room hears it, and the driver stops arguing with the close. */
   leave(): void {
     if (this.socket !== null) this.sendRaw("leave", {});
@@ -137,7 +143,7 @@ export class RoomClient {
     if (socket === null) throw new Error("The room is not connected.");
     this.commandCounter += 1;
     const commandId = `c${this.commandCounter}`;
-    this.lastSentAt = this.hooks.now();
+    this.pendingSends.set(commandId, this.hooks.now());
     socket.send(buildCommand(commandId, type, payload));
     return commandId;
   }
@@ -146,9 +152,13 @@ export class RoomClient {
     const frame = readFrame(data);
     if (frame === null) return;
     const receivedAt = this.hooks.now();
-    // A frame provoked by us bounds the clock by our round trip; an unprovoked one by zero.
-    const sentAt = frame.commandId === undefined ? receivedAt : this.lastSentAt;
-    this.clock = observeClock(this.clock, frame.serverNow, sentAt, receivedAt);
+    // A frame provoked by us bounds the clock by its own command's round trip; a frame we did
+    // not provoke bounds nothing and may only seed a provisional offset.
+    const sentAt = frame.commandId === undefined ? undefined : this.pendingSends.get(frame.commandId);
+    if (frame.commandId !== undefined) this.pendingSends.delete(frame.commandId);
+    this.clock = sentAt === undefined
+      ? observeCoarse(this.clock, frame.serverNow, receivedAt)
+      : observeClock(this.clock, frame.serverNow, sentAt, receivedAt);
 
     if (frame.type === "hello_ack") {
       this.everConnected = true;
@@ -177,6 +187,8 @@ export class RoomClient {
 
   private closed(closeCode: number, reason: string): void {
     this.socket = null;
+    // Whatever was in flight died with the connection; its acks can never arrive.
+    this.pendingSends.clear();
     if (this.stopped) return;
     if (closeCode === SUPERSEDED) {
       this.stopped = true;
