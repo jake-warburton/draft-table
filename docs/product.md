@@ -4,7 +4,7 @@ External citation IDs in this document resolve in the [research source register]
 
 ## Product statement
 
-Draft Table is an unlisted-room browser tool for running a rules-faithful, server-authoritative Flesh and Blood booster draft without accounts, bots, chat, or a built-in deckbuilder. It is a public repository and must remain practical to self-host permanently for $0 on the current Cloudflare free tier. Omens visible-pack probabilities use the captain-approved community recipe documented in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe); they are not represented as an official Legend Story Studios publication.
+Draft Table is an unlisted-room browser tool for running a rules-faithful, server-authoritative Flesh and Blood booster draft without accounts, chat, or a built-in deckbuilder. It is a public repository and must remain practical to self-host permanently for $0 on the current Cloudflare free tier. Omens visible-pack probabilities use the captain-approved community recipe documented in [rules-and-collation.md](rules-and-collation.md#captain-approved-community-mvp-recipe); they are not represented as an official Legend Story Studios publication.
 
 This document is the product contract, not an inventory of implemented behavior. See the [README](../README.md) for current implementation status; the MVP outcomes below remain planned. The current static browser shell is fixture-only: it has an accessible deterministic walkthrough with synthetic cards, but no engine or set-omens integration.
 
@@ -111,4 +111,4 @@ Visible to everyone and limited to material events: join, explicit leave, discon
 
 ## Non-goals
 
-No accounts, bots, general chat, matchmaking, rankings, tournaments, replay system, anti-collusion guarantees, internal deckbuilder, game simulator, paid service, app-store/native mobile app, or multiple-set implementation. Strong secrecy against a determined user modifying their browser is deferred, but server authority and role-projected data are not.
+No accounts, no skill-playing bots (empty seats may be filled by uniform-random filler drafters), no general chat, matchmaking, rankings, tournaments, replay system, anti-collusion guarantees, internal deckbuilder, game simulator, paid service, app-store/native mobile app, or multiple-set implementation. Strong secrecy against a determined user modifying their browser is deferred, but server authority and role-projected data are not.

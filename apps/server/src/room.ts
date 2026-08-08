@@ -1004,7 +1004,12 @@ export class RoomObject {
   ): { deadlineAt: number | null; deadlineAccelerated: boolean } {
     const current = { deadlineAt: room.deadlineAt, deadlineAccelerated: room.deadlineAccelerated };
     if (draft.status !== "picking" || room.phase !== "picking") return current;
-    const readiness = draft.seats.filter((entry) => entry.occupantId !== null && entry.connected);
+    // Readiness is a human affair: bots are always queued, so counting them would let a table
+    // whose every human has dropped keep confirming — and burn the draft down at five seconds a
+    // pick. With no human connected, no confirmation starts; the ordinary judge-schedule
+    // deadline still governs a timed draft, exactly as the product contract requires.
+    const readiness = draft.seats.filter((entry) =>
+      entry.controller === "human" && entry.occupantId !== null && entry.connected);
     if (readiness.length === 0) return current;
     const queued = new Set(draft.provisionalPicks.map((entry) => entry.seatId));
     if (!readiness.every((entry) => queued.has(entry.id))) return current;

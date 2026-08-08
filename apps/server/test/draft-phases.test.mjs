@@ -542,3 +542,22 @@ test("bots off is a humans-only table, exactly as before", async () => {
   assert.ok(snapshot.draft.seats.every((seat) => seat.controller === "human"));
   assert.equal(snapshot.draft.provisionalPicks.length, 0, "nobody queues on anyone's behalf");
 });
+
+test("a table of bots does not confirm without a connected human", async () => {
+  const context = makeRoom();
+  const created = await (await initialize(context.room, {})).json();
+  const { socket: host } = await connect(context);
+  await context.room.webSocketMessage(host, envelope("hello", { hostClaim: created.hostClaim }));
+  const version = context.storage.map.get("room").stateVersion;
+  await context.room.webSocketMessage(host, envelope("start_draft", { expectedStateVersion: version }));
+  const originalDeadline = context.storage.map.get("room").deadlineAt;
+
+  // The lone human drops mid-pick with nothing queued; seven queued bots remain.
+  await context.room.webSocketClose(host);
+
+  const after = context.storage.map.get("room");
+  assert.equal(after.deadlineAt, originalDeadline,
+    "seven queued bots must not start the five-second confirmation on their own");
+  assert.equal(after.deadlineAccelerated, false,
+    "the draft waits at the judge schedule, not a bot-driven sprint");
+});
