@@ -13,7 +13,7 @@ This document is the product contract, not an inventory of implemented behavior.
 A successful MVP lets a host:
 
 1. Create an unlisted Omens of the Third Age room, optionally password-protected.
-2. Arrange 2–8 human drafters and up to 16 total participants.
+2. Arrange 1–8 human drafters and up to 16 total participants.
 3. Run three Omens boosters per drafting seat using the official visible slot shape, the approved community recipe, official left/right/left passing and called-draft timing by default, provisional picks, pauses, and inter-pack reviews.
 4. Allow spectators to join during the draft, switch player point of view, and inspect the chosen player's current pack and complete pool.
 5. Finish with a pre-populated Fabrary import when the current public deep link still works, or a reliable copyable text-list fallback.
@@ -59,7 +59,7 @@ Room limit is 16 simultaneous participant identities, of which at most eight are
 - A separate row contains spectator cards.
 - Dragging to an empty seat moves a participant; dragging onto an occupied seat swaps them; dragging between seats and spectators is allowed.
 - Every drag operation has a keyboard equivalent: a `Move` action opens a destination list and announces move/swap results.
-- Starting requires 2–8 occupied seat positions. Only occupied positions become the initial circular draft ring; unused lobby positions are skipped and receive no packs.
+- Starting requires 1–8 occupied seat positions — a table of one exists so a host can try the room out alone. Only occupied positions become the initial circular draft ring; unused lobby positions are skipped and receive no packs.
 - Seat order randomizes just before pack generation only while `Randomize at start` remains enabled. The first manual move/swap disables it. `Randomize now` immediately shuffles and disables the pending start shuffle; `Randomize at start` explicitly re-enables it.
 
 ### After start

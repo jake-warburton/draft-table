@@ -140,7 +140,7 @@ test("starting the draft needs the host, the current room, and a real table", as
   assert.equal(lobby.storage.map.get("room").phase, "lobby", "nothing started");
 });
 
-test("one seated drafter is not a draft", async () => {
+test("one seated drafter is a legal table of one", async () => {
   const context = makeRoom();
   const created = await (await initialize(context.room, {})).json();
   const { socket: host } = await connect(context);
@@ -148,8 +148,9 @@ test("one seated drafter is not a draft", async () => {
   const version = context.storage.map.get("room").stateVersion;
 
   await context.room.webSocketMessage(host, envelope("start_draft", { expectedStateVersion: version }));
-  assert.equal(lastError(host).payload.code, "invalid_seat_count");
-  assert.equal(context.storage.map.get("room").phase, "lobby");
+  assert.equal(context.storage.map.get("room").phase, "picking",
+    "trying the room out alone is exactly what a table of one is for");
+  assert.equal(context.storage.map.get("room").draft.seats.length, 1);
 });
 
 test("the start transaction deals the whole draft before anyone hears it began", async () => {

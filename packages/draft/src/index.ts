@@ -1,5 +1,5 @@
 /** Minimum and maximum supported number of drafting seats. */
-export const MIN_DRAFT_SEATS = 2;
+export const MIN_DRAFT_SEATS = 1;
 export const MAX_DRAFT_SEATS = 8;
 
 export type DraftStatus = "picking" | "complete";

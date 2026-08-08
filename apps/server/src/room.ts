@@ -862,7 +862,9 @@ export class RoomObject {
     const seated = participants
       .filter((entry) => entry.seat !== null)
       .sort((left, right) => (left.seat as number) - (right.seat as number));
-    if (seated.length < 2 || seated.length > LOBBY_SEAT_COUNT) {
+    // One seated drafter is a legal table: the pack passes to its own seat, which is exactly
+    // what trying the room out alone needs. Zero seated (a host on the spectator rail) is not.
+    if (seated.length < 1 || seated.length > LOBBY_SEAT_COUNT) {
       this.sendError(socket, room.stateVersion, "invalid_seat_count", command.commandId);
       return;
     }

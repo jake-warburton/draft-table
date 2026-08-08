@@ -4,7 +4,7 @@ External citation IDs resolve in the [research source register](research.md#sour
 
 ## Verified draft procedure
 
-The current Tournament Rules and Policy (TRP) specifies that Booster Draft normally uses pods of eight, three boosters per player, one card drafted per pass, and a 30-card starting deck. A limited pool may contain any number of copies of a unique card and may use any number of basic-rarity cards from the set without opening them [FAB-1]. Draft Table intentionally supports 2–8 players; 2–7 is a simulator extension, not a claim of official pod size.
+The current Tournament Rules and Policy (TRP) specifies that Booster Draft normally uses pods of eight, three boosters per player, one card drafted per pass, and a 30-card starting deck. A limited pool may contain any number of copies of a unique card and may use any number of basic-rarity cards from the set without opening them [FAB-1]. Draft Table intentionally supports 1–8 players; 1–7 is a simulator extension, not a claim of official pod size.
 
 The recommended procedure is [FAB-1]:
 

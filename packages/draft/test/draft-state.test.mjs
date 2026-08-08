@@ -89,10 +89,10 @@ const expectRuleError = (fn, code) =>
   });
 
 test("setup creates a deeply immutable first-round state and detached input snapshot", () => {
-  const input = makeSetup({ seatCount: MIN_DRAFT_SEATS });
+  const input = makeSetup({ seatCount: 2 });
   const state = createDraft(input);
 
-  assert.equal(MIN_DRAFT_SEATS, 2);
+  assert.equal(MIN_DRAFT_SEATS, 1);
   assert.equal(MAX_DRAFT_SEATS, 8);
   assert.equal(state.status, "picking");
   assert.equal(state.round, 1);
@@ -508,7 +508,7 @@ test("completion produces the exact terminal control state and rejects further p
 test("malformed setup is rejected before any state is created", () => {
   const setupMutations = [
     () => null,
-    () => makeSetup({ seatCount: 1 }),
+    () => makeSetup({ seatCount: 0 }),
     () => makeSetup({ seatCount: 9 }),
     () => ({ ...makeSetup(), seats: [{ id: "same", controller: "human" }, { id: "same", controller: "human" }] }),
     () => ({ ...makeSetup(), seats: [{ id: "seat-0", controller: "human" }, { id: "seat-1", controller: "robot" }] }),
@@ -569,4 +569,25 @@ test("malformed actions are rejected without changing state", () => {
   }
   assert.equal(state.totalPicks, 0);
   assert.deepEqual(state.pendingSeatIds, ["seat-0", "seat-1"]);
+});
+
+test("a table for one drafts alone: the pack passes to its own seat until the draft completes", () => {
+  const state = createDraft(makeSetup({ seatCount: 1, cardsPerRound: [3, 3, 3] }));
+
+  assert.deepEqual(state.pendingSeatIds, ["seat-0"]);
+  assert.deepEqual(
+    state.packsInFlight.map(({ atSeatId, originSeatId }) => ({ atSeatId, originSeatId })),
+    [{ atSeatId: "seat-0", originSeatId: "seat-0" }]
+  );
+
+  const afterFirst = pickBarrier(state);
+  assert.equal(afterFirst.round, 1);
+  assert.equal(afterFirst.pick, 2);
+  assert.equal(afterFirst.packsInFlight[0].atSeatId, "seat-0",
+    "the only seat passes its pack to itself");
+
+  const done = finishDraft(afterFirst);
+  assert.equal(done.status, "complete");
+  assert.equal(done.pickedPools.length, 1);
+  assert.equal(done.pickedPools[0].cards.length, 9, "every card of every round lands in the one pool");
 });

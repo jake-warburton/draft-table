@@ -994,3 +994,33 @@ test("the start of the draft is told before the first pack is announced", async 
   assert.equal(lobby.guest.sent[feedIndex].payload.event.type, "start");
   assert.ok(feedIndex < phaseIndex, "the story precedes its consequence");
 });
+
+test("a host alone at the table may start the draft and drafts against their own pack", async () => {
+  const { room, socket, storage, created } = await openRoom();
+  await room.webSocketMessage(socket, hello({ hostClaim: created.hostClaim }));
+
+  await room.webSocketMessage(socket, command("start_draft", {
+    expectedStateVersion: storage.map.get("room").stateVersion
+  }));
+
+  const snapshot = storage.map.get("room");
+  assert.equal(snapshot.phase, "picking");
+  assert.equal(snapshot.draft.seats.length, 1, "one seat, one pack, one pool");
+  const view = frames(socket, "private_pack_pool").at(-1);
+  assert.equal(view.payload.pack.cards.length, 14, "the full pack is in the lone drafter's hand");
+});
+
+test("a host who joined the spectator rail cannot start an empty table", async () => {
+  const { room, socket, storage, created } = await openRoom();
+  await room.webSocketMessage(socket, hello({ hostClaim: created.hostClaim }));
+  const hostId = frames(socket, "hello_ack")[0].payload.self.id;
+  await room.webSocketMessage(socket, command("move_participant", {
+    participantId: hostId, destination: "spectators"
+  }));
+
+  await room.webSocketMessage(socket, command("start_draft", {
+    expectedStateVersion: storage.map.get("room").stateVersion
+  }));
+  assert.equal(lastError(socket).payload.code, "invalid_seat_count");
+  assert.equal(storage.map.get("room").phase, "lobby", "the empty table never starts");
+});
