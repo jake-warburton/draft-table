@@ -445,3 +445,147 @@ test("the build refuses a module specifier it cannot resolve inside the workspac
     /node:fs\/promises/
   );
 });
+
+/** A scripted room server: a fake fetch for creation and a fake socket the test speaks through. */
+const openRoomWorld = (t) => {
+  const nodes = openBuiltClient(t);
+  const world = { fetches: [], sockets: [], storage: new Map() };
+  const previous = {
+    fetch: globalThis.fetch,
+    WebSocket: globalThis.WebSocket,
+    localStorage: Object.getOwnPropertyDescriptor(globalThis, "localStorage"),
+    location: Object.getOwnPropertyDescriptor(globalThis, "location"),
+    setTimeout: globalThis.setTimeout,
+    clearTimeout: globalThis.clearTimeout,
+    setInterval: globalThis.setInterval,
+    clearInterval: globalThis.clearInterval
+  };
+  globalThis.fetch = async (path, init) => {
+    world.fetches.push({ path, init });
+    return { status: 201, json: async () => ({ code: "A1B2C3D4", hostClaim: "claim-of-the-host" }) };
+  };
+  globalThis.WebSocket = class {
+    constructor(url) {
+      this.url = url;
+      this.sent = [];
+      this.onopen = null;
+      this.onmessage = null;
+      this.onclose = null;
+      world.sockets.push(this);
+    }
+    send(data) { this.sent.push(JSON.parse(data)); }
+    close() {}
+  };
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key) => world.storage.get(key) ?? null,
+      setItem: (key, value) => { world.storage.set(key, value); }
+    }
+  });
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: { protocol: "https:", host: "draft.test" }
+  });
+  globalThis.setTimeout = () => 0;
+  globalThis.clearTimeout = () => {};
+  globalThis.setInterval = () => 0;
+  globalThis.clearInterval = () => {};
+  t.after(() => {
+    globalThis.fetch = previous.fetch;
+    globalThis.WebSocket = previous.WebSocket;
+    if (previous.localStorage === undefined) delete globalThis.localStorage;
+    else Object.defineProperty(globalThis, "localStorage", previous.localStorage);
+    if (previous.location === undefined) delete globalThis.location;
+    else Object.defineProperty(globalThis, "location", previous.location);
+    globalThis.setTimeout = previous.setTimeout;
+    globalThis.clearTimeout = previous.clearTimeout;
+    globalThis.setInterval = previous.setInterval;
+    globalThis.clearInterval = previous.clearInterval;
+  });
+  const serve = (socket, type, payload, extra = {}) => {
+    socket.onmessage({ data: JSON.stringify({
+      protocolVersion: 1, stateVersion: extra.stateVersion ?? 1, type,
+      ...(extra.commandId === undefined ? {} : { commandId: extra.commandId }),
+      serverNow: 1_000, payload
+    }) });
+  };
+  return { nodes, world, serve };
+};
+
+const flush = () => new Promise((resolve) => { setImmediate(resolve); });
+
+test("creating a room walks the page into a live lobby and stands the solo table down", async (t) => {
+  const { nodes, world, serve } = openRoomWorld(t);
+  nodes["create-name"].value = "Friday Omens";
+  nodes["create-timers"].checked = true;
+  nodes["create-pool-hidden"].checked = true;
+  nodes["create-spectators"].checked = true;
+  nodes["create-form"].onsubmit({ preventDefault: () => {} });
+  await flush();
+
+  assert.equal(world.fetches[0].path, "/api/rooms");
+  const socket = world.sockets[0];
+  assert.equal(socket.url, "wss://draft.test/api/rooms/A1B2C3D4/socket");
+  socket.onopen();
+  const [hello] = socket.sent;
+  assert.equal(hello.type, "hello");
+  assert.equal(hello.payload.hostClaim, "claim-of-the-host");
+
+  serve(socket, "hello_ack", { credential: "issued", self: { id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 } }, { commandId: hello.commandId });
+  serve(socket, "snapshot", {
+    phase: "lobby",
+    config: { name: "Friday Omens" },
+    passwordProtected: false,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [],
+    self: "p1"
+  });
+
+  assert.equal(nodes["room-lobby"].hidden, false, "the lobby is on screen");
+  assert.equal(nodes["room-forms"].hidden, true);
+  assert.equal(nodes["solo-table"].hidden, true, "the solo table stood down");
+  assert.equal(nodes["room-code"].textContent, "A1B2C3D4");
+  assert.equal(nodes["lobby-seats"].children[0].textContent, "Drafter 1 (host)");
+  assert.equal(nodes["lobby-start"].hidden, false, "the host sees the start control");
+  assert.equal(world.storage.size, 1, "the issued credential is kept");
+});
+
+test("a started room deals the pack onto the same table and clicking a card queues it", async (t) => {
+  const { nodes, world, serve } = openRoomWorld(t);
+  nodes["create-form"].onsubmit({ preventDefault: () => {} });
+  await flush();
+  const socket = world.sockets[0];
+  socket.onopen();
+  const [hello] = socket.sent;
+  serve(socket, "hello_ack", { self: { id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 } }, { commandId: hello.commandId });
+  serve(socket, "snapshot", {
+    phase: "lobby", config: {}, passwordProtected: false,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [], self: "p1"
+  });
+
+  serve(socket, "phase_changed", {
+    phase: "picking", status: "picking", round: 1, pick: 1, passDirection: "left", packSize: 3,
+    seats: [{ seatId: "seat-1", participantId: "p1", connected: true, hasQueued: false }]
+  }, { stateVersion: 2 });
+  serve(socket, "private_pack_pool", {
+    seatId: "seat-1",
+    pack: { id: "r1s1", cards: [
+      { instanceId: "r1s1-0", cardId: "UNKNOWN1" },
+      { instanceId: "r1s1-1", cardId: "UNKNOWN2" },
+      { instanceId: "r1s1-2", cardId: "UNKNOWN3" }
+    ] },
+    pool: null,
+    queued: null
+  }, { stateVersion: 2 });
+
+  assert.equal(nodes.pack.children.length, 3, "the room's pack landed on the shared table");
+  assert.match(nodes.status.textContent, /Round 1, pick 1/);
+  assert.match(nodes.pool.textContent, /Pool hidden until the next review/);
+
+  nodes.pack.children[1].onclick();
+  const queued = socket.sent.at(-1);
+  assert.equal(queued.type, "queue_pick");
+  assert.deepEqual(queued.payload, { round: 1, pick: 1, cardInstanceId: "r1s1-1" });
+});
