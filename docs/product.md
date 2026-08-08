@@ -33,6 +33,7 @@ The permanent creator/host controls:
 | Option | Contract |
 |---|---|
 | Room identity | The auto-assigned eight-character room code of letters and digits; rooms have no chosen names. |
+| Fill empty seats with bots | On by default. Empty lobby positions become bot drafters when the draft starts, so packs circulate like a full pod; off is a humans-only table. |
 | Set | Selector may be visible, but Omens of the Third Age is the only enabled MVP value. |
 | Password | Optional. Never placed in the URL query/path; `Copy link + password` uses the fragment. |
 | Timers | On by default, using the official judge schedule [FAB-2]. |
@@ -59,7 +60,7 @@ Room limit is 16 simultaneous participant identities, of which at most eight are
 - A separate row contains spectator cards.
 - Dragging to an empty seat moves a participant; dragging onto an occupied seat swaps them; dragging between seats and spectators is allowed.
 - Every drag operation has a keyboard equivalent: a `Move` action opens a destination list and announces move/swap results.
-- Starting requires 1–8 occupied seat positions — a table of one exists so a host can try the room out alone. Only occupied positions become the initial circular draft ring; unused lobby positions are skipped and receive no packs.
+- Starting requires 1–8 occupied seat positions — a table of one exists so a host can try the room out alone. With the bots option on, the remaining positions up to eight become bot drafters at start: they draft uniformly at random with the room's own entropy, queue instantly each pick, and hold no account, name, or connection. Only occupied positions become the initial circular draft ring; unused lobby positions are skipped and receive no packs.
 - Seat order randomizes just before pack generation only while `Randomize at start` remains enabled. The first manual move/swap disables it. `Randomize now` immediately shuffles and disables the pending start shuffle; `Randomize at start` explicitly re-enables it.
 
 ### After start

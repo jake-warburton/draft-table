@@ -66,7 +66,7 @@ const openBuiltClient = (t, options = {}) => {
     "rooms", "room-status", "room-forms", "create-form", "create-password", "create-timers",
     "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name",
     "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-seats", "lobby-spectators",
-    "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar",
+    "lobby-bots", "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar",
     "deadline-seconds", "solo-table", "pack-section", "pool-section", "room-controls", "play-again",
     "room-story", "room-feed"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Element("div")]));
@@ -997,4 +997,48 @@ test("during the review the board keeps its seats but drops the pick marks", asy
   const [board] = nodes.pack.children;
   assert.deepEqual(board.children.map((row) => row.textContent), ["Drafter 1", "Second Mate"],
     "no one is picking during a review");
+});
+
+test("the host's seat screen owns the bots toggle, whole object out, pressed state back", async (t) => {
+  const { nodes, serve, socket } = await lobbyOfThree(t);
+  serve(socket, "snapshot", {
+    phase: "lobby", config: { timers: true, poolHidden: true, spectators: true, bots: true },
+    passwordProtected: false,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [], self: "p1"
+  }, { stateVersion: 2 });
+  assert.equal(nodes["lobby-bots"].hidden, false, "the toggle lives where the seats are assigned");
+  assert.equal(nodes["lobby-bots"].attributes["aria-pressed"], "true", "bots are on by default");
+
+  nodes["lobby-bots"].onclick();
+  const sent = socket.sent.filter((frame) => frame.type === "update_config").at(-1);
+  assert.deepEqual(sent.payload, { timers: true, poolHidden: true, spectators: true, bots: false },
+    "the whole safe-option object travels, with only bots flipped");
+
+  serve(socket, "config_changed", {
+    config: { timers: true, poolHidden: true, spectators: true, bots: false }
+  }, { stateVersion: 3 });
+  assert.equal(nodes["lobby-bots"].attributes["aria-pressed"], "false",
+    "the pressed state follows the room's answer, not the click");
+});
+
+test("a guest's seat screen has no bots toggle", async (t) => {
+  const { nodes } = await lobbyOfThree(t, { selfId: "p2", selfHost: false });
+  assert.equal(nodes["lobby-bots"].hidden, true);
+});
+
+test("the board names a bot seat as a bot and marks its picks", async (t) => {
+  const { nodes, serve, socket } = await spectatorPicking(t);
+  serve(socket, "phase_changed", {
+    phase: "picking", status: "picking", round: 1, pick: 4, packSize: 11, passDirection: "left",
+    seats: [
+      { seatId: "seat-1", participantId: "p1", connected: true, hasQueued: false },
+      { seatId: "seat-2", participantId: null, bot: true, connected: true, hasQueued: true }
+    ]
+  }, { stateVersion: 3 });
+
+  const [board] = nodes.pack.children;
+  assert.deepEqual(board.children.map((row) => row.textContent),
+    ["Drafter 1picking…", "Botpicked"],
+    "a bot is named a bot, never an empty seat, and never away");
 });

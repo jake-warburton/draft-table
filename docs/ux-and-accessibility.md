@@ -16,7 +16,7 @@ External citation IDs resolve in the [research source register](research.md#sour
 ### 1. Landing and create/join
 
 - `Create room` and `Join room` are the primary actions.
-- Creating asks for display name, optional password, and the four host options; the room's identity is its auto-assigned code. Omens is the only enabled set.
+- Creating asks for optional password and the table options; the room's identity is its auto-assigned code, and the bots toggle lives on the seat screen where its effect is visible. Omens is the only enabled set.
 - Joining from a share URL shows the generated temporary name in an editable field before submitting.
 - A fragment password is read locally and never echoed on screen by default. After the first authentication attempt, remove it with `history.replaceState`.
 - Errors distinguish room not found/expired, wrong password, participant limit, spectators disabled, and incompatible protocol.

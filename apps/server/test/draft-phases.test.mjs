@@ -102,10 +102,11 @@ const envelope = (type, payload = {}) => JSON.stringify({
 const frames = (socket, type) => socket.sent.filter((frame) => frame.type === type);
 const lastError = (socket) => frames(socket, "error").at(-1);
 
-/** A lobby with a bound host and one guest, both seated, ready to start. */
+/** A lobby with a bound host and one guest, both seated, ready to start. These tests pin the
+ * pure human mechanics, so the table stays botless unless a test says otherwise. */
 const openLobby = async (config = {}) => {
   const context = makeRoom();
-  const created = await (await initialize(context.room, config)).json();
+  const created = await (await initialize(context.room, { bots: false, ...config })).json();
   const { socket: host } = await connect(context);
   await context.room.webSocketMessage(host, envelope("hello", { hostClaim: created.hostClaim }));
   const { socket: guest } = await connect(context);
@@ -142,7 +143,7 @@ test("starting the draft needs the host, the current room, and a real table", as
 
 test("one seated drafter is a legal table of one", async () => {
   const context = makeRoom();
-  const created = await (await initialize(context.room, {})).json();
+  const created = await (await initialize(context.room, { bots: false })).json();
   const { socket: host } = await connect(context);
   await context.room.webSocketMessage(host, envelope("hello", { hostClaim: created.hostClaim }));
   const version = context.storage.map.get("room").stateVersion;
@@ -482,4 +483,62 @@ test("a stranger mid-draft is a spectator, or nothing where spectators are off",
   await closed.room.webSocketMessage(refused, envelope("hello", {}));
   assert.equal(lastError(refused).payload.code, "spectators_disabled");
   assert.equal(refused.closed?.code, 4001);
+});
+
+test("bots fill the empty seats by default and the lone host drafts a full pod", async () => {
+  const context = makeRoom();
+  const created = await (await initialize(context.room, {})).json();
+  const { socket: host } = await connect(context);
+  await context.room.webSocketMessage(host, envelope("hello", { hostClaim: created.hostClaim }));
+  const version = context.storage.map.get("room").stateVersion;
+  await context.room.webSocketMessage(host, envelope("start_draft", { expectedStateVersion: version }));
+
+  const snapshot = context.storage.map.get("room");
+  assert.equal(snapshot.phase, "picking");
+  assert.equal(snapshot.draft.seats.length, 8, "the table fills to a full pod");
+  assert.equal(snapshot.draft.seats.filter((seat) => seat.controller === "bot").length, 7);
+  assert.equal(snapshot.draft.provisionalPicks.length, 7, "every bot queued before anyone heard the start");
+
+  const announced = frames(host, "phase_changed").at(-1);
+  const botSeats = announced.payload.seats.filter((seat) => seat.bot === true);
+  assert.equal(botSeats.length, 7, "the table can see which seats are bots");
+  assert.ok(botSeats.every((seat) => seat.participantId === null), "a bot seat names no participant");
+  assert.ok(botSeats.every((seat) => seat.hasQueued === true), "and every bot shows as picked");
+
+  const view = privateViews(host).at(-1);
+  assert.equal(view.payload.pack.cards.length, 14, "the human's pack is untouched by bot queues");
+});
+
+test("after the human queues, the confirmation closes the pick and the bots queue again", async () => {
+  const context = makeRoom();
+  const created = await (await initialize(context.room, {})).json();
+  const { socket: host } = await connect(context);
+  await context.room.webSocketMessage(host, envelope("hello", { hostClaim: created.hostClaim }));
+  const version = context.storage.map.get("room").stateVersion;
+  await context.room.webSocketMessage(host, envelope("start_draft", { expectedStateVersion: version }));
+
+  const view = privateViews(host).at(-1);
+  await context.room.webSocketMessage(host, envelope("queue_pick", {
+    round: 1, pick: 1, cardInstanceId: view.payload.pack.cards[0].instanceId
+  }));
+  const queuedRoom = context.storage.map.get("room");
+  assert.ok(queuedRoom.deadlineAt <= context.clock.now + 5_000,
+    "with the whole table queued, the confirmation floor is the only wait");
+
+  context.clock.now = queuedRoom.deadlineAt;
+  await context.room.alarm();
+  const advanced = context.storage.map.get("room");
+  assert.equal(advanced.draft.pick, 2, "the pick resolved");
+  assert.equal(advanced.draft.provisionalPicks.length, 7, "the bots queued for the fresh pick at once");
+  assert.equal(advanced.draft.provisionalPicks.filter((entry) => entry.seatId === "seat-1").length, 0,
+    "and the human has not");
+});
+
+test("bots off is a humans-only table, exactly as before", async () => {
+  const lobby = await openLobby();
+  await startDraft(lobby);
+  const snapshot = lobby.storage.map.get("room");
+  assert.equal(snapshot.draft.seats.length, 2);
+  assert.ok(snapshot.draft.seats.every((seat) => seat.controller === "human"));
+  assert.equal(snapshot.draft.provisionalPicks.length, 0, "nobody queues on anyone's behalf");
 });
