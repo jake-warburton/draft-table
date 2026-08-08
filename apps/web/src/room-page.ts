@@ -38,6 +38,13 @@ interface PrivateView {
   readonly queued: string | null;
 }
 
+/** One line of the room's story, exactly as the server's feed records it. */
+interface FeedEntry {
+  readonly at: number;
+  readonly type: string;
+  readonly name: string;
+}
+
 interface RoomPageState {
   code: string;
   selfId: string | null;
@@ -52,7 +59,31 @@ interface RoomPageState {
   view: PrivateView | null;
   grouping: PoolGrouping;
   notice: string;
+  feed: readonly FeedEntry[];
 }
+
+/** The story box holds this many lines at most, the same bound the server keeps. */
+const MAX_FEED_LINES = 100;
+
+/**
+ * Every story line in plain words. The box is a log, not a chat: nobody types into it, and a
+ * line never carries anything the lobby list does not already show.
+ */
+const feedLine = (entry: FeedEntry): string => {
+  switch (entry.type) {
+    case "join": return `${entry.name} joined.`;
+    case "reconnect": return `${entry.name} reconnected.`;
+    case "disconnect": return `${entry.name} lost their connection.`;
+    case "leave": return `${entry.name} left.`;
+    case "removed": return `${entry.name} was removed.`;
+    case "seats": return `${entry.name} rearranged the seats.`;
+    case "start": return `${entry.name} started the draft.`;
+    case "review": return "The pack is drafted — review time.";
+    case "completion": return "The draft is complete.";
+    case "pack": return `Pack ${entry.name} is in hand.`;
+    default: return "";
+  }
+};
 
 const LOBBY_SEAT_COUNT = 8;
 
@@ -77,6 +108,8 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   const randomizeControl = el("#lobby-randomize");
   const startControl = el("#lobby-start");
   const leaveControl = el("#room-leave");
+  const storySection = el("#room-story");
+  const feedList = el("#room-feed");
   const deadlineRegion = el("#room-deadline");
   const deadlineBar = el("#deadline-bar") as HTMLProgressElement;
   const deadlineSeconds = el("#deadline-seconds");
@@ -309,6 +342,28 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     }
   };
 
+  /** New rounds are announced once each; the counter only ever climbs. */
+  let announcedPack = 0;
+
+  const appendFeed = (entry: FeedEntry): void => {
+    if (state === null) return;
+    state.feed = [...state.feed, entry].slice(-MAX_FEED_LINES);
+  };
+
+  /** The story box: visible for the whole life of a room, newest line at the bottom. */
+  const renderStory = (): void => {
+    if (state === null) return;
+    storySection.hidden = false;
+    feedList.replaceChildren(...state.feed.flatMap((entry) => {
+      const words = feedLine(entry);
+      if (words === "") return [];
+      const item = document.createElement("li");
+      item.textContent = words;
+      return [item];
+    }));
+    feedList.scrollTop = feedList.scrollHeight;
+  };
+
   const renderDeadline = (): void => {
     if (state === null || state.deadlineAt === null || client === null || state.phase === "complete") {
       deadlineRegion.hidden = true;
@@ -352,6 +407,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     } else {
       renderDraft();
     }
+    renderStory();
     renderDeadline();
   };
 
@@ -367,6 +423,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       case "snapshot": {
         state.phase = payload.phase as RoomPageState["phase"];
         state.participants = (payload.participants ?? []) as PublicParticipant[];
+        state.feed = ((payload.feed ?? []) as FeedEntry[]).slice(-MAX_FEED_LINES);
         const draft = payload.draft as Record<string, unknown> | undefined;
         if (draft !== undefined) {
           state.round = draft.round as number;
@@ -374,6 +431,13 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
           state.packSize = draft.packSize as number;
           state.passDirection = draft.passDirection as string;
           state.seats = (draft.seats ?? []) as PublicSeat[];
+        }
+        // The server's story never carries the page's own pack line, so a snapshot — a fresh
+        // join or a reconnect mid-draft — re-derives it for the round actually in hand, and
+        // arms the once-per-round guard so later frames cannot repeat it.
+        if (draft !== undefined) {
+          announcedPack = state.round;
+          if (state.phase === "picking") appendFeed({ at: 0, type: "pack", name: String(state.round) });
         }
         if (typeof payload.deadlineAt === "number" || payload.deadlineAt === null) {
           state.deadlineAt = payload.deadlineAt as number | null;
@@ -396,6 +460,12 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
         state.packSize = payload.packSize as number;
         state.passDirection = payload.passDirection as string;
         state.seats = (payload.seats ?? []) as PublicSeat[];
+        // The server's story covers people and milestones; the fresh pack in hand is the one
+        // line the page adds itself, exactly once per round.
+        if (state.phase === "picking" && state.round > announcedPack) {
+          announcedPack = state.round;
+          appendFeed({ at: 0, type: "pack", name: String(state.round) });
+        }
         break;
       }
       case "deadline_changed": {
@@ -413,6 +483,9 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       }
       case "private_pack_pool":
         state.view = payload as unknown as PrivateView;
+        break;
+      case "feed_appended":
+        appendFeed(payload.event as FeedEntry);
         break;
       case "ack":
         if (typeof payload.queued === "string" && state.view !== null) {
@@ -448,6 +521,8 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     lobby.hidden = true;
     roomsSection.hidden = false;
     roomControls.hidden = true;
+    storySection.hidden = true;
+    feedList.replaceChildren();
     deadlineRegion.hidden = true;
     roomStatus.textContent = message;
     regions.setSoloActive(true);
@@ -496,8 +571,10 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       deadlineAt: null,
       view: null,
       grouping: "number",
-      notice: "Waiting for the room…"
+      notice: "Waiting for the room…",
+      feed: []
     };
+    announcedPack = 0;
     roomControls.hidden = false;
     renderShare(code);
     client = new RoomClient(code, hello, {

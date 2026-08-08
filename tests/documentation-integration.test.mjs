@@ -75,6 +75,7 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /Disconnection never vacates a seat[\s\S]*finds its pack waiting where it left it/);
   assert.match(readme, /## Talking to a room[\s\S]*answers, not accidents[\s\S]*solo table stands down[\s\S]*very same table/);
   assert.match(readme, /host arranges the table by hand[\s\S]*picker beside each name[\s\S]*same moves without a mouse/);
+  assert.match(readme, /status box follows the room[\s\S]*log, not a chat[\s\S]*last hundred events[\s\S]*Pack N is in hand/);
   assert.match(readme, /connections to 'self' and nowhere else/);
   assert.match(readme, /## Deploying[\s\S]*wrangler\.jsonc[\s\S]*Nothing in this repository deploys on its own/);
   assert.match(readme, /## One screen at a time[\s\S]*three screens, not one long scroll[\s\S]*finished draft turns the page to the results/);

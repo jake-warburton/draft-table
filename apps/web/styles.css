@@ -309,6 +309,19 @@ button:focus-visible {
   font: inherit;
 }
 
+/* The room's story: a log, not a chat — nobody types into it. */
+#room-feed {
+  max-height: 10rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.75rem;
+  border: 2px solid var(--edge);
+  border-radius: 0.5rem;
+  background: var(--panel);
+  list-style: none;
+  font-size: 0.9rem;
+}
+
 #lobby-spectators {
   display: flex;
   flex-wrap: wrap;

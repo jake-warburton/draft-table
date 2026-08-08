@@ -633,6 +633,25 @@ export class RoomObject {
     return { participants: room.participants.map(publicParticipant) };
   }
 
+  /**
+   * The one story event this transition appended, as its own public broadcast entry — or
+   * nothing. Every append site adds exactly one event, and a transition that appends none
+   * carries the previous feed array through untouched, so reference inequality is the whole
+   * test; a joiner's own snapshot already holds the history, so hello excludes them.
+   */
+  private feedDelta(previous: RoomSnapshot, updated: RoomSnapshot): readonly { type: string; payload: unknown }[] {
+    const event = updated.feed.at(-1);
+    return updated.feed === previous.feed || event === undefined
+      ? []
+      : [{ type: "feed_appended", payload: { event } }];
+  }
+
+  private announceFeed(previous: RoomSnapshot, updated: RoomSnapshot, except?: RoomSocketSlice): void {
+    for (const { type, payload } of this.feedDelta(previous, updated)) {
+      this.broadcast(updated, type, payload, except);
+    }
+  }
+
   private async updateProfile(
     socket: RoomSocketSlice, room: RoomSnapshot, self: Participant, command: ClientCommand
   ): Promise<void> {
@@ -740,14 +759,16 @@ export class RoomObject {
       // The first manual move or swap visibly cancels the pending start-time shuffle.
       config: { ...room.config, randomizeSeatsAtStart: false },
       participants,
-      feed: [...room.feed, { at: this.tools.now(), type: "seats" as const, name: moved.name }]
+      // The story names the actor — the host who made the move — not the person moved.
+      feed: [...room.feed, { at: this.tools.now(), type: "seats" as const, name: self.name }]
         .slice(-MAX_FEED_EVENTS)
     };
     await this.commit(socket, updated, command, [
       { type: "seat_layout_changed", payload: this.layout(updated) },
       ...(room.config.randomizeSeatsAtStart
         ? [{ type: "config_changed", payload: { config: updated.config } }]
-        : [])
+        : []),
+      ...this.feedDelta(room, updated)
     ]);
   }
 
@@ -793,7 +814,8 @@ export class RoomObject {
     };
     await this.commit(socket, updated, command, [
       { type: "seat_layout_changed", payload: this.layout(updated) },
-      { type: "config_changed", payload: { config: updated.config } }
+      { type: "config_changed", payload: { config: updated.config } },
+      ...this.feedDelta(room, updated)
     ]);
   }
 
@@ -895,6 +917,9 @@ export class RoomObject {
     if (deadlineAt !== null) await this.storage.setAlarm(deadlineAt);
 
     this.send(socket, updated.stateVersion, "ack", { applied: true }, command.commandId);
+    // The story precedes its consequence: "started the draft" must land before the phase
+    // change that makes the page announce the first pack in hand.
+    this.announceFeed(room, updated);
     this.announcePhase(updated);
     this.sendAllPrivateViews(updated);
   }
@@ -1117,6 +1142,7 @@ export class RoomObject {
       }
     }
     this.broadcast(updated, "participants_changed", this.layout(updated));
+    this.announceFeed(room, updated);
   }
 
   /**
@@ -1277,6 +1303,7 @@ export class RoomObject {
     this.broadcast(updated, "participants_changed", {
       participants: updated.participants.map(publicParticipant)
     }, socket);
+    this.announceFeed(room, updated, socket);
   }
 
   /** A fresh default name that is not already at the table. */
@@ -1348,6 +1375,7 @@ export class RoomObject {
     this.broadcast(updated, "participants_changed", {
       participants: updated.participants.map(publicParticipant)
     });
+    this.announceFeed(room, updated);
   }
 
   /**
@@ -1481,6 +1509,7 @@ export class RoomObject {
     await this.storage.put("room", updated);
     if (updated.deadlineAt !== null) await this.storage.setAlarm(updated.deadlineAt);
     this.announcePhase(updated);
+    this.announceFeed(room, updated);
     this.sendAllPrivateViews(updated);
   }
 
