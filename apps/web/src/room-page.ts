@@ -14,7 +14,7 @@ import { POOL_GROUPINGS, groupPool, type PoolGrouping } from "./pool.ts";
 import { remainingMs, type ServerFrame } from "./protocol.ts";
 import { RoomClient, type DriverSocket, type DriverStatus } from "./room-client.ts";
 import { createRoom, readTypedCode, socketUrl } from "./rooms.ts";
-import { cardControl, faceDownDeck, identities, poolGroup } from "./table-render.ts";
+import { cardControl, clearUnusableMarks, faceDownDeck, identities, poolGroup, usableIn } from "./table-render.ts";
 
 interface PublicParticipant {
   readonly id: string;
@@ -365,7 +365,17 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     const pool = state.view?.pool ?? null;
     // A hidden pool still has a public size: one card per resolved pick this draft.
     const banked = (state.round - 1) * 14 + (state.pick - 1);
-    poolCount.textContent = pool === null ? (spectating ? "none" : String(banked)) : String(pool.length);
+    const paintPoolCount = (): void => {
+      if (pool === null) {
+        poolCount.textContent = spectating ? "none" : String(banked);
+        return;
+      }
+      const usable = usableIn(pool);
+      poolCount.textContent = usable === pool.length
+        ? String(pool.length)
+        : `${usable} of ${pool.length} usable`;
+    };
+    paintPoolCount();
     poolGroupingRegion.hidden = pool === null;
     poolGroupingRegion.replaceChildren(...(pool === null ? [] : POOL_GROUPINGS.map((choice) => {
       const control = document.createElement("button");
@@ -388,7 +398,8 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
               return notice;
             })()
           : faceDownDeck(banked)]
-      : groupPool(pool, state.grouping, identities).map(({ label, cards }) => poolGroup(label, cards))));
+      : groupPool(pool, state.grouping, identities)
+          .map(({ label, cards }) => poolGroup(label, cards, paintPoolCount))));
 
     exportRegion.hidden = !complete || pool === null;
     if (complete && pool !== null) {
@@ -572,6 +583,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     }
     deadlineTotalMs = 0;
     lobbySeating = "";
+    clearUnusableMarks();
     packSection.hidden = false;
     poolSection.hidden = false;
     client?.stop("done");
@@ -616,6 +628,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   };
 
   const enterRoom = (code: string, hello: { name?: string; password?: string; hostClaim?: string }): void => {
+    clearUnusableMarks();
     deadlineTotalMs = 0;
     lobbySeating = "";
     state = {
