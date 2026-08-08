@@ -16,6 +16,17 @@
  */
 
 import { normalizeRoomCode } from "@draft-table/contracts";
+import {
+  DraftRuleError,
+  createDraft,
+  disconnectSeat,
+  pickCard,
+  reconnectSeat,
+  resolveTimeout,
+  type DraftState
+} from "@draft-table/draft";
+
+import { OMENS_SET_SNAPSHOT, PACK_SIZE, buildPacksByRound } from "./packs.ts";
 
 /** The slice of the Durable Object storage API this room uses. */
 export interface RoomStorageSlice {
@@ -72,6 +83,20 @@ export const SUPERSEDED_CLOSE_CODE = 4000;
 /** A socket refused at the hello gate is closed with this code after its one error message. */
 export const REFUSED_CLOSE_CODE = 4001;
 
+/** The official judge schedule by visible pack size; the single last card is automatic. */
+export const PICK_SECONDS: Readonly<Record<number, number>> = Object.freeze({
+  14: 50, 13: 50, 12: 50, 11: 40, 10: 40, 9: 30, 8: 30, 7: 20, 6: 20, 5: 10, 4: 10, 3: 5, 2: 5
+});
+
+/** Reviews between packs are always timed, even when pick timers are off. */
+export const REVIEW_SECONDS = 60;
+
+/** Once every readiness-eligible drafter has queued, the pick closes this soon. */
+export const CONFIRMATION_SECONDS = 5;
+
+/** A finished draft keeps its room readable this long, then everything is deleted. */
+export const COMPLETED_ROOM_TTL_MS = 60 * 60 * 1000;
+
 const PASSWORD_SALT_BYTES = 16;
 const MAX_NAME_LENGTH = 60;
 const MAX_DISPLAY_NAME_LENGTH = 30;
@@ -110,14 +135,17 @@ interface Participant {
 
 interface FeedEvent {
   readonly at: number;
-  readonly type: "join" | "reconnect" | "disconnect" | "leave" | "removed" | "seats";
+  readonly type: "join" | "reconnect" | "disconnect" | "leave" | "removed" | "seats"
+    | "start" | "review" | "completion";
   readonly name: string;
 }
+
+type RoomPhase = "lobby" | "picking" | "review" | "complete";
 
 interface RoomSnapshot {
   readonly schema: 1;
   readonly code: string;
-  readonly phase: "lobby";
+  readonly phase: RoomPhase;
   readonly stateVersion: number;
   readonly createdAt: number;
   readonly config: RoomConfig;
@@ -128,6 +156,12 @@ interface RoomSnapshot {
   readonly feed: readonly FeedEvent[];
   readonly abandonAt: number | null;
   readonly alarmGeneration: number;
+  /** The pure draft state once started; the room adds packs, deadlines, and visibility. */
+  readonly draft: DraftState | null;
+  /** The current phase deadline: a pick, a review, or a finished room's deletion. */
+  readonly deadlineAt: number | null;
+  /** Whether this pick's five-second all-queued confirmation has already been applied. */
+  readonly deadlineAccelerated: boolean;
 }
 
 /** What a socket remembers about itself across hibernation: who it is, and which claim it holds. */
@@ -378,7 +412,10 @@ export class RoomObject {
       participants: [],
       feed: [],
       abandonAt: createdAt + LOBBY_ABANDONMENT_MS,
-      alarmGeneration: 1
+      alarmGeneration: 1,
+      draft: null,
+      deadlineAt: null,
+      deadlineAccelerated: false
     };
 
     // Storage first, then the alarm that reaps a lobby nobody ever joins, then the answer.
@@ -443,7 +480,7 @@ export class RoomObject {
     }
   }
 
-  /** The role-safe lobby view: no verifier, no claim, no secret ever enters this shape. */
+  /** The role-safe room view: no verifier, no claim, and no other seat's cards ever enter it. */
   private snapshotPayload(room: RoomSnapshot, selfId: string) {
     return {
       phase: room.phase,
@@ -451,7 +488,8 @@ export class RoomObject {
       passwordProtected: room.password !== null,
       participants: room.participants.map(publicParticipant),
       feed: room.feed,
-      self: selfId
+      self: selfId,
+      ...(room.draft === null ? {} : { draft: this.publicDraft(room.draft), deadlineAt: room.deadlineAt })
     };
   }
 
@@ -502,10 +540,29 @@ export class RoomObject {
 
     if (command.type === "resync") {
       this.send(socket, room.stateVersion, "snapshot", this.snapshotPayload(room, self.id), command.commandId);
+      this.sendPrivateView(room, self.id, socket);
       return;
     }
 
-    // Every remaining command belongs to a phase, and the only phase so far is the lobby.
+    if (command.type === "queue_pick") {
+      if (room.phase !== "picking") {
+        this.sendError(socket, room.stateVersion, "wrong_phase", command.commandId);
+        return;
+      }
+      await this.queuePick(socket, room, self, command);
+      return;
+    }
+
+    if (command.type === "start_draft") {
+      if (room.phase !== "lobby") {
+        this.sendError(socket, room.stateVersion, "wrong_phase", command.commandId);
+        return;
+      }
+      await this.startDraft(socket, room, self, command);
+      return;
+    }
+
+    // Every remaining command is the lobby's.
     if (room.phase !== "lobby") {
       this.sendError(socket, room.stateVersion, "wrong_phase", command.commandId);
       return;
@@ -706,19 +763,11 @@ export class RoomObject {
 
     // A server-owned shuffle of the seated participants across their own occupied positions,
     // which also spends the pending start-time shuffle.
-    const seated = room.participants.filter((entry) => entry.seat !== null);
-    const positions = seated.map((entry) => entry.seat as number);
-    for (let index = positions.length - 1; index > 0; index -= 1) {
-      const swap = this.uniformIndex(index + 1);
-      [positions[index], positions[swap]] = [positions[swap], positions[index]];
-    }
-    const assigned = new Map(seated.map((entry, index) => [entry.id, positions[index]]));
     const updated: RoomSnapshot = {
       ...room,
       stateVersion: room.stateVersion + 1,
       config: { ...room.config, randomizeSeatsAtStart: false },
-      participants: room.participants.map((entry) =>
-        assigned.has(entry.id) ? { ...entry, seat: assigned.get(entry.id) as number } : entry),
+      participants: this.shuffleSeated(room.participants),
       feed: [...room.feed, { at: this.tools.now(), type: "seats" as const, name: self.name }]
         .slice(-MAX_FEED_EVENTS)
     };
@@ -728,14 +777,245 @@ export class RoomObject {
     ]);
   }
 
+  /** One caller-owned uint32 sample for the engine's unbiased bounded mapping. */
+  private uint32(): number {
+    const bytes = this.tools.randomBytes(4);
+    return (((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0);
+  }
+
   /** An unbiased index below the bound, by rejection rather than modulo. */
   private uniformIndex(bound: number): number {
     const span = 0x100000000;
     const limit = Math.floor(span / bound) * bound;
     for (;;) {
-      const bytes = this.tools.randomBytes(4);
-      const value = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+      const value = this.uint32();
       if (value < limit) return value % bound;
+    }
+  }
+
+  /** Redistributes the seated participants across their own occupied positions, unbiased. */
+  private shuffleSeated(participants: readonly Participant[]): readonly Participant[] {
+    const seated = participants.filter((entry) => entry.seat !== null);
+    const positions = seated.map((entry) => entry.seat as number);
+    for (let index = positions.length - 1; index > 0; index -= 1) {
+      const swap = this.uniformIndex(index + 1);
+      [positions[index], positions[swap]] = [positions[swap], positions[index]];
+    }
+    const assigned = new Map(seated.map((entry, index) => [entry.id, positions[index]]));
+    return participants.map((entry) =>
+      assigned.has(entry.id) ? { ...entry, seat: assigned.get(entry.id) as number } : entry);
+  }
+
+  /**
+   * The start transaction: the host turns the lobby into a draft. Pending seat randomization is
+   * applied first, the occupied positions compact into the ring in position order, and every
+   * pack of all three rounds is dealt here and now from the reviewed snapshot — the draft's
+   * whole future is decided and persisted before anyone hears it began.
+   */
+  private async startDraft(
+    socket: RoomSocketSlice, room: RoomSnapshot, self: Participant, command: ClientCommand
+  ): Promise<void> {
+    if (!self.host) {
+      this.sendError(socket, room.stateVersion, "forbidden", command.commandId);
+      return;
+    }
+    const { expectedStateVersion } = command.payload;
+    if (Object.keys(command.payload).length !== 1 || typeof expectedStateVersion !== "number") {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+    // The host starts the room they are looking at, not the room as it has quietly become.
+    if (expectedStateVersion !== room.stateVersion) {
+      this.sendError(socket, room.stateVersion, "stale_state", command.commandId);
+      return;
+    }
+    const participants = room.config.randomizeSeatsAtStart
+      ? this.shuffleSeated(room.participants)
+      : room.participants;
+    const seated = participants
+      .filter((entry) => entry.seat !== null)
+      .sort((left, right) => (left.seat as number) - (right.seat as number));
+    if (seated.length < 2 || seated.length > LOBBY_SEAT_COUNT) {
+      this.sendError(socket, room.stateVersion, "invalid_seat_count", command.commandId);
+      return;
+    }
+
+    let draft: DraftState;
+    try {
+      draft = createDraft({
+        seats: seated.map((entry, index) => ({
+          id: `seat-${index + 1}`,
+          controller: "human" as const,
+          occupantId: entry.id,
+          connected: entry.connected
+        })),
+        packsByRound: buildPacksByRound(seated.length, OMENS_SET_SNAPSHOT, () => this.uint32())
+      });
+    } catch {
+      this.sendError(socket, room.stateVersion, "server_error", command.commandId);
+      return;
+    }
+
+    const now = this.tools.now();
+    const deadlineAt = room.config.timers ? now + PICK_SECONDS[PACK_SIZE] * 1000 : null;
+    const updated: RoomSnapshot = {
+      ...room,
+      stateVersion: room.stateVersion + 1,
+      phase: "picking",
+      config: { ...room.config, randomizeSeatsAtStart: false },
+      participants,
+      draft,
+      deadlineAt,
+      deadlineAccelerated: false,
+      abandonAt: null,
+      alarmGeneration: room.alarmGeneration + 1,
+      feed: [...room.feed, { at: now, type: "start" as const, name: self.name }].slice(-MAX_FEED_EVENTS)
+    };
+    await this.storage.put("room", updated);
+    if (deadlineAt !== null) await this.storage.setAlarm(deadlineAt);
+
+    this.send(socket, updated.stateVersion, "ack", { applied: true }, command.commandId);
+    this.announcePhase(updated);
+    this.sendAllPrivateViews(updated);
+  }
+
+  /**
+   * Queues or replaces one provisional pick. The engine owns legality; the room resolves which
+   * seat and pack the drafter means, answers the sender with what it queued, and tells the
+   * table only that the seat has queued.
+   */
+  private async queuePick(
+    socket: RoomSocketSlice, room: RoomSnapshot, self: Participant, command: ClientCommand
+  ): Promise<void> {
+    const draft = room.draft as DraftState;
+    const { round, pick, cardInstanceId } = command.payload;
+    if (Object.keys(command.payload).length !== 3 || typeof round !== "number"
+      || typeof pick !== "number" || typeof cardInstanceId !== "string") {
+      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
+      return;
+    }
+    const seat = draft.seats.find((entry) => entry.occupantId === self.id);
+    if (seat === undefined) {
+      this.sendError(socket, room.stateVersion, "forbidden", command.commandId);
+      return;
+    }
+    const pack = draft.packsInFlight.find((entry) => entry.atSeatId === seat.id);
+    if (pack === undefined) {
+      this.sendError(socket, room.stateVersion, "invalid_target", command.commandId);
+      return;
+    }
+
+    let next: DraftState;
+    try {
+      next = pickCard(draft, {
+        round: round as 1 | 2 | 3,
+        pick,
+        seatId: seat.id,
+        occupantId: self.id,
+        packId: pack.id,
+        cardInstanceId
+      });
+    } catch (error) {
+      const code = error instanceof DraftRuleError
+        ? (error.code === "STALE_ACTION" ? "stale_state"
+          : error.code === "MALFORMED_ACTION" ? "malformed_message"
+          : "invalid_target")
+        : "server_error";
+      this.sendError(socket, room.stateVersion, code, command.commandId);
+      return;
+    }
+
+    const timing = this.confirmationAfter(room, next);
+    const updated: RoomSnapshot = { ...room, stateVersion: room.stateVersion + 1, draft: next, ...timing };
+    await this.storage.put("room", updated);
+    if (timing.deadlineAt !== room.deadlineAt && timing.deadlineAt !== null) {
+      await this.storage.setAlarm(timing.deadlineAt);
+    }
+    this.send(socket, updated.stateVersion, "ack", { queued: cardInstanceId }, command.commandId);
+    this.broadcast(updated, "queue_status_changed", { seatId: seat.id, hasQueued: true });
+  }
+
+  /**
+   * The all-queued confirmation. With timers on, a deadline more than five seconds out is
+   * shortened once; with timers off, a confirmation starts only when a complete, non-empty,
+   * connected readiness set has queued. An existing confirmation is never extended or replaced.
+   */
+  private confirmationAfter(
+    room: RoomSnapshot, draft: DraftState
+  ): { deadlineAt: number | null; deadlineAccelerated: boolean } {
+    const current = { deadlineAt: room.deadlineAt, deadlineAccelerated: room.deadlineAccelerated };
+    if (draft.status !== "picking" || room.phase !== "picking") return current;
+    const readiness = draft.seats.filter((entry) => entry.occupantId !== null && entry.connected);
+    if (readiness.length === 0) return current;
+    const queued = new Set(draft.provisionalPicks.map((entry) => entry.seatId));
+    if (!readiness.every((entry) => queued.has(entry.id))) return current;
+    const now = this.tools.now();
+    if (room.config.timers) {
+      if (room.deadlineAt === null) return current;
+      // A deadline within five seconds is never shortened — which also makes the confirmation
+      // one-shot, because an applied confirmation is itself always within five seconds. The
+      // recorded accelerated flag is bookkeeping for pause and resume, not a guard here.
+      if (room.deadlineAt - now <= CONFIRMATION_SECONDS * 1000) return current;
+      return { deadlineAt: now + CONFIRMATION_SECONDS * 1000, deadlineAccelerated: true };
+    }
+    if (room.deadlineAt !== null) return current;
+    return { deadlineAt: now + CONFIRMATION_SECONDS * 1000, deadlineAccelerated: true };
+  }
+
+  /** The public face of a started draft: everything in the visibility matrix's public rows. */
+  private publicDraft(draft: DraftState) {
+    return {
+      status: draft.status,
+      round: draft.round,
+      pick: draft.pick,
+      passDirection: draft.passDirection,
+      packSize: Math.max(0, PACK_SIZE - (draft.pick - 1)),
+      seats: draft.seats.map((seat) => ({
+        seatId: seat.id,
+        participantId: seat.occupantId,
+        connected: seat.connected,
+        hasQueued: draft.provisionalPicks.some((entry) => entry.seatId === seat.id)
+      }))
+    };
+  }
+
+  private announcePhase(room: RoomSnapshot): void {
+    if (room.draft === null) return;
+    this.broadcast(room, "phase_changed", { phase: room.phase, ...this.publicDraft(room.draft) });
+    this.broadcast(room, "deadline_changed", { phase: room.phase, deadlineAt: room.deadlineAt });
+  }
+
+  /**
+   * One drafter's own private view: their current pack, their queued instance, and their pool —
+   * the pool only when the room's pool-hiding option or the phase allows it. Nobody else's
+   * cards ever enter this shape.
+   */
+  private privateView(room: RoomSnapshot, participantId: string) {
+    const draft = room.draft;
+    if (draft === null) return null;
+    const seat = draft.seats.find((entry) => entry.occupantId === participantId);
+    if (seat === undefined) return null;
+    const choice = draft.legalChoices.find((entry) => entry.seatId === seat.id);
+    const pool = draft.pickedPools.find((entry) => entry.seatId === seat.id);
+    const queued = draft.provisionalPicks.find((entry) => entry.seatId === seat.id);
+    const poolFaceDown = room.config.poolHidden && room.phase === "picking";
+    return {
+      seatId: seat.id,
+      pack: choice === undefined ? null : { id: choice.packId, cards: choice.cards },
+      pool: poolFaceDown ? null : (pool?.cards ?? []),
+      queued: queued?.cardInstanceId ?? null
+    };
+  }
+
+  private sendPrivateView(room: RoomSnapshot, participantId: string, socket: RoomSocketSlice): void {
+    const view = this.privateView(room, participantId);
+    if (view === null) return;
+    this.send(socket, room.stateVersion, "private_pack_pool", view);
+  }
+
+  private sendAllPrivateViews(room: RoomSnapshot): void {
+    for (const { socket, attachment } of this.authenticatedSockets()) {
+      this.sendPrivateView(room, attachment.participantId, socket);
     }
   }
 
@@ -897,10 +1177,15 @@ export class RoomObject {
         this.turnAway(socket, "room_full", command.commandId);
         return;
       }
+      // A new identity mid-draft is a spectator, and only where the room allows spectators.
+      if (room.phase !== "lobby" && !room.config.spectators) {
+        this.turnAway(socket, "spectators_disabled", command.commandId);
+        return;
+      }
       mintedCredential = base64url(this.tools.randomBytes(CREDENTIAL_BYTES));
       const taken = new Set(room.participants.map((participant) => participant.seat));
       let seat: number | null = null;
-      for (let position = 0; position < LOBBY_SEAT_COUNT; position += 1) {
+      for (let position = 0; room.phase === "lobby" && position < LOBBY_SEAT_COUNT; position += 1) {
         if (!taken.has(position)) {
           seat = position;
           break;
@@ -918,6 +1203,21 @@ export class RoomObject {
       participants = [...room.participants, self];
     }
 
+    // A returning drafter's seat hears they are back; the ring itself never changes.
+    let draft = room.draft;
+    if (draft !== null && draft.status === "picking" && returning !== undefined) {
+      const seat = draft.seats.find((entry) => entry.occupantId === self.id);
+      if (seat !== undefined && !seat.connected) {
+        try {
+          draft = reconnectSeat(draft, {
+            round: draft.round, pick: draft.pick, seatId: seat.id, occupantId: self.id
+          });
+        } catch {
+          // A finished or mid-transition draft has nothing to note.
+        }
+      }
+    }
+
     const event: FeedEvent = {
       at: this.tools.now(),
       type: returning === undefined ? "join" : "reconnect",
@@ -928,13 +1228,17 @@ export class RoomObject {
       stateVersion: room.stateVersion + 1,
       hostClaimSpent: room.hostClaimSpent || claimsHost,
       participants,
+      draft,
       feed: [...room.feed, event].slice(-MAX_FEED_EVENTS),
       // Someone is here now; the abandonment appointment is off.
       abandonAt: null
     };
     await this.storage.put("room", updated);
-    // Someone is connected now, so the standing appointment becomes the liveness sweep.
-    await this.storage.setAlarm(this.tools.now() + LOBBY_ABANDONMENT_MS);
+    // In the lobby, the standing appointment becomes the liveness sweep. A started room keeps
+    // whatever deadline it already booked; overwriting it here would silence the draft.
+    if (updated.phase === "lobby") {
+      await this.storage.setAlarm(this.tools.now() + LOBBY_ABANDONMENT_MS);
+    }
 
     // An older socket for the same identity loses to this one, after the state is safe.
     for (const { socket: other, attachment } of this.authenticatedSockets()) {
@@ -949,6 +1253,7 @@ export class RoomObject {
       self: publicParticipant(self)
     }, command.commandId);
     this.send(socket, updated.stateVersion, "snapshot", this.snapshotPayload(updated, self.id));
+    this.sendPrivateView(updated, self.id, socket);
     this.broadcast(updated, "participants_changed", {
       participants: updated.participants.map(publicParticipant)
     }, socket);
@@ -979,18 +1284,46 @@ export class RoomObject {
     const participants = room.participants.map((entry) =>
       entry.id === participant.id ? { ...entry, connected: false } : entry);
     const nobodyConnected = participants.every((entry) => !entry.connected);
-    const abandonAt = nobodyConnected ? this.tools.now() + LOBBY_ABANDONMENT_MS : room.abandonAt;
+    const inLobby = room.phase === "lobby";
+    const abandonAt = inLobby && nobodyConnected
+      ? this.tools.now() + LOBBY_ABANDONMENT_MS
+      : room.abandonAt;
+
+    // A drafter's seat notes the absence; deadlines keep running, and the seat is never vacated.
+    let draft = room.draft;
+    if (draft !== null && draft.status === "picking") {
+      const seat = draft.seats.find((entry) => entry.occupantId === participant.id);
+      if (seat !== undefined && seat.connected) {
+        try {
+          draft = disconnectSeat(draft, {
+            round: draft.round, pick: draft.pick, seatId: seat.id, occupantId: participant.id
+          });
+        } catch {
+          // A finished or mid-transition draft has nothing to note.
+        }
+      }
+    }
+    // A shrunken readiness set can complete the all-queued condition and start the confirmation.
+    const timing = draft === null
+      ? { deadlineAt: room.deadlineAt, deadlineAccelerated: room.deadlineAccelerated }
+      : this.confirmationAfter(room, draft);
+
     const updated: RoomSnapshot = {
       ...room,
       stateVersion: room.stateVersion + 1,
       participants,
+      draft,
+      ...timing,
       feed: [...room.feed, { at: this.tools.now(), type: "disconnect" as const, name: participant.name }]
         .slice(-MAX_FEED_EVENTS),
       abandonAt,
-      alarmGeneration: nobodyConnected ? room.alarmGeneration + 1 : room.alarmGeneration
+      alarmGeneration: inLobby && nobodyConnected ? room.alarmGeneration + 1 : room.alarmGeneration
     };
     await this.storage.put("room", updated);
-    if (nobodyConnected && abandonAt !== null) await this.storage.setAlarm(abandonAt);
+    if (inLobby && nobodyConnected && abandonAt !== null) await this.storage.setAlarm(abandonAt);
+    if (timing.deadlineAt !== room.deadlineAt && timing.deadlineAt !== null) {
+      await this.storage.setAlarm(timing.deadlineAt);
+    }
 
     this.broadcast(updated, "participants_changed", {
       participants: updated.participants.map(publicParticipant)
@@ -1011,7 +1344,14 @@ export class RoomObject {
   private async handleAlarm(): Promise<void> {
     const room = await this.room();
     if (room === undefined) return;
-    if (room.phase !== "lobby") return;
+    if (room.phase === "lobby") {
+      await this.lobbyAlarm(room);
+      return;
+    }
+    await this.deadlineAlarm(room);
+  }
+
+  private async lobbyAlarm(room: RoomSnapshot): Promise<void> {
     // The recorded deadline is the abandonment authority: it is only ever set while nobody is
     // connected, and any join clears it and books the liveness sweep below instead.
     if (room.abandonAt === null) {
@@ -1027,6 +1367,108 @@ export class RoomObject {
       socket.close(REFUSED_CLOSE_CODE, "room_closed");
     }
     await this.storage.deleteAll();
+  }
+
+  /**
+   * The started room's one appointment: a pick commits, a review ends, or a finished room is
+   * deleted. Alarms are at-least-once and carry nothing; canonical storage names the deadline,
+   * an early wake rebooks it, and a room whose deadline has passed transitions exactly once
+   * because the transition itself moves the recorded deadline forward.
+   */
+  private async deadlineAlarm(room: RoomSnapshot): Promise<void> {
+    if (room.deadlineAt === null) return;
+    const now = this.tools.now();
+    if (now < room.deadlineAt) {
+      await this.storage.setAlarm(room.deadlineAt);
+      return;
+    }
+
+    if (room.phase === "complete") {
+      for (const socket of this.state.getWebSockets()) {
+        socket.close(REFUSED_CLOSE_CODE, "room_closed");
+      }
+      await this.storage.deleteAll();
+      return;
+    }
+
+    if (room.phase === "review") {
+      const updated: RoomSnapshot = {
+        ...room,
+        stateVersion: room.stateVersion + 1,
+        phase: "picking",
+        deadlineAt: this.pickDeadlineFor(room, room.draft as DraftState),
+        deadlineAccelerated: false,
+        alarmGeneration: room.alarmGeneration + 1
+      };
+      await this.storage.put("room", updated);
+      if (updated.deadlineAt !== null) await this.storage.setAlarm(updated.deadlineAt);
+      this.announcePhase(updated);
+      this.sendAllPrivateViews(updated);
+      return;
+    }
+
+    // A pick closes: queued choices commit, and every seat without one draws its fate from the
+    // server's entropy — empty and disconnected seats included, which is timeout resolution,
+    // not a bot.
+    const draft = room.draft as DraftState;
+    const queued = new Set(draft.provisionalPicks.map((entry) => entry.seatId));
+    const fallbacks = draft.seats
+      .filter((seat) => !queued.has(seat.id))
+      .map((seat) => ({
+        type: "random-fallback" as const,
+        round: draft.round,
+        pick: draft.pick,
+        seatId: seat.id,
+        packId: (draft.packsInFlight.find((pack) => pack.atSeatId === seat.id) as { id: string }).id
+      }));
+    let next: DraftState;
+    try {
+      next = resolveTimeout(
+        draft,
+        { type: "timeout", round: draft.round, pick: draft.pick },
+        fallbacks,
+        { nextUint32: () => this.uint32() }
+      );
+    } catch {
+      // A commit that cannot happen leaves the room exactly as it was.
+      return;
+    }
+
+    const finished = next.status === "complete";
+    const newRound = !finished && next.round !== draft.round;
+    const phase: RoomPhase = finished ? "complete" : newRound ? "review" : "picking";
+    const deadlineAt = finished
+      ? now + COMPLETED_ROOM_TTL_MS
+      : newRound
+        ? now + REVIEW_SECONDS * 1000
+        : this.pickDeadlineFor(room, next);
+    const updated: RoomSnapshot = {
+      ...room,
+      stateVersion: room.stateVersion + 1,
+      phase,
+      draft: next,
+      deadlineAt,
+      deadlineAccelerated: false,
+      alarmGeneration: room.alarmGeneration + 1,
+      feed: finished || newRound
+        ? [...room.feed, {
+            at: now,
+            type: finished ? "completion" as const : "review" as const,
+            name: room.config.name
+          }].slice(-MAX_FEED_EVENTS)
+        : room.feed
+    };
+    await this.storage.put("room", updated);
+    if (updated.deadlineAt !== null) await this.storage.setAlarm(updated.deadlineAt);
+    this.announcePhase(updated);
+    this.sendAllPrivateViews(updated);
+  }
+
+  /** The judge schedule for the draft's current visible pack size, or nothing with timers off. */
+  private pickDeadlineFor(room: RoomSnapshot, draft: DraftState): number | null {
+    if (!room.config.timers) return null;
+    const seconds = PICK_SECONDS[PACK_SIZE - (draft.pick - 1)];
+    return seconds === undefined ? null : this.tools.now() + seconds * 1000;
   }
 
   /**
