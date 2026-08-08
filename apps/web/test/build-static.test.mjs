@@ -549,6 +549,17 @@ test("creating a room walks the page into a live lobby and stands the solo table
   assert.equal(nodes["lobby-seats"].children[0].textContent, "Drafter 1 (host)");
   assert.equal(nodes["lobby-start"].hidden, false, "the host sees the start control");
   assert.equal(world.storage.size, 1, "the issued credential is kept");
+
+  serve(socket, "snapshot", {
+    phase: "lobby", config: {}, passwordProtected: false,
+    participants: [
+      { id: "p1", name: "Drafter 1", host: false, connected: true, seat: 0 },
+      { id: "p2", name: "The Host", host: true, connected: true, seat: 1 }
+    ],
+    feed: [], self: "p1"
+  }, { stateVersion: 2 });
+  assert.equal(nodes["lobby-start"].hidden, true, "a guest sees no start control");
+  assert.equal(nodes["lobby-randomize"].hidden, true, "nor the shuffle");
 });
 
 test("a started room deals the pack onto the same table and clicking a card queues it", async (t) => {
