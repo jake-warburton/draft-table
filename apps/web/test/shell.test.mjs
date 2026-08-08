@@ -96,9 +96,20 @@ test("the stylesheet deals the pack five to a row and stacks the pool into piles
     "the text name returns when the art fails");
 });
 
-test("the client makes no scripted request and hard-codes no card material", () => {
+test("scripted networking lives only in the reviewed room modules, which name no origin", () => {
+  const networking = ["protocol.ts", "room-client.ts"];
+  const others = readdirSync(file("src"))
+    .filter((name) => name.endsWith(".ts") && !networking.includes(name));
+  for (const name of others) {
+    assert.doesNotMatch(read(`src/${name}`), /fetch\(|XMLHttpRequest|WebSocket/, name);
+  }
+  for (const name of networking) {
+    assert.doesNotMatch(read(`src/${name}`), /https?:\/\//u, `${name} speaks only to its own origin`);
+  }
+});
+
+test("the client hard-codes no card material and no origin beyond the two known ones", () => {
   const surfaces = [read("index.html"), read("styles.css"), ...clientSources].join("\n");
-  assert.doesNotMatch(surfaces, /fetch\(|XMLHttpRequest|WebSocket/);
   const origins = new Set([...surfaces.matchAll(/https?:\/\/[^\s"');/]+/gu)].map((match) => match[0]));
   assert.deepEqual([...origins].sort(), [FABRARY_ORIGIN, IMAGE_ORIGIN].sort(),
     "card art and the Fabrary hand-off are the only origins the client names");
