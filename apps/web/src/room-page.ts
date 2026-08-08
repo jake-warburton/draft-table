@@ -73,6 +73,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   const share = el("#room-share");
   const seatList = el("#lobby-seats");
   const spectatorList = el("#lobby-spectators");
+  const hintRegion = el("#lobby-hint");
   const randomizeControl = el("#lobby-randomize");
   const startControl = el("#lobby-start");
   const leaveControl = el("#room-leave");
@@ -136,26 +137,98 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     share.replaceChildren(address, copy, copyStatus, caveat);
   };
 
+  /** Which participant is mid-drag; the closure, not the drag payload, is the real carrier. */
+  let dragging: string | null = null;
+
+  /** One seat move, exactly as the room expects it; the server owns the swap semantics. */
+  const sendMove = (participantId: string, destination: number | "spectators"): void => {
+    client?.send("move_participant", { participantId, destination });
+  };
+
+  const participantLabel = (occupant: PublicParticipant): string =>
+    `${occupant.name}${occupant.host ? " (host)" : ""}${occupant.connected ? "" : " — away"}`;
+
+  /** The no-mouse path to the same moves: a picker beside each name, host only. */
+  const seatPicker = (occupant: PublicParticipant): HTMLElement => {
+    const picker = document.createElement("select") as HTMLSelectElement;
+    picker.className = "seat-move";
+    picker.setAttribute("aria-label", `Move ${occupant.name}`);
+    for (let position = 0; position < LOBBY_SEAT_COUNT; position += 1) {
+      const option = document.createElement("option");
+      option.setAttribute("value", String(position));
+      option.textContent = `Seat ${position + 1}`;
+      picker.append(option);
+    }
+    const spectate = document.createElement("option");
+    spectate.setAttribute("value", "spectators");
+    spectate.textContent = "Spectators";
+    picker.append(spectate);
+    picker.value = occupant.seat === null ? "spectators" : String(occupant.seat);
+    picker.onchange = () => {
+      sendMove(occupant.id, picker.value === "spectators" ? "spectators" : Number(picker.value));
+    };
+    return picker;
+  };
+
+  /** A row the host can pick up: the name travels by closure, never by payload. */
+  const draggableRow = (item: HTMLElement, occupant: PublicParticipant): void => {
+    item.setAttribute("draggable", "true");
+    item.ondragstart = (event: DragEvent) => {
+      dragging = occupant.id;
+      event.dataTransfer?.setData("text/plain", occupant.name);
+    };
+    item.ondragend = () => { dragging = null; };
+  };
+
+  /** A place the host can put someone down; a drop nobody started does nothing. */
+  const dropTarget = (item: HTMLElement, destination: number | "spectators"): void => {
+    item.ondragover = (event: DragEvent) => { event.preventDefault(); };
+    item.ondrop = (event: DragEvent) => {
+      event.preventDefault();
+      if (dragging !== null) sendMove(dragging, destination);
+      dragging = null;
+    };
+  };
+
   const renderLobby = (): void => {
     if (state === null) return;
     codeLabel.textContent = state.code;
+    const hosting = self()?.host === true;
     const seated = new Map(state.participants.filter((entry) => entry.seat !== null)
       .map((entry) => [entry.seat as number, entry]));
     seatList.replaceChildren(...Array.from({ length: LOBBY_SEAT_COUNT }, (unused, position) => {
       const item = document.createElement("li");
       const occupant = seated.get(position);
-      item.textContent = occupant === undefined
-        ? "Empty seat"
-        : `${occupant.name}${occupant.host ? " (host)" : ""}${occupant.connected ? "" : " — away"}`;
+      if (occupant === undefined) {
+        item.textContent = "Empty seat";
+      } else {
+        const name = document.createElement("span");
+        name.className = "seat-name";
+        name.textContent = participantLabel(occupant);
+        item.append(name);
+        if (hosting) {
+          draggableRow(item, occupant);
+          item.append(seatPicker(occupant));
+        }
+      }
+      if (hosting) dropTarget(item, position);
       return item;
     }));
     spectatorList.replaceChildren(...state.participants.filter((entry) => entry.seat === null)
       .map((entry) => {
         const item = document.createElement("li");
-        item.textContent = `${entry.name}${entry.host ? " (host)" : ""}${entry.connected ? "" : " — away"}`;
+        const name = document.createElement("span");
+        name.className = "seat-name";
+        name.textContent = participantLabel(entry);
+        item.append(name);
+        if (hosting) {
+          draggableRow(item, entry);
+          item.append(seatPicker(entry));
+        }
         return item;
       }));
-    const hosting = self()?.host === true;
+    if (hosting) dropTarget(spectatorList, "spectators");
+    hintRegion.hidden = !hosting;
     randomizeControl.hidden = !hosting;
     startControl.hidden = !hosting;
   };

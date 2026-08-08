@@ -298,6 +298,17 @@ button:focus-visible {
   border-radius: 0.5rem;
 }
 
+/* The host's seat management: rows lift, seats and the spectator row catch. */
+#lobby-seats li[draggable="true"],
+#lobby-spectators li[draggable="true"] {
+  cursor: grab;
+}
+
+.seat-move {
+  margin-left: 0.5rem;
+  font: inherit;
+}
+
 #lobby-spectators {
   display: flex;
   flex-wrap: wrap;
