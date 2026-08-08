@@ -63,7 +63,7 @@ const openBuiltClient = (t, options = {}) => {
   const ids = ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart",
     "drafting-heading", "review-heading", "review-pack", "continue",
     "export", "export-link", "export-list", "export-copy", "export-status",
-    "rooms", "room-status", "room-forms", "create-form", "create-name", "create-password", "create-timers",
+    "rooms", "room-status", "room-forms", "create-form", "create-password", "create-timers",
     "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name",
     "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-hint", "lobby-seats", "lobby-spectators",
     "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar",
@@ -528,7 +528,6 @@ const flush = () => new Promise((resolve) => { setImmediate(resolve); });
 
 test("creating a room walks the page into a live lobby and stands the solo table down", async (t) => {
   const { nodes, world, serve } = openRoomWorld(t);
-  nodes["create-name"].value = "Friday Omens";
   nodes["create-timers"].checked = true;
   nodes["create-pool-hidden"].checked = true;
   nodes["create-spectators"].checked = true;
@@ -546,7 +545,7 @@ test("creating a room walks the page into a live lobby and stands the solo table
   serve(socket, "hello_ack", { credential: "issued", self: { id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 } }, { commandId: hello.commandId });
   serve(socket, "snapshot", {
     phase: "lobby",
-    config: { name: "Friday Omens" },
+    config: {},
     passwordProtected: false,
     participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
     feed: [],

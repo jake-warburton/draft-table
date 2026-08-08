@@ -46,7 +46,7 @@ Draft Table should ship no third-party analytics/ad scripts, use strict CSP, and
 
 An eight-character 40-bit random code is unlisted, not authorization. Atomically check collision. Apply conservative creation/join/password/message rate limits, protocol size caps, and participant cap. Do not reveal whether a password-protected room exists differently enough to enable cheap enumeration where practical. Free-tier exhaustion is an availability risk; stop new room creation before existing rooms.
 
-No user-generated rich text. Validate display/room names by Unicode-aware length, strip controls, render only as text, and avoid HTML/Markdown. Status events are enumerated structured data, eliminating chat/spam links.
+No user-generated rich text. Validate display names by Unicode-aware length, strip controls, render only as text, and avoid HTML/Markdown. Rooms carry no chosen names, only minted codes. Status events are enumerated structured data, eliminating chat/spam links.
 
 ## Message validation and replay
 
@@ -93,7 +93,7 @@ Fabrary is contacted only after an explicit completion action. Query parameters 
 
 | Data | Purpose | Location | Retention |
 |---|---|---|---|
-| Display/room names | Room UX | Room SQLite snapshot + client | Until room deletion |
+| Display names | Room UX | Room SQLite snapshot + client | Until room deletion |
 | Identity verifier | Reconnect/host/seat auth | Room snapshot | Until room deletion |
 | Browser credential | Reconnect bearer | First-party browser only | User clears site data or room expiry cleanup hint |
 | Password verifier/salt | Optional access | Room snapshot | Until room deletion |

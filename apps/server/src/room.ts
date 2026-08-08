@@ -98,7 +98,6 @@ export const CONFIRMATION_SECONDS = 5;
 export const COMPLETED_ROOM_TTL_MS = 60 * 60 * 1000;
 
 const PASSWORD_SALT_BYTES = 16;
-const MAX_NAME_LENGTH = 60;
 const MAX_DISPLAY_NAME_LENGTH = 30;
 const MAX_PASSWORD_LENGTH = 128;
 const MAX_INITIALIZE_BODY_BYTES = 4096;
@@ -114,9 +113,8 @@ interface StoredVerifier {
   readonly digest: string;
 }
 
-/** The accepted room options, every one explicit after defaulting. */
+/** The accepted room options, every one explicit after defaulting. Rooms have no names. */
 interface RoomConfig {
-  readonly name: string;
   readonly timers: boolean;
   readonly poolHidden: boolean;
   readonly spectators: boolean;
@@ -232,7 +230,9 @@ type ConfigRead = { readonly ok: true; readonly config: RoomConfig; readonly pas
  * router already proved the body is one JSON object; the object still decides for itself.
  */
 const readConfig = (parsed: Record<string, unknown>): ConfigRead => {
-  const known = new Set(["name", "password", "timers", "poolHidden", "spectators", "randomizeSeatsAtStart"]);
+  // Rooms have no names: the eight-character code is the room's whole identity, minted by the
+  // router and never chosen by anyone.
+  const known = new Set(["password", "timers", "poolHidden", "spectators", "randomizeSeatsAtStart"]);
   for (const field of Object.keys(parsed)) {
     if (!known.has(field)) return { ok: false };
   }
@@ -242,14 +242,6 @@ const readConfig = (parsed: Record<string, unknown>): ConfigRead => {
     if (value === undefined) return fallback;
     return typeof value === "boolean" ? value : null;
   };
-
-  let name = "Draft room";
-  if (parsed.name !== undefined) {
-    if (typeof parsed.name !== "string") return { ok: false };
-    name = parsed.name.trim();
-    if (name.length === 0 || name.length > MAX_NAME_LENGTH) return { ok: false };
-    if (!isPlainText(name) || !hasVisibleText(name)) return { ok: false };
-  }
 
   let password: string | null = null;
   if (parsed.password !== undefined) {
@@ -267,7 +259,7 @@ const readConfig = (parsed: Record<string, unknown>): ConfigRead => {
     return { ok: false };
   }
 
-  return { ok: true, config: { name, timers, poolHidden, spectators, randomizeSeatsAtStart }, password };
+  return { ok: true, config: { timers, poolHidden, spectators, randomizeSeatsAtStart }, password };
 };
 
 /** The client envelope, read strictly; anything else is a structured error, never a mutation. */
@@ -689,28 +681,21 @@ export class RoomObject {
       this.sendError(socket, room.stateVersion, "forbidden", command.commandId);
       return;
     }
-    const known = new Set(["name", "timers", "poolHidden", "spectators"]);
+    const known = new Set(["timers", "poolHidden", "spectators"]);
     const fields = Object.keys(command.payload);
     if (fields.length !== known.size || fields.some((field) => !known.has(field))) {
       this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
       return;
     }
-    const { name, timers, poolHidden, spectators } = command.payload;
-    if (typeof name !== "string" || typeof timers !== "boolean"
-      || typeof poolHidden !== "boolean" || typeof spectators !== "boolean") {
-      this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
-      return;
-    }
-    const trimmed = name.trim();
-    if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH
-      || !isPlainText(trimmed) || !hasVisibleText(trimmed)) {
+    const { timers, poolHidden, spectators } = command.payload;
+    if (typeof timers !== "boolean" || typeof poolHidden !== "boolean" || typeof spectators !== "boolean") {
       this.sendError(socket, room.stateVersion, "malformed_message", command.commandId);
       return;
     }
     const updated: RoomSnapshot = {
       ...room,
       stateVersion: room.stateVersion + 1,
-      config: { ...room.config, name: trimmed, timers, poolHidden, spectators }
+      config: { ...room.config, timers, poolHidden, spectators }
     };
     await this.commit(socket, updated, command, [
       { type: "config_changed", payload: { config: updated.config } }
@@ -1502,7 +1487,7 @@ export class RoomObject {
         ? [...room.feed, {
             at: now,
             type: finished ? "completion" as const : "review" as const,
-            name: room.config.name
+            name: ""
           }].slice(-MAX_FEED_EVENTS)
         : room.feed
     };

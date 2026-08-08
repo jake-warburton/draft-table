@@ -183,7 +183,6 @@ test("defaults follow the product contract when the creator says nothing", async
   assert.equal(snapshot.hostClaimSpent, false);
   assert.equal(snapshot.abandonAt, CREATED_AT + LOBBY_ABANDONMENT_MS);
   assert.deepEqual(snapshot.config, {
-    name: "Draft room",
     timers: true,
     poolHidden: true,
     spectators: true,
@@ -191,10 +190,9 @@ test("defaults follow the product contract when the creator says nothing", async
   });
 });
 
-test("explicit configuration is honoured and trimmed", async () => {
+test("explicit configuration is honoured", async () => {
   const { room, storage } = makeRoom();
   await initialize(room, {
-    name: "  Friday night Omens  ",
     timers: false,
     poolHidden: false,
     spectators: false,
@@ -202,7 +200,6 @@ test("explicit configuration is honoured and trimmed", async () => {
   });
 
   assert.deepEqual(storage.map.get("room").config, {
-    name: "Friday night Omens",
     timers: false,
     poolHidden: false,
     spectators: false,
@@ -212,11 +209,11 @@ test("explicit configuration is honoured and trimmed", async () => {
 
 test("a second initialize is refused with the one taken answer and changes nothing", async () => {
   const { room, storage } = makeRoom();
-  await initialize(room, { name: "First claim" });
+  await initialize(room, { poolHidden: false });
   const before = JSON.stringify(storage.map.get("room"));
   const alarmsBefore = storage.alarms.length;
 
-  const again = await initialize(room, { name: "Second claim" });
+  const again = await initialize(room, { poolHidden: true });
   assert.equal(again.status, 409);
   assert.equal(await errorCode(again), "room_taken");
   assert.equal(JSON.stringify(storage.map.get("room")), before, "the first room is untouched");
@@ -230,14 +227,8 @@ test("initialize schedules the abandoned-lobby cleanup for exactly thirty minute
 });
 
 const REFUSED_CONFIGS = [
-  ["an unknown field", { name: "ok", theme: "dark" }],
-  ["a non-string name", { name: 7 }],
-  ["an empty name", { name: "   " }],
-  ["an overlong name", { name: "n".repeat(61) }],
-  ["a control character in the name", { name: "line\u0000break" }],
-  ["a name of only zero-width characters", { name: "\u200b\u200b\u200b" }],
-  ["a direction-override character in the name", { name: "safe\u202eevil" }],
-  ["a name with nothing that renders", { name: "\u0301\u0301" }],
+  ["an unknown field", { theme: "dark" }],
+  ["a room name, which rooms no longer have", { name: "Friday Omens" }],
   ["a non-string password", { password: 12345 }],
   ["an empty password", { password: "" }],
   ["an overlong password", { password: "p".repeat(129) }],
@@ -671,8 +662,8 @@ test("the host claim cannot be double-spent by a race", async () => {
 test("two initializes arriving at once mint exactly one room", async () => {
   const { room } = makeRoom();
   const [first, second] = await Promise.all([
-    initialize(room, { name: "First" }),
-    initialize(room, { name: "Second" })
+    initialize(room, { timers: false }),
+    initialize(room, { timers: true })
   ]);
   assert.deepEqual([first.status, second.status].sort(), [201, 409]);
 });
@@ -770,11 +761,10 @@ test("a rename that would render as nothing is refused without a mutation", asyn
 test("the host reshapes the safe options as one whole object", async () => {
   const lobby = await openLobby();
   await lobby.room.webSocketMessage(lobby.host, command("update_config", {
-    name: "Friday Omens", timers: false, poolHidden: false, spectators: false
+    timers: false, poolHidden: false, spectators: false
   }));
 
   const { config } = lobby.storage.map.get("room");
-  assert.equal(config.name, "Friday Omens");
   assert.equal(config.timers, false);
   assert.equal(config.randomizeSeatsAtStart, true, "seat randomization has its own verb");
   const [broadcast] = frames(lobby.guest, "config_changed");
@@ -784,7 +774,7 @@ test("the host reshapes the safe options as one whole object", async () => {
 test("configuration belongs to the host and arrives whole or not at all", async () => {
   const lobby = await openLobby();
   await lobby.room.webSocketMessage(lobby.guest, command("update_config", {
-    name: "Mine now", timers: true, poolHidden: true, spectators: true
+    timers: true, poolHidden: true, spectators: true
   }));
   assert.equal(lastError(lobby.guest).payload.code, "forbidden");
 
@@ -961,7 +951,7 @@ test("a socket whose identity was removed mid-flight is nobody again", async () 
 test("no lobby broadcast ever carries a verifier", async () => {
   const lobby = await openLobby();
   await lobby.room.webSocketMessage(lobby.host, command("update_config", {
-    name: "Scan me", timers: true, poolHidden: true, spectators: true
+    timers: true, poolHidden: true, spectators: true
   }));
   await lobby.room.webSocketMessage(lobby.host, command("set_seat_randomization", { mode: "randomize_now" }));
   const everything = JSON.stringify([...lobby.host.sent, ...lobby.guest.sent]);

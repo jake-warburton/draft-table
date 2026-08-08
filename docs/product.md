@@ -32,7 +32,7 @@ The permanent creator/host controls:
 
 | Option | Contract |
 |---|---|
-| Room name | Short plain text; no rich text. |
+| Room identity | The auto-assigned eight-character room code of letters and digits; rooms have no chosen names. |
 | Set | Selector may be visible, but Omens of the Third Age is the only enabled MVP value. |
 | Password | Optional. Never placed in the URL query/path; `Copy link + password` uses the fragment. |
 | Timers | On by default, using the official judge schedule [FAB-2]. |

@@ -9,7 +9,6 @@
 import { normalizeRoomCode } from "@draft-table/contracts";
 
 export interface RoomOptions {
-  readonly name?: string;
   readonly password?: string;
   readonly timers?: boolean;
   readonly poolHidden?: boolean;
