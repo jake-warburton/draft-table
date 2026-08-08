@@ -297,6 +297,10 @@ The client's side of the protocol lives in two reviewed modules, not yet wired t
 
 One Worker serves everything: the static client, the two room routes, and the room objects. The reviewed deployment shape lives in `wrangler.jsonc` — the Worker entry, the static assets with a single-page fallback the router never lets answer for the API, and the SQLite-backed room class with its migration. Deploying is a deliberate step for whoever holds the Cloudflare account: `npx wrangler login`, `npm run build`, then `npx wrangler deploy`. Nothing in this repository deploys on its own, and no test needs a Cloudflare account.
 
+## One screen at a time
+
+The page is three screens, not one long scroll. The door offers the create and join forms and the solo start; the table shows the pack and your pool and nothing else; and a finished draft turns the page to the results — the pool and the Fabrary hand-off — with a way onward: deal again at the solo table, or leave the room.
+
 ## Reading your drafted pool
 
 The pool starts in collector order and can be regrouped without changing it. Buttons offer **Set number**, **Class**, **Colour**, and **Type**; cards stay in collector order inside every group, empty groups are left out, and each heading carries its own count.

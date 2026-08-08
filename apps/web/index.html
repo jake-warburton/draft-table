@@ -18,7 +18,6 @@
 
       <section id="rooms" aria-labelledby="rooms-title">
         <h2 id="rooms-title">Draft with people</h2>
-        <p id="room-status" role="status" aria-live="polite"></p>
         <div id="room-forms">
           <form id="create-form">
             <h3>Start a room</h3>
@@ -45,15 +44,18 @@
           <p>
             <button id="lobby-randomize" type="button" hidden>Randomize seats now</button>
             <button id="lobby-start" type="button" hidden>Start the draft</button>
-            <button id="room-leave" type="button">Leave the room</button>
           </p>
         </div>
-        <p id="room-deadline" hidden>
-          <span id="deadline-label">Time remaining</span>
-          <progress id="deadline-bar" max="1000" value="1000"></progress>
-          <span id="deadline-seconds" role="timer"></span>
-        </p>
       </section>
+
+      <p id="room-status" role="status" aria-live="polite"></p>
+      <p id="room-controls" hidden><button id="room-leave" type="button">Leave the room</button></p>
+
+      <p id="room-deadline" hidden>
+        <span id="deadline-label">Time remaining</span>
+        <progress id="deadline-bar" max="1000" value="1000"></progress>
+        <span id="deadline-seconds" role="timer"></span>
+      </p>
 
       <section id="pack-section" aria-labelledby="pack-title">
         <h2 id="pack-title">
@@ -81,6 +83,7 @@
           <button id="export-copy" type="button">Copy list</button>
           <span id="export-status" role="status" aria-live="polite"></span>
         </p>
+        <p><button id="play-again" type="button" hidden>Deal a new draft</button></p>
       </section>
 
       <section id="solo-table" aria-labelledby="table-title">

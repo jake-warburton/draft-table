@@ -42,6 +42,27 @@ let grouping: PoolGrouping = "number";
 let soloActive = true;
 
 /**
+ * The page is three screens, not one long scroll: the door (create, join, or deal solo), the
+ * table itself, and the results with the Fabrary hand-off. Exactly one shows at a time.
+ */
+type SoloScreen = "home" | "draft" | "results";
+let soloScreen: SoloScreen = "home";
+
+const roomsSection = element("#rooms");
+const soloHome = element("#solo-table");
+const packSection = element("#pack-section");
+const poolSection = element("#pool-section");
+const playAgain = element("#play-again");
+
+const applySoloScreen = (): void => {
+  roomsSection.hidden = soloScreen !== "home";
+  soloHome.hidden = soloScreen !== "home";
+  packSection.hidden = soloScreen !== "draft";
+  poolSection.hidden = soloScreen === "home";
+  playAgain.hidden = soloScreen !== "results";
+};
+
+/**
  * The pause between packs is presentation state; the draft itself has already advanced. While it
  * is set, the next pack waits behind the continue control and the pool is face up for review.
  */
@@ -76,6 +97,8 @@ const groupingControl = (choice: { id: PoolGrouping; label: string }): HTMLEleme
 const render = (): void => {
   if (!soloActive) return;
   const view = viewTable(state);
+  if (soloScreen === "draft" && view.complete) soloScreen = "results";
+  applySoloScreen();
   roundNumber.textContent = String(view.round);
   pickNumber.textContent = String(view.pick);
   draftingHeading.hidden = reviewing;
@@ -108,7 +131,7 @@ const render = (): void => {
   }
 };
 
-/** The export appears only once there is a finished pool to export, and clears on a fresh deal. */
+/** The export appears with the results — completion always turns the page there — and clears on a fresh deal. */
 const renderExport = (complete: boolean, pool: readonly DraftCard[]): void => {
   exportRegion.hidden = !complete;
   exportStatus.textContent = "";
@@ -154,18 +177,29 @@ continueControl.onclick = () => {
   (packRegion.firstChild as HTMLElement | null)?.focus();
 };
 
-restartControl.onclick = () => {
+const dealFresh = (): void => {
   reviewing = false;
+  soloScreen = "draft";
   state = deal();
   render();
+  (packRegion.firstChild as HTMLElement | null)?.focus();
 };
+
+restartControl.onclick = dealFresh;
+playAgain.onclick = dealFresh;
 
 initRoomsPage({
   element,
   setSoloActive: (active) => {
     soloActive = active;
-    element("#solo-table").hidden = !active;
-    if (active) render();
+    if (active) {
+      // Leaving a room lands back at the door, whatever the solo table was doing before.
+      soloScreen = "home";
+      render();
+    } else {
+      soloHome.hidden = true;
+      playAgain.hidden = true;
+    }
   }
 });
 

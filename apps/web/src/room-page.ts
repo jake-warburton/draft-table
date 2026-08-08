@@ -65,6 +65,8 @@ export interface RoomPageRegions {
 export const initRoomsPage = (regions: RoomPageRegions): void => {
   const el = regions.element;
   const roomStatus = el("#room-status");
+  const roomsSection = el("#rooms");
+  const roomControls = el("#room-controls");
   const forms = el("#room-forms");
   const lobby = el("#room-lobby");
   const codeLabel = el("#room-code");
@@ -214,12 +216,14 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
   const render = (): void => {
     if (state === null) return;
     const inLobby = state.phase === "lobby";
+    const complete = state.phase === "complete";
     forms.hidden = true;
     lobby.hidden = !inLobby;
+    // Each phase is its own screen: the lobby lives in the rooms section, the draft owns the
+    // table, and completion is the results page — pool and hand-off, no pack, no forms.
+    roomsSection.hidden = !inLobby;
     regions.setSoloActive(false);
-    // The lobby owns the whole screen: the shared table sections hide, and the paused solo
-    // table's cards are genuinely gone, not lurking clickable underneath.
-    packSection.hidden = inLobby;
+    packSection.hidden = inLobby || complete;
     poolSection.hidden = inLobby;
     if (inLobby) {
       packRegion.replaceChildren();
@@ -322,6 +326,8 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     state = null;
     forms.hidden = false;
     lobby.hidden = true;
+    roomsSection.hidden = false;
+    roomControls.hidden = true;
     deadlineRegion.hidden = true;
     roomStatus.textContent = message;
     regions.setSoloActive(true);
@@ -371,6 +377,7 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       grouping: "number",
       notice: "Waiting for the room…"
     };
+    roomControls.hidden = false;
     client = new RoomClient(code, hello, {
       openSocket: (roomCode) =>
         new WebSocket(socketUrl(location.protocol, location.host, roomCode)) as unknown as DriverSocket,

@@ -75,6 +75,7 @@ test("the permanent README notice and integrated product contracts remain explic
   assert.match(readme, /## Talking to a room[\s\S]*answers, not accidents[\s\S]*solo table stands down[\s\S]*very same table/);
   assert.match(readme, /connections to 'self' and nowhere else/);
   assert.match(readme, /## Deploying[\s\S]*wrangler\.jsonc[\s\S]*Nothing in this repository deploys on its own/);
+  assert.match(readme, /## One screen at a time[\s\S]*three screens, not one long scroll[\s\S]*finished draft turns the page to the results/);
   assert.match(readme, /## Reviewed set snapshot[\s\S]*neither CI nor the browser needs the captain-held recipe/);
   assert.match(readme, /set snapshot acceptance passed[\s\S]*compares byte for byte with the committed snapshot/);
   assert.match(readme, /completed `apps\/web\/dist` bytes[\s\S]*no client byte ceiling[\s\S]*size gate[\s\S]*accessibility and responsive declarations/);
