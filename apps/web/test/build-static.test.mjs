@@ -63,7 +63,7 @@ const openBuiltClient = (t) => {
     "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name",
     "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-seats", "lobby-spectators",
     "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar",
-    "deadline-seconds", "solo-table", "pack-section", "pool-section"];
+    "deadline-seconds", "solo-table", "pack-section", "pool-section", "room-controls", "play-again"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Element("div")]));
   const previousDocument = globalThis.document;
   const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
@@ -380,6 +380,7 @@ test("drafted cards show their own art in the pool as well as in the pack", (t) 
 
 test("the Fabrary hand-off stays hidden until there is a finished pool to hand off", (t) => {
   const nodes = openBuiltClient(t);
+  nodes.restart.onclick();
   assert.equal(nodes.export.hidden, true, "nothing to export before the draft starts");
 
   draftCards(nodes, 20);
@@ -408,6 +409,7 @@ test("the finished export carries all forty-two drafted copies", (t) => {
 
 test("dealing a new draft withdraws the previous export", (t) => {
   const nodes = openBuiltClient(t);
+  nodes.restart.onclick();
   draftCards(nodes, 39);
   assert.equal(nodes.export.hidden, false);
 
@@ -620,4 +622,73 @@ test("a started room deals the pack onto the same table and clicking a card queu
   const queued = socket.sent.at(-1);
   assert.equal(queued.type, "queue_pick");
   assert.deepEqual(queued.payload, { round: 1, pick: 1, cardInstanceId: "r1s1-1" });
+});
+
+test("the page opens at the door: forms and solo start, no table, no results", (t) => {
+  const nodes = openBuiltClient(t);
+  assert.equal(nodes.rooms.hidden, false, "the create and join forms greet you");
+  assert.equal(nodes["solo-table"].hidden, false, "so does the solo start");
+  assert.equal(nodes["pack-section"].hidden, true, "the table is not on this page");
+  assert.equal(nodes["pool-section"].hidden, true);
+  assert.equal(nodes.export.hidden, true, "nor the results");
+});
+
+test("dealing a solo draft turns the page to the table, away from the door", (t) => {
+  const nodes = openBuiltClient(t);
+  nodes.restart.onclick();
+  assert.equal(nodes["pack-section"].hidden, false);
+  assert.equal(nodes["pool-section"].hidden, false);
+  assert.equal(nodes.rooms.hidden, true, "the join and create forms are a different page");
+  assert.equal(nodes["solo-table"].hidden, true);
+  assert.equal(nodes.pack.children.length, 14);
+});
+
+test("a finished draft turns the page to the results, away from the table", (t) => {
+  const nodes = openBuiltClient(t);
+  nodes.restart.onclick();
+  draftCards(nodes, 39);
+
+  assert.equal(nodes["pack-section"].hidden, true, "the table's part is done");
+  assert.equal(nodes["pool-section"].hidden, false, "the pool is the result");
+  assert.equal(nodes.export.hidden, false, "and the Fabrary hand-off lives here");
+  assert.equal(nodes["play-again"].hidden, false);
+  assert.equal(nodes.rooms.hidden, true, "the door is still a different page");
+
+  nodes["play-again"].onclick();
+  assert.equal(nodes["pack-section"].hidden, false, "playing again returns to the table");
+  assert.equal(nodes.export.hidden, true);
+  assert.equal(nodes.pack.children.length, 14);
+});
+
+test("a completed room turns the page to the results with the way out", async (t) => {
+  const { nodes, world, serve } = openRoomWorld(t);
+  nodes["create-form"].onsubmit({ preventDefault: () => {} });
+  await flush();
+  const socket = world.sockets[0];
+  socket.onopen();
+  const [hello] = socket.sent;
+  serve(socket, "hello_ack", { self: { id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 } }, { commandId: hello.commandId });
+  serve(socket, "snapshot", {
+    phase: "lobby", config: {}, passwordProtected: false,
+    participants: [{ id: "p1", name: "Drafter 1", host: true, connected: true, seat: 0 }],
+    feed: [], self: "p1"
+  });
+  assert.equal(nodes["room-controls"].hidden, false, "the way out is always on screen in a room");
+
+  serve(socket, "phase_changed", {
+    phase: "complete", status: "complete", round: 3, pick: 13, passDirection: "left", packSize: 0,
+    seats: [{ seatId: "seat-1", participantId: "p1", connected: true, hasQueued: false }]
+  }, { stateVersion: 2 });
+  serve(socket, "private_pack_pool", {
+    seatId: "seat-1",
+    pack: null,
+    pool: [{ instanceId: "r1s1-0", cardId: "UNKNOWN1" }],
+    queued: null
+  }, { stateVersion: 2 });
+
+  assert.equal(nodes["pack-section"].hidden, true, "no table on the results page");
+  assert.equal(nodes["pool-section"].hidden, false);
+  assert.equal(nodes.export.hidden, false, "the Fabrary hand-off lives here");
+  assert.equal(nodes.rooms.hidden, true);
+  assert.equal(nodes["play-again"].hidden, true, "leaving, not redealing, is the room's way out");
 });
