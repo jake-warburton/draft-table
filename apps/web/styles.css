@@ -309,6 +309,36 @@ button:focus-visible {
   font: inherit;
 }
 
+/* The spectator's board: the seats around the table, public facts only. */
+.table-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.table-board li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border: 2px dashed var(--edge);
+  border-radius: 0.5rem;
+}
+
+.board-picked {
+  color: var(--accent, inherit);
+  font-weight: 600;
+}
+
+.board-picking,
+.board-away {
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
 /* The room's story: a log, not a chat — nobody types into it. */
 #room-feed {
   max-height: 10rem;

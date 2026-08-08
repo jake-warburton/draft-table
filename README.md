@@ -297,6 +297,8 @@ The client's side of the protocol lives in two reviewed modules, not yet wired t
 
 In the waiting room the host arranges the table by hand: drag a name onto a seat to move them, onto a taken seat to swap the two, or onto the spectator row to unseat them — and a picker beside each name makes exactly the same moves without a mouse. Guests get none of it; the room refuses a non-host move anyway, and the first manual move visibly spends the pending start-time shuffle.
 
+A spectator — anyone without a seat once the draft is under way — watches the table instead of holding a pack: the seats around it, who has picked and who is still thinking, and who has slipped away, all of it public and none of it a card. The rail never shows a pool, a queued identity, or anyone's pack; those stay with their seats.
+
 A status box follows the room through lobby, draft, and results: joins, reconnections, lost connections, departures, seats rearranged, the draft starting, review time, completion — one plain line each, newest at the bottom. It is a log, not a chat: nobody types into it, and a line never says anything the lobby list does not already show. The room object keeps the last hundred events and hands them whole to every arriving snapshot, so a late joiner reads the same story everyone else lived; each new line then arrives as its own broadcast, and the page itself adds only the *Pack N is in hand* line, once per round.
 
 ## Deploying

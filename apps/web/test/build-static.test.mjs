@@ -939,3 +939,55 @@ test("a reconnector's snapshot still knows which pack is in hand", async (t) => 
   assert.equal(nodes["room-feed"].children.filter((line) => line.textContent.startsWith("Pack")).length, 1,
     "and the once-per-round guard is armed by the snapshot");
 });
+
+/** The table mid-draft as a spectator sees it: p3 holds no seat and watches. */
+const spectatorPicking = async (t) => {
+  const opened = await lobbyOfThree(t, { selfId: "p3", selfHost: false });
+  opened.serve(opened.socket, "phase_changed", {
+    phase: "picking", status: "picking", round: 1, pick: 3, packSize: 12, passDirection: "left",
+    seats: [
+      { seatId: "seat-1", participantId: "p1", connected: true, hasQueued: true },
+      { seatId: "seat-2", participantId: "p2", connected: false, hasQueued: false },
+      { seatId: "seat-3", participantId: null, connected: false, hasQueued: false }
+    ]
+  }, { stateVersion: 2 });
+  return opened;
+};
+
+test("a spectator watches the table: seats, picks, and absences, never a card", async (t) => {
+  const { nodes } = await spectatorPicking(t);
+
+  assert.equal(nodes["pack-section"].hidden, false, "the table is on screen for the watcher");
+  const [board] = nodes.pack.children;
+  assert.equal(board.attributes["aria-label"], "Seats at the table");
+  const rows = board.children.map((row) => row.textContent);
+  assert.deepEqual(rows, ["Drafter 1picked", "Second Matepicking…away", "Empty seat"]);
+  assert.ok(board.children.every((row) => row.onclick === undefined), "nothing on the board is a card to take");
+  assert.match(nodes.status.textContent, /watching from the rail/);
+  assert.equal(nodes["pool-count"].textContent, "none");
+  assert.match(nodes.pool.textContent, /no pool of your own/);
+});
+
+test("the board follows the queue marks live", async (t) => {
+  const { nodes, serve, socket } = await spectatorPicking(t);
+
+  serve(socket, "queue_status_changed", { seatId: "seat-2", hasQueued: true }, { stateVersion: 3 });
+  const [board] = nodes.pack.children;
+  assert.equal(board.children[1].textContent, "Second Matepickedaway");
+});
+
+test("during the review the board keeps its seats but drops the pick marks", async (t) => {
+  const { nodes, serve, socket } = await spectatorPicking(t);
+
+  serve(socket, "phase_changed", {
+    phase: "review", status: "review", round: 2, pick: 1, packSize: 14, passDirection: "right",
+    seats: [
+      { seatId: "seat-1", participantId: "p1", connected: true, hasQueued: false },
+      { seatId: "seat-2", participantId: "p2", connected: true, hasQueued: false }
+    ]
+  }, { stateVersion: 3 });
+
+  const [board] = nodes.pack.children;
+  assert.deepEqual(board.children.map((row) => row.textContent), ["Drafter 1", "Second Mate"],
+    "no one is picking during a review");
+});

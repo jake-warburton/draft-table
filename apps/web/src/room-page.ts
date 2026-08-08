@@ -281,10 +281,49 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     refocus.picker?.focus();
   };
 
+  /** A public name for a seat; the board never needs more than the lobby already shows. */
+  const seatName = (participantId: string | null): string => {
+    if (participantId === null) return "Empty seat";
+    return state?.participants.find(({ id }) => id === participantId)?.name ?? "A drafter";
+  };
+
+  /**
+   * What a spectator watches instead of a pack: the seats around the table, who has picked and
+   * who is still thinking, and who has slipped away — all of it public, none of it a card.
+   */
+  const tableBoard = (): HTMLElement => {
+    const board = document.createElement("ol");
+    board.className = "table-board";
+    board.setAttribute("aria-label", "Seats at the table");
+    const picking = state?.phase === "picking";
+    for (const seat of state?.seats ?? []) {
+      const item = document.createElement("li");
+      const name = document.createElement("span");
+      name.className = "board-name";
+      name.textContent = seatName(seat.participantId);
+      item.append(name);
+      if (seat.participantId !== null && picking) {
+        const mark = document.createElement("span");
+        mark.className = seat.hasQueued ? "board-picked" : "board-picking";
+        mark.textContent = seat.hasQueued ? "picked" : "picking…";
+        item.append(mark);
+      }
+      if (seat.participantId !== null && !seat.connected) {
+        const away = document.createElement("span");
+        away.className = "board-away";
+        away.textContent = "away";
+        item.append(away);
+      }
+      board.append(item);
+    }
+    return board;
+  };
+
   const renderDraft = (): void => {
     if (state === null) return;
     const review = state.phase === "review";
     const complete = state.phase === "complete";
+    const spectating = self()?.seat === null;
     roundNumber.textContent = String(state.round);
     pickNumber.textContent = String(state.pick);
     draftingHeading.hidden = review;
@@ -293,14 +332,18 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     continueControl.hidden = true;
     const queuedNote = state.view?.queued === null ? "Choose a card." : "Queued. You may still change it.";
     statusRegion.textContent = complete
-      ? "Draft complete. Your pool is below."
-      : review
-        ? `Pack ${Math.max(1, state.round - 1)} drafted. Review your pool; pack ${state.round} arrives shortly.`
-        : `Round ${state.round}, pick ${state.pick}. ${queuedNote} Packs pass ${
-            state.passDirection === "left" ? "to the left" : "to the right"}.`;
+      ? spectating ? "Draft complete." : "Draft complete. Your pool is below."
+      : spectating
+        ? `Round ${state.round}, pick ${state.pick}. You are watching from the rail.`
+        : review
+          ? `Pack ${Math.max(1, state.round - 1)} drafted. Review your pool; pack ${state.round} arrives shortly.`
+          : `Round ${state.round}, pick ${state.pick}. ${queuedNote} Packs pass ${
+              state.passDirection === "left" ? "to the left" : "to the right"}.`;
 
+    // A spectator needs no pack guard here: they hold no private view, so the pack is already
+    // empty, and the board branch below never consults it anyway.
     const pack = review || complete ? [] : state.view?.pack?.cards ?? [];
-    packRegion.replaceChildren(...pack.map((card) => {
+    packRegion.replaceChildren(...(spectating && !complete ? [tableBoard()] : pack.map((card) => {
       const control = cardControl(card, () => {
         if (client === null || state === null) return;
         client.send("queue_pick", { round: state.round, pick: state.pick, cardInstanceId: card.instanceId });
@@ -308,10 +351,10 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       // The queued card stays visibly chosen across re-renders and replacements.
       control.setAttribute("aria-pressed", String(card.instanceId === state?.view?.queued));
       return control;
-    }));
+    })));
 
     const pool = state.view?.pool ?? null;
-    poolCount.textContent = pool === null ? "hidden" : String(pool.length);
+    poolCount.textContent = pool === null ? (spectating ? "none" : "hidden") : String(pool.length);
     poolGroupingRegion.hidden = pool === null;
     poolGroupingRegion.replaceChildren(...(pool === null ? [] : POOL_GROUPINGS.map((choice) => {
       const control = document.createElement("button");
@@ -329,7 +372,9 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       ? [(() => {
           const notice = document.createElement("p");
           notice.className = "pool-hidden";
-          notice.textContent = "Pool hidden until the next review";
+          notice.textContent = spectating
+            ? "You are watching; there is no pool of your own."
+            : "Pool hidden until the next review";
           return notice;
         })()]
       : groupPool(pool, state.grouping, identities).map(({ label, cards }) => poolGroup(label, cards))));
