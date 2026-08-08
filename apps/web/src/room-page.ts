@@ -340,7 +340,9 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
           : `Round ${state.round}, pick ${state.pick}. ${queuedNote} Packs pass ${
               state.passDirection === "left" ? "to the left" : "to the right"}.`;
 
-    const pack = review || complete || spectating ? [] : state.view?.pack?.cards ?? [];
+    // A spectator needs no pack guard here: they hold no private view, so the pack is already
+    // empty, and the board branch below never consults it anyway.
+    const pack = review || complete ? [] : state.view?.pack?.cards ?? [];
     packRegion.replaceChildren(...(spectating && !complete ? [tableBoard()] : pack.map((card) => {
       const control = cardControl(card, () => {
         if (client === null || state === null) return;
