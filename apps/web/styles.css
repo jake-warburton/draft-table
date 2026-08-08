@@ -35,9 +35,8 @@ body {
 }
 
 main {
-  max-width: 74rem;
-  margin: auto;
-  padding: 1.5rem 2rem 4rem;
+  margin: 0;
+  padding: 0.75rem 1.5rem 3rem;
 }
 
 section {
@@ -60,7 +59,7 @@ section {
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.25rem 0 1.25rem;
+  padding: 0.25rem 0 0.75rem;
 }
 
 .wordmark {
@@ -285,6 +284,7 @@ a.link-button:hover {
 /* ---------- The table: pack, statuses, and the pool. ---------- */
 
 h2 {
+  margin: 0.5rem 0 0.75rem;
   font-size: 1rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -858,14 +858,42 @@ h2 {
     flex: 1;
   }
 
+  /* The sidebar takes the whole height of the screen: the story stretches, the clock sits
+     at its foot, and both stay put while the board scrolls. */
   .board-side {
     flex: none;
     width: 19rem;
     position: sticky;
-    top: 1rem;
+    top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 4.5rem);
+  }
+
+  .board-side #room-story:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .board-side #room-deadline {
+    flex: none;
+  }
+
+  .board-side #room-story h2 {
+    flex: none;
+  }
+
+  .board-side #room-feed {
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+  }
+
+  .board-side #room-deadline {
+    margin: 0;
     padding: 1rem;
   }
 
