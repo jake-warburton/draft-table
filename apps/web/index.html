@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https://legendstory-production-s3-public.s3.amazonaws.com; style-src 'self'; script-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https://legendstory-production-s3-public.s3.amazonaws.com; style-src 'self'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'">
     <meta name="referrer" content="no-referrer">
     <title>Draft Table</title>
     <link rel="stylesheet" href="./styles.css">
@@ -15,6 +15,45 @@
         <p>Unofficial; not affiliated with Legend Story Studios.</p>
         <p>A full three-round draft against bots, dealt from the reviewed Omens set snapshot with its real collation weights. Card images are served by Legend Story Studios from their own public host; a card that cannot load its art still shows its name.</p>
       </header>
+
+      <section id="rooms" aria-labelledby="rooms-title">
+        <h2 id="rooms-title">Draft with people</h2>
+        <p id="room-status" role="status" aria-live="polite"></p>
+        <div id="room-forms">
+          <form id="create-form">
+            <h3>Start a room</h3>
+            <p><label>Room name <input id="create-name" maxlength="60" autocomplete="off"></label></p>
+            <p><label>Password (optional) <input id="create-password" type="password" maxlength="128" autocomplete="new-password"></label></p>
+            <p><label><input id="create-timers" type="checkbox" checked> Pick timers</label></p>
+            <p><label><input id="create-pool-hidden" type="checkbox" checked> Hide pools until the reviews</label></p>
+            <p><label><input id="create-spectators" type="checkbox" checked> Allow spectators</label></p>
+            <p><button id="create-room" type="submit">Create the room</button></p>
+          </form>
+          <form id="join-form">
+            <h3>Join a room</h3>
+            <p><label>Room code <input id="join-code" maxlength="12" autocomplete="off"></label></p>
+            <p><label>Your name (optional) <input id="join-name" maxlength="30" autocomplete="off"></label></p>
+            <p><label>Password (if the room has one) <input id="join-password" type="password" maxlength="128" autocomplete="current-password"></label></p>
+            <p><button id="join-room" type="submit">Join</button></p>
+          </form>
+        </div>
+        <div id="room-lobby" hidden>
+          <h3>Room <span id="room-code"></span></h3>
+          <p id="room-share"></p>
+          <ol id="lobby-seats" aria-label="Seats"></ol>
+          <ul id="lobby-spectators" aria-label="Spectators"></ul>
+          <p>
+            <button id="lobby-randomize" type="button" hidden>Randomize seats now</button>
+            <button id="lobby-start" type="button" hidden>Start the draft</button>
+            <button id="room-leave" type="button">Leave the room</button>
+          </p>
+        </div>
+        <p id="room-deadline" hidden>
+          <span id="deadline-label">Time remaining</span>
+          <progress id="deadline-bar" max="1000" value="1000"></progress>
+          <span id="deadline-seconds" role="timer"></span>
+        </p>
+      </section>
 
       <section aria-labelledby="pack-title">
         <h2 id="pack-title">
@@ -44,7 +83,7 @@
         </p>
       </section>
 
-      <section aria-labelledby="table-title">
+      <section id="solo-table" aria-labelledby="table-title">
         <h2 id="table-title">Table</h2>
         <p>You hold seat one. Seven bots fill the remaining seats and pass with you.</p>
         <button id="restart" type="button">Deal a new draft</button>

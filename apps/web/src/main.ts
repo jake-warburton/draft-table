@@ -3,6 +3,7 @@ import { FABRARY_IMPORT_URL, fabraryEntries, fabraryImportLink, fabraryTextList 
 import { POOL_GROUPINGS, groupPool, type PoolGrouping } from "./pool.ts";
 import { DEFAULT_SEAT_COUNT, chooseCard, createTable, viewTable } from "./table.ts";
 import { cardControl, identities, poolGroup } from "./table-render.ts";
+import { initRoomsPage } from "./room-page.ts";
 import type { DraftCard } from "@draft-table/draft";
 
 const element = (selector: string): HTMLElement => {
@@ -37,6 +38,9 @@ const deal = () => createTable(DEFAULT_SEAT_COUNT, OMENS_SET_SNAPSHOT, nextUint3
 let state = deal();
 let grouping: PoolGrouping = "number";
 
+/** The solo table stands down while a room is live; its state waits untouched. */
+let soloActive = true;
+
 /**
  * The pause between packs is presentation state; the draft itself has already advanced. While it
  * is set, the next pack waits behind the continue control and the pool is face up for review.
@@ -70,6 +74,7 @@ const groupingControl = (choice: { id: PoolGrouping; label: string }): HTMLEleme
 };
 
 const render = (): void => {
+  if (!soloActive) return;
   const view = viewTable(state);
   roundNumber.textContent = String(view.round);
   pickNumber.textContent = String(view.pick);
@@ -154,5 +159,14 @@ restartControl.onclick = () => {
   state = deal();
   render();
 };
+
+initRoomsPage({
+  element,
+  setSoloActive: (active) => {
+    soloActive = active;
+    element("#solo-table").hidden = !active;
+    if (active) render();
+  }
+});
 
 render();

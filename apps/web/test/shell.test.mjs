@@ -33,7 +33,7 @@ test("the shell blocks every origin except the one official image host", () => {
   }));
   assert.equal(directives.get("default-src"), "'none'", "nothing loads unless it is named");
   assert.equal(directives.get("img-src"), IMAGE_ORIGIN, "images come from exactly one pinned origin");
-  assert.equal(directives.get("connect-src"), "'none'", "the client opens no connection of its own");
+  assert.equal(directives.get("connect-src"), "'self'", "a room speaks only to the page's own origin");
   assert.equal(directives.get("base-uri"), "'none'");
   assert.equal(directives.get("form-action"), "'none'");
 });
@@ -49,7 +49,9 @@ test("the shell keeps labelled regions and one live status region", () => {
   assert.match(html, /aria-label="Cards you have drafted"/);
   assert.match(html, /aria-labelledby="pack-title"/);
   assert.match(html, /aria-labelledby="pool-title"/);
-  for (const id of ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart", "drafting-heading", "review-heading", "review-pack", "continue", "export", "export-link", "export-list", "export-copy", "export-status"]) {
+  for (const id of ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart", "drafting-heading", "review-heading", "review-pack", "continue", "export", "export-link", "export-list", "export-copy", "export-status",
+    "rooms", "room-status", "room-forms", "create-form", "create-name", "create-password", "create-timers", "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name", "join-password", "join-room",
+    "room-lobby", "room-code", "room-share", "lobby-seats", "lobby-spectators", "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar", "deadline-seconds", "solo-table"]) {
     assert.match(html, new RegExp(`id="${id}"`), id);
   }
   assert.match(html, /<span id="review-heading" hidden>Pack <span id="review-pack">1<\/span> review<\/span>/,
@@ -97,7 +99,7 @@ test("the stylesheet deals the pack five to a row and stacks the pool into piles
 });
 
 test("scripted networking lives only in the reviewed room modules, which name no origin", () => {
-  const networking = ["protocol.ts", "room-client.ts"];
+  const networking = ["protocol.ts", "room-client.ts", "room-page.ts"];
   const others = readdirSync(file("src"))
     .filter((name) => name.endsWith(".ts") && !networking.includes(name));
   for (const name of others) {

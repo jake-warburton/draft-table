@@ -58,7 +58,12 @@ class Element {
 const openBuiltClient = (t) => {
   const ids = ["pack", "status", "pool", "pool-grouping", "pool-count", "round", "pick", "restart",
     "drafting-heading", "review-heading", "review-pack", "continue",
-    "export", "export-link", "export-list", "export-copy", "export-status"];
+    "export", "export-link", "export-list", "export-copy", "export-status",
+    "rooms", "room-status", "room-forms", "create-form", "create-name", "create-password", "create-timers",
+    "create-pool-hidden", "create-spectators", "create-room", "join-form", "join-code", "join-name",
+    "join-password", "join-room", "room-lobby", "room-code", "room-share", "lobby-seats", "lobby-spectators",
+    "lobby-randomize", "lobby-start", "room-leave", "room-deadline", "deadline-label", "deadline-bar",
+    "deadline-seconds", "solo-table"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Element("div")]));
   const previousDocument = globalThis.document;
   const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
@@ -101,7 +106,9 @@ test("the build inlines one self-contained module script and copies the styleshe
   const bundle = bundleOf(html);
   assert.doesNotMatch(bundle, /^\s*(?:import|export)\s/m, "no unresolved module syntax may survive");
   assert.doesNotMatch(bundle, /<\/script>/i, "the inline script must not be closable from its own text");
-  assert.doesNotMatch(bundle, /fetch\(|XMLHttpRequest|WebSocket/, "the client opens no connection of its own");
+  // Networking exists now, but only the reviewed kind: no XHR, and no origin beyond the two
+  // known ones — the room's fetch and socket speak exclusively to the page's own host.
+  assert.doesNotMatch(bundle, /XMLHttpRequest/, "no legacy transport sneaks in");
   const origins = new Set([...bundle.matchAll(/https?:\/\/[^/"']+/gu)].map((match) => match[0]));
   assert.deepEqual([...origins].sort(), [FABRARY_ORIGIN, IMAGE_ORIGIN].sort(),
     "card art and the Fabrary hand-off are the only origins in the bundle");
