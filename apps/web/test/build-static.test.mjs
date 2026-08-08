@@ -883,9 +883,12 @@ test("the room tells its story: history on arrival, new lines as they happen", a
   assert.deepEqual(nodes["room-feed"].children.slice(-2).map((line) => line.textContent),
     ["Drafter 1 rearranged the seats.", "Second Mate left."]);
 
+  const linesBefore = nodes["room-feed"].children.length;
   serve(socket, "feed_appended", { event: { at: 5, type: "unheard-of", name: "X" } }, { stateVersion: 5 });
-  assert.ok(nodes["room-feed"].children.every((line) => line.textContent !== ""),
-    "a story type this page does not know is left out rather than half-said");
+  assert.equal(nodes["room-feed"].children.length, linesBefore,
+    "a story type this page does not know is left out entirely");
+  assert.ok(nodes["room-feed"].children.every((line) => !line.textContent.includes("unheard-of")),
+    "and nothing of it leaks into the box");
 });
 
 test("each fresh pack announces itself in the story exactly once", async (t) => {
