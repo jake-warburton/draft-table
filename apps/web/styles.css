@@ -697,6 +697,69 @@ h2 {
   color: var(--ink);
 }
 
+
+/* ---------- The board: content left, the room's story and clock to the right. ---------- */
+
+.board-main {
+  min-width: 0;
+}
+
+.board-side:not(:has(> :not([hidden]))) {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .board {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  .board-main {
+    flex: 1;
+  }
+
+  .board-side {
+    flex: none;
+    width: 19rem;
+    position: sticky;
+    top: 1rem;
+  }
+
+  .board-side #room-deadline {
+    padding: 1rem;
+  }
+
+  .board-side #room-deadline progress {
+    flex: 1;
+    width: auto;
+  }
+}
+
+/* On small screens the clock is a fixed bar at the foot of the page, always visible. */
+@media (max-width: 63.99rem) {
+  #room-deadline {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    margin: 0;
+    padding: 0.7rem 1rem;
+    background: var(--panel-solid);
+    border-top: 1px solid var(--edge);
+  }
+
+  #room-deadline progress {
+    flex: 1;
+    width: auto;
+  }
+
+  main {
+    padding-bottom: 4.5rem;
+  }
+}
+
 /* ---------- Care. ---------- */
 
 @media (prefers-reduced-motion: reduce) {
