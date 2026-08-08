@@ -252,6 +252,8 @@ Reading a code follows Crockford's own rules, because people retype these from a
 
 A code is an unlisted address, not authorization, and a refusal never echoes the rejected text back into a message, log, or stack trace.
 
+A live room turns its code into an invite link: the page's own address with `?join=<code>` attached, shown in the lobby with a copy control. Opening the link lands on the door with the join form already filled — the code read the same forgiving way as typed codes, a link that does not hold a real code changing nothing and echoing nowhere. The password, if any, travels separately; it never enters the link.
+
 ## Room routes
 
 `apps/server` is the Cloudflare Worker. It has exactly two dynamic routes, and everything else a browser asks for is a static asset:
