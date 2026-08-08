@@ -951,7 +951,10 @@ export class RoomObject {
     if (!readiness.every((entry) => queued.has(entry.id))) return current;
     const now = this.tools.now();
     if (room.config.timers) {
-      if (room.deadlineAccelerated || room.deadlineAt === null) return current;
+      if (room.deadlineAt === null) return current;
+      // A deadline within five seconds is never shortened — which also makes the confirmation
+      // one-shot, because an applied confirmation is itself always within five seconds. The
+      // recorded accelerated flag is bookkeeping for pause and resume, not a guard here.
       if (room.deadlineAt - now <= CONFIRMATION_SECONDS * 1000) return current;
       return { deadlineAt: now + CONFIRMATION_SECONDS * 1000, deadlineAccelerated: true };
     }
