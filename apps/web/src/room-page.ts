@@ -14,7 +14,7 @@ import { POOL_GROUPINGS, groupPool, type PoolGrouping } from "./pool.ts";
 import { remainingMs, type ServerFrame } from "./protocol.ts";
 import { RoomClient, type DriverSocket, type DriverStatus } from "./room-client.ts";
 import { createRoom, readTypedCode, socketUrl } from "./rooms.ts";
-import { cardControl, identities, poolGroup } from "./table-render.ts";
+import { cardControl, faceDownDeck, identities, poolGroup } from "./table-render.ts";
 
 interface PublicParticipant {
   readonly id: string;
@@ -350,7 +350,9 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
     })));
 
     const pool = state.view?.pool ?? null;
-    poolCount.textContent = pool === null ? (spectating ? "none" : "hidden") : String(pool.length);
+    // A hidden pool still has a public size: one card per resolved pick this draft.
+    const banked = (state.round - 1) * 14 + (state.pick - 1);
+    poolCount.textContent = pool === null ? (spectating ? "none" : String(banked)) : String(pool.length);
     poolGroupingRegion.hidden = pool === null;
     poolGroupingRegion.replaceChildren(...(pool === null ? [] : POOL_GROUPINGS.map((choice) => {
       const control = document.createElement("button");
@@ -365,14 +367,14 @@ export const initRoomsPage = (regions: RoomPageRegions): void => {
       return control;
     })));
     poolRegion.replaceChildren(...(pool === null
-      ? [(() => {
-          const notice = document.createElement("p");
-          notice.className = "pool-hidden";
-          notice.textContent = spectating
-            ? "You are watching; there is no pool of your own."
-            : "Pool hidden until the next review";
-          return notice;
-        })()]
+      ? [spectating
+          ? (() => {
+              const notice = document.createElement("p");
+              notice.className = "pool-hidden";
+              notice.textContent = "You are watching; there is no pool of your own.";
+              return notice;
+            })()
+          : faceDownDeck(banked)]
       : groupPool(pool, state.grouping, identities).map(({ label, cards }) => poolGroup(label, cards))));
 
     exportRegion.hidden = !complete || pool === null;

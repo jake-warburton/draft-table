@@ -91,3 +91,29 @@ export const poolGroup = (label: string, cards: readonly DraftCard[]): HTMLEleme
   group.replaceChildren(heading, list);
   return group;
 };
+
+/**
+ * A face-down deck: one back per drafted card, each stepped a couple of pixels up and across,
+ * so the pile visibly thickens as the draft goes on. The backs are drawn, not fetched — the
+ * official card back is not served by the one origin the page may load images from — and no
+ * card data enters this element: it is a count made physical.
+ */
+export const faceDownDeck = (count: number): HTMLElement => {
+  const deck = document.createElement("div");
+  deck.className = "deck";
+  deck.setAttribute("role", "img");
+  deck.setAttribute("aria-label", `${count} ${count === 1 ? "card" : "cards"} drafted, face down`);
+  // The content security policy forbids inline style attributes, so every offset lives in the
+  // stylesheet: this attribute only selects which static height rule applies.
+  deck.setAttribute("data-rise", String(count));
+  for (let index = 0; index < count; index += 1) {
+    const back = document.createElement("div");
+    back.className = "deck-card";
+    deck.append(back);
+  }
+  const tally = document.createElement("span");
+  tally.className = "deck-count";
+  tally.textContent = String(count);
+  deck.append(tally);
+  return deck;
+};

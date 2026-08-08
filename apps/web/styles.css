@@ -386,6 +386,129 @@ h2 {
   color: var(--soft);
 }
 
+
+/* The face-down deck: a physical count. Each back steps up and across; the pile thickens. */
+.deck {
+  position: relative;
+  width: calc(9rem + var(--deck-rise, 0px));
+  height: calc(9rem * 526 / 376 + var(--deck-rise, 0px));
+  min-height: 4rem;
+}
+
+.deck-card {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 9rem;
+  aspect-ratio: 376 / 526;
+  border-radius: 0.5rem;
+  background: #171b2c;
+  border: 1px solid var(--edge-strong);
+  box-shadow: inset 0 0 0 0.4rem #10131f;
+}
+
+/*
+ * The pile's whole geometry is static stylesheet fact, because the content security policy
+ * forbids inline style attributes: one height per possible count, one step per position.
+ */
+.deck[data-rise="0"] { --deck-rise: 0px; }
+.deck[data-rise="1"] { --deck-rise: 1.5px; }
+.deck[data-rise="2"] { --deck-rise: 3px; }
+.deck[data-rise="3"] { --deck-rise: 4.5px; }
+.deck[data-rise="4"] { --deck-rise: 6px; }
+.deck[data-rise="5"] { --deck-rise: 7.5px; }
+.deck[data-rise="6"] { --deck-rise: 9px; }
+.deck[data-rise="7"] { --deck-rise: 10.5px; }
+.deck[data-rise="8"] { --deck-rise: 12px; }
+.deck[data-rise="9"] { --deck-rise: 13.5px; }
+.deck[data-rise="10"] { --deck-rise: 15px; }
+.deck[data-rise="11"] { --deck-rise: 16.5px; }
+.deck[data-rise="12"] { --deck-rise: 18px; }
+.deck[data-rise="13"] { --deck-rise: 19.5px; }
+.deck[data-rise="14"] { --deck-rise: 21px; }
+.deck[data-rise="15"] { --deck-rise: 22.5px; }
+.deck[data-rise="16"] { --deck-rise: 24px; }
+.deck[data-rise="17"] { --deck-rise: 25.5px; }
+.deck[data-rise="18"] { --deck-rise: 27px; }
+.deck[data-rise="19"] { --deck-rise: 28.5px; }
+.deck[data-rise="20"] { --deck-rise: 30px; }
+.deck[data-rise="21"] { --deck-rise: 31.5px; }
+.deck[data-rise="22"] { --deck-rise: 33px; }
+.deck[data-rise="23"] { --deck-rise: 34.5px; }
+.deck[data-rise="24"] { --deck-rise: 36px; }
+.deck[data-rise="25"] { --deck-rise: 37.5px; }
+.deck[data-rise="26"] { --deck-rise: 39px; }
+.deck[data-rise="27"] { --deck-rise: 40.5px; }
+.deck[data-rise="28"] { --deck-rise: 42px; }
+.deck[data-rise="29"] { --deck-rise: 43.5px; }
+.deck[data-rise="30"] { --deck-rise: 45px; }
+.deck[data-rise="31"] { --deck-rise: 46.5px; }
+.deck[data-rise="32"] { --deck-rise: 48px; }
+.deck[data-rise="33"] { --deck-rise: 49.5px; }
+.deck[data-rise="34"] { --deck-rise: 51px; }
+.deck[data-rise="35"] { --deck-rise: 52.5px; }
+.deck[data-rise="36"] { --deck-rise: 54px; }
+.deck[data-rise="37"] { --deck-rise: 55.5px; }
+.deck[data-rise="38"] { --deck-rise: 57px; }
+.deck[data-rise="39"] { --deck-rise: 58.5px; }
+.deck[data-rise="40"] { --deck-rise: 60px; }
+.deck[data-rise="41"] { --deck-rise: 61.5px; }
+.deck[data-rise="42"] { --deck-rise: 63px; }
+.deck-card:nth-child(2) { transform: translate(1.5px, -1.5px); }
+.deck-card:nth-child(3) { transform: translate(3px, -3px); }
+.deck-card:nth-child(4) { transform: translate(4.5px, -4.5px); }
+.deck-card:nth-child(5) { transform: translate(6px, -6px); }
+.deck-card:nth-child(6) { transform: translate(7.5px, -7.5px); }
+.deck-card:nth-child(7) { transform: translate(9px, -9px); }
+.deck-card:nth-child(8) { transform: translate(10.5px, -10.5px); }
+.deck-card:nth-child(9) { transform: translate(12px, -12px); }
+.deck-card:nth-child(10) { transform: translate(13.5px, -13.5px); }
+.deck-card:nth-child(11) { transform: translate(15px, -15px); }
+.deck-card:nth-child(12) { transform: translate(16.5px, -16.5px); }
+.deck-card:nth-child(13) { transform: translate(18px, -18px); }
+.deck-card:nth-child(14) { transform: translate(19.5px, -19.5px); }
+.deck-card:nth-child(15) { transform: translate(21px, -21px); }
+.deck-card:nth-child(16) { transform: translate(22.5px, -22.5px); }
+.deck-card:nth-child(17) { transform: translate(24px, -24px); }
+.deck-card:nth-child(18) { transform: translate(25.5px, -25.5px); }
+.deck-card:nth-child(19) { transform: translate(27px, -27px); }
+.deck-card:nth-child(20) { transform: translate(28.5px, -28.5px); }
+.deck-card:nth-child(21) { transform: translate(30px, -30px); }
+.deck-card:nth-child(22) { transform: translate(31.5px, -31.5px); }
+.deck-card:nth-child(23) { transform: translate(33px, -33px); }
+.deck-card:nth-child(24) { transform: translate(34.5px, -34.5px); }
+.deck-card:nth-child(25) { transform: translate(36px, -36px); }
+.deck-card:nth-child(26) { transform: translate(37.5px, -37.5px); }
+.deck-card:nth-child(27) { transform: translate(39px, -39px); }
+.deck-card:nth-child(28) { transform: translate(40.5px, -40.5px); }
+.deck-card:nth-child(29) { transform: translate(42px, -42px); }
+.deck-card:nth-child(30) { transform: translate(43.5px, -43.5px); }
+.deck-card:nth-child(31) { transform: translate(45px, -45px); }
+.deck-card:nth-child(32) { transform: translate(46.5px, -46.5px); }
+.deck-card:nth-child(33) { transform: translate(48px, -48px); }
+.deck-card:nth-child(34) { transform: translate(49.5px, -49.5px); }
+.deck-card:nth-child(35) { transform: translate(51px, -51px); }
+.deck-card:nth-child(36) { transform: translate(52.5px, -52.5px); }
+.deck-card:nth-child(37) { transform: translate(54px, -54px); }
+.deck-card:nth-child(38) { transform: translate(55.5px, -55.5px); }
+.deck-card:nth-child(39) { transform: translate(57px, -57px); }
+.deck-card:nth-child(40) { transform: translate(58.5px, -58.5px); }
+.deck-card:nth-child(41) { transform: translate(60px, -60px); }
+.deck-card:nth-child(42) { transform: translate(61.5px, -61.5px); }
+
+.deck-count {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 1rem;
+  background: var(--panel-solid);
+  border: 1px solid var(--edge-strong);
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Each grouping is its own pile; piles sit side by side and wrap. */
 #pool {
   display: flex;

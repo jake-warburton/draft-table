@@ -2,7 +2,7 @@ import { OMENS_SET_SNAPSHOT } from "./cards.ts";
 import { FABRARY_IMPORT_URL, fabraryEntries, fabraryImportLink, fabraryTextList } from "./fabrary.ts";
 import { POOL_GROUPINGS, groupPool, type PoolGrouping } from "./pool.ts";
 import { DEFAULT_SEAT_COUNT, chooseCard, createTable, viewTable } from "./table.ts";
-import { cardControl, identities, poolGroup } from "./table-render.ts";
+import { cardControl, faceDownDeck, identities, poolGroup } from "./table-render.ts";
 import { initRoomsPage } from "./room-page.ts";
 import type { DraftCard } from "@draft-table/draft";
 
@@ -68,18 +68,6 @@ const applySoloScreen = (): void => {
  */
 let reviewing = false;
 
-/**
- * While picking, the pile is face down: the pool region holds only this notice, and the cards
- * are genuinely absent rather than hidden with styling, as the accessibility notes require.
- */
-const POOL_HIDDEN_NOTICE = "Pool hidden until the next review";
-
-const hiddenPoolNotice = (): HTMLElement => {
-  const notice = document.createElement("p");
-  notice.className = "pool-hidden";
-  notice.textContent = POOL_HIDDEN_NOTICE;
-  return notice;
-};
 
 const groupingControl = (choice: { id: PoolGrouping; label: string }): HTMLElement => {
   const control = document.createElement("button");
@@ -114,10 +102,12 @@ const render = (): void => {
   const poolFaceUp = reviewing || view.complete;
   poolGroupingRegion.hidden = !poolFaceUp;
   poolGroupingRegion.replaceChildren(...(poolFaceUp ? POOL_GROUPINGS.map(groupingControl) : []));
+  // Face down, the pool is a deck of backs that thickens pick by pick; the cards themselves
+  // are genuinely absent rather than hidden with styling, as the accessibility notes require.
   poolRegion.replaceChildren(
     ...(poolFaceUp
       ? groupPool(view.pool, grouping, identities).map(({ label, cards }) => poolGroup(label, cards))
-      : [hiddenPoolNotice()])
+      : [faceDownDeck(view.pool.length)])
   );
   packRegion.replaceChildren(
     ...(reviewing
