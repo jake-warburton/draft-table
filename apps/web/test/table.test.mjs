@@ -120,6 +120,6 @@ test("smaller tables remain legal and still draft complete packs", () => {
 });
 
 test("a seat count outside the supported range is refused", () => {
-  assert.throws(() => createTable(1, OMENS_SET_SNAPSHOT, sampleSource(1)));
+  assert.throws(() => createTable(0, OMENS_SET_SNAPSHOT, sampleSource(1)));
   assert.throws(() => createTable(9, OMENS_SET_SNAPSHOT, sampleSource(1)));
 });
