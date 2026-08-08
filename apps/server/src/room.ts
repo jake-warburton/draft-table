@@ -759,7 +759,8 @@ export class RoomObject {
       // The first manual move or swap visibly cancels the pending start-time shuffle.
       config: { ...room.config, randomizeSeatsAtStart: false },
       participants,
-      feed: [...room.feed, { at: this.tools.now(), type: "seats" as const, name: moved.name }]
+      // The story names the actor — the host who made the move — not the person moved.
+      feed: [...room.feed, { at: this.tools.now(), type: "seats" as const, name: self.name }]
         .slice(-MAX_FEED_EVENTS)
     };
     await this.commit(socket, updated, command, [
